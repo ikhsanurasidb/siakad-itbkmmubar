@@ -832,6 +832,561 @@ Menu domain bersama wajib memiliki path role-specific. Komponen presentasional b
 - Modal mengelola focus dengan benar.
 - Foto evidence mempunyai alt text generik yang tidak membocorkan PII.
 
+### 9.5 Sistem copywriting Bahasa Indonesia
+
+Seluruh teks yang terlihat pengguna wajib menggunakan Bahasa Indonesia. Bahasa Inggris hanya dipakai untuk istilah teknis yang tidak tampil di UI, nama API/code, atau istilah institusi yang secara resmi memang menggunakan Bahasa Inggris.
+
+#### 9.5.1 Prinsip dasar
+
+- Tulis singkat, jelas, dan langsung ke tindakan atau kondisi.
+- Gunakan Bahasa Indonesia formal yang wajar, bukan bahasa birokratis yang panjang.
+- Gunakan `Anda` jika perlu menyebut pengguna; jangan mencampur `Anda`, `kamu`, `Bapak/Ibu`, dan sapaan lain.
+- Utamakan kalimat aktif.
+- Sebut objek dan dampak secara spesifik.
+- Jangan menyalahkan pengguna.
+- Jangan menjanjikan hasil yang belum pasti.
+- Jangan menggunakan humor pada error, akses ditolak, nilai, presensi, atau data akademik.
+- Jangan memakai emoji atau tanda seru untuk status sistem.
+- Satu pesan membahas satu masalah utama.
+- Hindari pengulangan, misalnya “Data berhasil disimpan dengan sukses.” Gunakan “Data mahasiswa disimpan.”
+- Jangan menampilkan stack trace, nama exception, kode SQL, atau istilah internal kepada pengguna.
+- Gunakan istilah dan kapitalisasi yang konsisten di seluruh role.
+
+#### 9.5.2 Gaya yang dilarang
+
+Hindari copy generik, berlebihan, atau terasa dihasilkan AI, termasuk:
+
+- “Oops!”
+- “Uh-oh!”
+- “Yay!”
+- “Selamat!” untuk operasi CRUD biasa.
+- “Hebat!”
+- “Jangan khawatir.”
+- “Kami dengan senang hati...”
+- “Nikmati pengalaman...”
+- “Dengan mudah dan cepat...”
+- “Seamless.”
+- “Solusi terbaik.”
+- “Terjadi kesalahan yang tidak terduga!” tanpa tindakan lanjutan.
+- Paragraf panjang yang hanya mengulang judul.
+- Personifikasi sistem, seperti “Sistem kami sedang berpikir keras.”
+- Klaim waktu tanpa dasar, seperti “Hanya perlu beberapa detik.”
+
+Contoh:
+
+| Hindari | Gunakan |
+|---|---|
+| “Yay! Data kamu berhasil disimpan dengan sukses!” | “Data mahasiswa disimpan.” |
+| “Oops, sepertinya ada sesuatu yang salah.” | “Data belum dapat disimpan. Coba lagi.” |
+| “Jangan khawatir, kami sedang memproses data Anda.” | “Import sedang diproses: 320 dari 1.200 baris.” |
+| “Nikmati pengalaman belajar yang seamless.” | “Materi tersedia untuk pertemuan ini.” |
+| “Apakah Anda yakin ingin melanjutkan?” | “Nonaktifkan akun ini?” |
+
+#### 9.5.3 Istilah UI baku
+
+| Hindari di UI | Gunakan |
+|---|---|
+| Login | Masuk |
+| Logout | Keluar |
+| Password | Kata sandi |
+| Reset password | Atur ulang kata sandi |
+| Upload | Unggah |
+| Download | Unduh |
+| Submit | Kirim atau Ajukan, sesuai proses |
+| Preview | Pratinjau |
+| Delete | Hapus |
+| Edit | Ubah |
+| Save | Simpan |
+| Cancel | Batal |
+| Retry | Coba lagi |
+| Role | Peran |
+| Scope | Lingkup akses |
+| User | Pengguna |
+| Error | Kesalahan atau kendala, sesuai konteks |
+| Success | Berhasil hanya jika diperlukan; utamakan hasil konkret |
+| Loading | Memuat atau kata kerja proses yang sedang berlangsung |
+
+Istilah resmi yang boleh tetap berupa singkatan:
+
+- NIM
+- NIDN
+- NUPTK
+- KRS
+- KHS
+- IPS
+- IPK
+- SKS
+- Prodi, setelah konteks Program Studi sudah jelas.
+
+Gunakan nama status dalam Bahasa Indonesia pada UI, walaupun enum internal menggunakan Bahasa Inggris.
+
+#### 9.5.4 Struktur teks halaman
+
+Setiap halaman utama menggunakan struktur:
+
+1. **Judul:** frasa benda atau objek kerja, maksimal sekitar 2–5 kata.
+2. **Deskripsi:** satu kalimat yang menjelaskan lingkup halaman sesuai role.
+3. **Aksi utama:** kata kerja + objek.
+4. **Aksi sekunder:** hanya bila diperlukan.
+
+Contoh role-specific:
+
+| Role | Judul | Deskripsi | Aksi utama |
+|---|---|---|---|
+| Superadmin | Pengaturan keamanan | Atur kebijakan akses yang berlaku untuk seluruh pengguna. | Ubah kebijakan |
+| Admin Akademik | Data mahasiswa | Kelola identitas akademik dan status mahasiswa. | Tambah mahasiswa |
+| Kaprodi | Persetujuan jadwal | Tinjau jadwal kelas pada Program Studi yang Anda kelola. | Tinjau pengajuan |
+| Dosen | Nilai kelas | Isi dan periksa nilai mahasiswa pada kelas yang Anda ampu. | Simpan nilai |
+| Mahasiswa | KRS semester ini | Lihat mata kuliah yang ditetapkan untuk semester aktif. | Tidak selalu membutuhkan aksi |
+
+Jangan menggunakan deskripsi yang sama untuk semua role. Deskripsi harus menyebut sudut pandang dan tindakan role tersebut.
+
+#### 9.5.5 Label, helper text, placeholder, dan optional field
+
+Struktur field:
+
+1. Label.
+2. Penanda opsional bila field tidak wajib.
+3. Input.
+4. Helper text bila format tidak jelas.
+5. Error setelah submit bila invalid.
+
+Aturan:
+
+- Label menggunakan nama data, bukan pertanyaan panjang: `NIDN`, bukan `Apa NIDN dosen?`.
+- Gunakan `(opsional)` setelah label untuk field tidak wajib.
+- Placeholder hanya memberi contoh singkat, bukan menggantikan label.
+- Helper text menjelaskan format yang diterima dan selalu berwarna muted/abu.
+- Error menggantikan atau diletakkan dekat helper text tanpa membuat layout membingungkan.
+- Jangan menampilkan helper dan error yang saling bertentangan.
+
+Contoh:
+
+```text
+Label: Nomor telepon (opsional)
+Placeholder: 081234567890
+Helper: Gunakan 10–15 digit angka.
+Error: Gunakan 10–15 digit angka tanpa spasi atau tanda baca.
+```
+
+#### 9.5.6 Tombol dan tautan aksi
+
+- Gunakan kata kerja + objek: `Tambah mahasiswa`, `Simpan perubahan`, `Ajukan jadwal`.
+- Tombol destructive menyebut tindakan: `Nonaktifkan akun`, bukan `Ya`.
+- Tombol modal sekunder menggunakan `Batal`, bukan `Tidak` jika konteksnya membatalkan aksi.
+- Gunakan `Tutup` untuk dialog informatif tanpa mutation.
+- Gunakan `Kembali` hanya jika benar-benar melakukan navigasi kembali.
+- Hindari `OK`, `Lanjut`, atau `Proses` jika objek tindakannya dapat disebut lebih jelas.
+- Loading button mempertahankan lebar dan menjelaskan proses: `Menyimpan...`, `Mengunggah...`, `Mengajukan...`.
+- Ellipsis hanya dipakai untuk proses yang sedang berlangsung, bukan label normal.
+
+#### 9.5.7 Empty state
+
+Empty state bukan error. Struktur minimum:
+
+1. **Judul:** apa yang belum ada/tidak ditemukan.
+2. **Deskripsi:** alasan yang diketahui atau langkah berikutnya.
+3. **Aksi:** hanya jika role mempunyai izin dan ada langkah yang relevan.
+
+Jenis empty state:
+
+##### First-use empty state
+
+Digunakan ketika data memang belum pernah dibuat.
+
+```text
+Judul: Belum ada data mahasiswa
+Deskripsi: Tambahkan mahasiswa secara manual atau melalui import.
+Aksi Admin Akademik: Tambah mahasiswa
+Aksi sekunder: Import data
+```
+
+##### Filter/search empty state
+
+Digunakan jika data ada tetapi tidak cocok dengan query saat ini.
+
+```text
+Judul: Data tidak ditemukan
+Deskripsi: Ubah kata pencarian atau filter yang digunakan.
+Aksi: Hapus filter
+```
+
+Jangan memakai tombol `Tambah` pada search empty state jika masalahnya hanya filter.
+
+##### Role-specific empty state
+
+```text
+Mahasiswa
+Judul: KRS belum tersedia
+Deskripsi: KRS semester aktif belum difinalisasi oleh Admin Akademik.
+
+Dosen
+Judul: Belum ada kelas yang diampu
+Deskripsi: Penugasan kelas akan tampil setelah jadwal dipublikasikan.
+
+Kaprodi
+Judul: Tidak ada jadwal untuk ditinjau
+Deskripsi: Belum ada pengajuan jadwal dari Admin Akademik.
+
+Admin Akademik
+Judul: Belum ada hasil import
+Deskripsi: Unggah file untuk memulai validasi data.
+Aksi: Unggah file
+
+Superadmin
+Judul: Belum ada kebijakan khusus Prodi
+Deskripsi: Seluruh Prodi masih menggunakan kebijakan sistem.
+```
+
+##### Completed empty state
+
+Digunakan bila antrean kerja sudah selesai, bukan data belum ada.
+
+```text
+Judul: Tidak ada pengajuan yang menunggu
+Deskripsi: Semua pengajuan jadwal telah ditinjau.
+```
+
+##### Empty state yang tidak boleh dipakai
+
+- Access denied harus memakai forbidden state.
+- Request gagal harus memakai error state.
+- Data sedang dimuat harus memakai loading state.
+- Record dihapus/tidak ditemukan berdasarkan URL harus memakai not-found state.
+
+#### 9.5.8 Feedback validasi field
+
+Error field mengikuti pola:
+
+```text
+[Masalah atau ketentuan yang belum terpenuhi]. [Format/perbaikan jika dibutuhkan].
+```
+
+Aturan:
+
+- Tampil setelah submit pertama sesuai requirement.
+- Fokus pada cara memperbaiki.
+- Jangan memakai “invalid”, “bad request”, nama schema, atau regex.
+- Jangan mengulang label tanpa memberi informasi.
+- Jika ada batas, sebutkan angkanya.
+- Jika format mempunyai contoh, helper text dapat memuat contoh sebelum error terjadi.
+
+Contoh:
+
+| Kondisi | Pesan |
+|---|---|
+| Required | “NIM wajib diisi.” |
+| Format | “NIDN harus terdiri dari 10 digit angka.” |
+| Minimum password | “Kata sandi minimal 16 karakter.” |
+| Duplicate | “NIM ini sudah digunakan oleh mahasiswa lain.” |
+| Coordinate | “Latitude harus berada antara -90 dan 90.” |
+| Weight | “Total bobot harus tepat 100%. Saat ini 90%.” |
+| File size | “Ukuran file maksimal 10 MB.” |
+| Unsupported file | “Gunakan file PDF atau DOCX.” |
+| Date rule | “Perubahan terakhir dapat dilakukan pada 1 Oktober 2026.” |
+
+Error summary di atas form hanya muncul jika form panjang atau error tersebar:
+
+```text
+Judul: Periksa kembali formulir
+Deskripsi: Terdapat 3 kolom yang perlu diperbaiki.
+```
+
+Summary harus memiliki link/focus ke field error pertama.
+
+#### 9.5.9 Error state dan feedback kegagalan
+
+Struktur error halaman/card:
+
+1. **Judul:** hasil yang gagal.
+2. **Deskripsi:** alasan yang aman dan diketahui.
+3. **Langkah berikutnya:** aksi konkret.
+4. **Kode referensi:** hanya untuk internal error.
+
+Kategori:
+
+##### Error yang dapat diperbaiki pengguna
+
+```text
+Judul: Data belum dapat disimpan
+Deskripsi: Periksa kolom yang ditandai, lalu simpan kembali.
+Aksi: Kembali ke formulir
+```
+
+##### Konflik/stale data
+
+```text
+Judul: Data telah berubah
+Deskripsi: Pengguna lain memperbarui data ini. Muat ulang sebelum melanjutkan.
+Aksi: Muat ulang
+```
+
+##### Network/offline
+
+```text
+Judul: Tidak dapat terhubung ke server
+Deskripsi: Periksa koneksi internet, lalu coba lagi.
+Aksi: Coba lagi
+```
+
+Jangan menyatakan perangkat offline jika browser hanya menerima timeout yang penyebabnya belum diketahui. Gunakan “Tidak dapat terhubung ke server”.
+
+##### Internal server error
+
+```text
+Judul: Terjadi kendala pada sistem
+Deskripsi: Coba lagi. Jika masalah berlanjut, sampaikan kode referensi kepada pengelola.
+Metadata: Kode referensi: {requestId}
+Aksi: Coba lagi
+```
+
+##### Not found
+
+```text
+Judul: Data tidak ditemukan
+Deskripsi: Data mungkin telah dihapus atau tautan tidak lagi berlaku.
+Aksi: Kembali ke daftar
+```
+
+##### Forbidden
+
+```text
+Judul: Akses tidak tersedia
+Deskripsi: Peran aktif Anda tidak memiliki akses ke halaman ini.
+Aksi jika multi-role: Ganti peran
+Aksi lain: Kembali ke dashboard
+```
+
+Jangan memakai empty state untuk forbidden.
+
+##### Camera errors
+
+| Kondisi | Pesan |
+|---|---|
+| Permission denied | “Akses kamera ditolak. Izinkan akses kamera pada pengaturan browser, lalu coba lagi.” |
+| No camera | “Kamera tidak ditemukan pada perangkat ini.” |
+| Camera busy | “Kamera sedang digunakan aplikasi lain. Tutup aplikasi tersebut, lalu coba lagi.” |
+| Unsupported/insecure | “Kamera tidak dapat digunakan pada browser atau koneksi ini. Gunakan browser yang didukung melalui HTTPS.” |
+| Permission unanswered | “Izin kamera belum diberikan. Selesaikan permintaan izin pada browser.” |
+
+Tidak ada pesan yang menyarankan membuka galeri.
+
+#### 9.5.10 Success feedback
+
+Gunakan success feedback hanya ketika pengguna perlu memastikan mutation selesai.
+
+Struktur toast:
+
+```text
+[Objek/aksi] + [hasil atau status].
+```
+
+Contoh:
+
+- “Data mahasiswa disimpan.”
+- “Akun Dosen dibuat.”
+- “Jadwal diajukan kepada Kaprodi.”
+- “Jadwal disetujui dan dipublikasikan.”
+- “Presensi tercatat pada 09.42 WIB.”
+- “Nilai kelas dikunci.”
+- “Kata sandi diubah. Sesi lain telah diakhiri.”
+
+Hindari toast untuk perubahan state yang sudah langsung terlihat dan tidak membutuhkan konfirmasi tambahan. Jangan menumpuk beberapa toast untuk satu aksi.
+
+#### 9.5.11 Warning dan informasi
+
+Warning menjelaskan dampak sebelum pengguna melanjutkan.
+
+Struktur:
+
+```text
+[Kondisi]. [Dampak]. [Tindakan bila ada].
+```
+
+Contoh:
+
+- “Masih ada 12 baris dengan peringatan. Baris tersebut tetap akan diimport jika Anda melanjutkan.”
+- “KRS sudah digunakan untuk pemetaan kelas. Buka kembali KRS hanya jika pemetaan akan diulang.”
+- “Pertemuan online sudah digunakan 2 kali. Pertemuan lain harus tetap offline.”
+- “Perubahan jadwal hanya dapat diajukan sampai 1 Oktober 2026.”
+
+Informational message tidak memakai warna merah dan tidak menggunakan kata “peringatan” bila tidak ada risiko.
+
+#### 9.5.12 Confirmation dialog
+
+Struktur:
+
+1. Judul berupa tindakan spesifik.
+2. Target yang terdampak.
+3. Konsekuensi penting.
+4. Primary button menggunakan kata kerja tindakan.
+5. Secondary button `Batal`.
+
+Contoh:
+
+```text
+Judul: Nonaktifkan akun ini?
+Deskripsi: {nama/identifier} tidak dapat masuk dan seluruh sesi aktif akan diakhiri.
+Primary: Nonaktifkan akun
+Secondary: Batal
+```
+
+```text
+Judul: Publikasikan jadwal?
+Deskripsi: Jadwal akan tersedia bagi 120 mahasiswa dan 6 dosen. Perubahan berikutnya harus melalui revisi.
+Primary: Publikasikan jadwal
+Secondary: Batal
+```
+
+```text
+Judul: Kunci nilai kelas?
+Deskripsi: Nilai tidak dapat diubah sampai kelas dibuka kembali oleh pihak yang berwenang.
+Primary: Kunci nilai
+Secondary: Batal
+```
+
+Untuk destructive action berisiko tinggi, minta alasan atau typed confirmation hanya jika benar-benar mengurangi kesalahan; jangan diterapkan pada semua modal.
+
+#### 9.5.13 Loading, progress, dan background job
+
+- Gunakan kata kerja proses yang nyata: `Memuat data mahasiswa...`, bukan `Mohon tunggu...`.
+- Untuk proses terukur, tampilkan jumlah: `Memvalidasi 320 dari 1.200 baris.`
+- Untuk stage-based job, tampilkan stage: `Menyusun kelas dan memeriksa konflik.`
+- Jangan menampilkan persentase palsu.
+- Jangan menjanjikan estimasi waktu jika sistem tidak menghitungnya.
+- Jika pengguna boleh meninggalkan halaman, katakan dengan jelas.
+
+Contoh:
+
+```text
+Judul: Import sedang diproses
+Deskripsi: 320 dari 1.200 baris telah divalidasi. Anda dapat meninggalkan halaman ini.
+```
+
+```text
+Judul: Pemetaan kelas belum selesai
+Deskripsi: 18 dari 24 kelompok mata kuliah telah diproses.
+Aksi: Lihat detail proses
+```
+
+#### 9.5.14 Authentication dan session messages
+
+Pesan requirement yang harus dipertahankan:
+
+```text
+Gagal masuk — periksa identitas pengguna dan kata sandi, lalu coba lagi.
+```
+
+```text
+Akun Anda belum dapat digunakan. Hubungi Admin Akademik untuk pemeriksaan akses.
+```
+
+```text
+Sesi Anda sudah berakhir. Masuk kembali untuk melanjutkan.
+```
+
+Pesan tambahan:
+
+- Rate limit: `Terlalu banyak percobaan masuk. Coba lagi dalam {duration}.`
+- First login: `Buat kata sandi baru untuk melanjutkan.`
+- Session revoked: `Sesi ini telah diakhiri. Masuk kembali untuk melanjutkan.`
+- Role switch invalid: `Peran ini tidak lagi tersedia untuk akun Anda.`
+
+Pesan login tidak boleh menyatakan bahwa identifier tidak terdaftar.
+
+#### 9.5.15 Status dan badge
+
+Status badge menggunakan kata benda/kondisi singkat tanpa titik:
+
+- Draf
+- Diajukan
+- Disetujui
+- Ditolak
+- Dipublikasikan
+- Aktif
+- Nonaktif
+- Menunggu provisioning
+- Diproses
+- Selesai
+- Selesai dengan kendala
+- Gagal
+- Hadir
+- Izin
+- Sakit
+- Alpa
+
+Jika status membutuhkan penjelasan, letakkan di detail atau tooltip, bukan memperpanjang badge.
+
+#### 9.5.16 Notifikasi
+
+Notifikasi memakai struktur:
+
+1. Judul singkat tentang perubahan.
+2. Detail objek dan akibat bagi penerima.
+3. Tautan menuju route role-specific.
+
+Contoh:
+
+```text
+Judul: Jadwal telah dipublikasikan
+Detail mahasiswa: Jadwal semester aktif sudah dapat dilihat.
+Detail dosen: Jadwal mengajar semester aktif sudah dapat dilihat.
+```
+
+```text
+Judul: Perubahan jadwal ditolak
+Detail dosen: Pengajuan untuk {mataKuliah} ditolak. Lihat alasan penolakan.
+```
+
+```text
+Judul: Nilai telah dipublikasikan
+Detail mahasiswa: Nilai {mataKuliah} sudah tersedia pada hasil studi.
+```
+
+Jangan memasukkan data sensitif lengkap ke notification preview.
+
+#### 9.5.17 Format tanggal, waktu, angka, dan identitas
+
+- Gunakan locale `id-ID`.
+- Tanggal lengkap: `1 Oktober 2026`.
+- Tanggal dan waktu: `1 Oktober 2026, 09.30 WIB`.
+- Rentang waktu: `09.30–11.10 WIB`.
+- Gunakan titik untuk ribuan: `1.200 mahasiswa`.
+- Gunakan koma untuk desimal yang tampil kepada pengguna: `3,75`.
+- Persentase: `100%`.
+- Jangan menampilkan UTC kepada pengguna.
+- Masking identifier bila konteks tidak membutuhkan nilai penuh, misalnya `DSN2026•••001`.
+- Di halaman detail yang memang berwenang, identifier resmi dapat ditampilkan penuh.
+
+#### 9.5.18 Implementasi dan ownership copy
+
+- Buat katalog pesan shared untuk error code, authentication, session, network, forbidden, dan internal error.
+- Feature copy tetap colocated pada feature, misalnya `features/attendance/copy.ts`.
+- Copy yang berbeda per role tidak boleh dipaksakan menjadi satu string generik.
+- Backend mengirim stable error code, field errors, parameter aman, dan fallback message; frontend memetakan code ke copy Bahasa Indonesia.
+- Jangan menampilkan `error.message` mentah dari exception atau library.
+- Dynamic copy memakai typed parameters agar tidak menghasilkan placeholder kosong.
+- Copy harus dapat diuji tanpa bergantung pada snapshot seluruh halaman.
+- Perubahan copy yang mengubah makna business rule harus direview bersama acceptance criteria modul.
+- Satu pihak pada tim harus menjadi content owner untuk menjaga glossary dan konsistensi lintas-modul.
+
+#### 9.5.19 Checklist review copy
+
+Sebelum satu halaman dinyatakan selesai, periksa:
+
+- Apakah seluruh teks terlihat menggunakan Bahasa Indonesia?
+- Apakah istilah sesuai glossary?
+- Apakah copy menyebut objek dan tindakan yang jelas?
+- Apakah tone sesuai role aktif?
+- Apakah empty state membedakan belum ada data, filter kosong, forbidden, loading, dan error?
+- Apakah field error baru tampil setelah submit?
+- Apakah field error menjelaskan cara memperbaiki?
+- Apakah destructive dialog menyebut dampak dan target?
+- Apakah internal error mempunyai request ID tanpa detail teknis?
+- Apakah loading/progress tidak memberi janji atau persentase palsu?
+- Apakah copy bebas emoji, tanda seru, basa-basi, dan AI slop?
+- Apakah screen reader memperoleh status yang sama dengan pengguna visual?
+
 ---
 
 ## 10. Model Audit, Notifikasi, dan Idempotency
@@ -999,6 +1554,19 @@ Repository kembali buildable dan seluruh modul berikutnya memiliki fondasi arsit
 - File upload component.
 - Preview file/image dialog.
 
+#### Copywriting foundation
+
+- Buat glossary istilah UI Bahasa Indonesia.
+- Buat shared message catalog untuk authentication, session, network, forbidden, not found, stale data, rate limit, dan internal error.
+- Buat typed content model untuk `EmptyState`, `ErrorState`, `ProgressState`, dan `ConfirmationDialog` dengan field judul, deskripsi, action label, dan optional metadata.
+- Sediakan variant empty state: first-use, filtered, role-specific, dan completed queue.
+- Pisahkan forbidden/not-found/error/loading dari empty state.
+- Sediakan field error summary yang dapat memindahkan focus ke error pertama.
+- Pastikan server error code dipetakan ke copy aman; larang render exception message mentah.
+- Sediakan role-specific copy untuk halaman yang domainnya sama tetapi audiensnya berbeda.
+- Tambahkan lint/review checklist untuk teks Inggris, emoji, tanda seru, `Oops`, `Yay`, pesan generik, dan label tombol ambigu.
+- Tambahkan fixtures/story/test untuk seluruh state teks utama.
+
 #### Test and CI scripts
 
 - Unit test runner.
@@ -1021,6 +1589,10 @@ Repository kembali buildable dan seluruh modul berikutnya memiliki fondasi arsit
 - Internal stack trace tersedia di local/server logs tetapi tidak pernah muncul pada response production.
 - Secret, password, cookie, token, GPS, dan file body terbukti ter-redact melalui test.
 - App shell responsive dan keyboard accessible.
+- Seluruh shared state memakai struktur copy pada pedoman dan seluruh teks pengguna menggunakan Bahasa Indonesia.
+- Empty, filtered-empty, forbidden, not-found, loading, progress, recoverable error, internal error, success, warning, dan confirmation mempunyai contoh serta component test.
+- Tidak ada raw exception/library message yang dirender ke browser.
+- Review copy per role tidak menemukan emoji, bahasa berlebihan, label ambigu, atau AI slop.
 - Semua quality gate global lulus.
 
 ---
@@ -2125,6 +2697,12 @@ Ukur:
 - Validation hanya setelah submit.
 - Evidence preview benar-benar lazy.
 - Camera capture dapat digunakan dengan keyboard dan mempunyai status permission/error yang dapat dibaca screen reader.
+- Audit seluruh copy untuk setiap role menggunakan glossary dan checklist copywriting.
+- Verifikasi empty state first-use, hasil filter kosong, antrean selesai, forbidden, not-found, dan request failure tidak tertukar.
+- Verifikasi error field hanya tampil setelah submit dan menjelaskan cara memperbaiki.
+- Verifikasi internal error menampilkan request ID tanpa stack trace.
+- Verifikasi notification mempunyai detail berbeda sesuai penerima Dosen/Mahasiswa/Kaprodi/Admin Akademik.
+- Verifikasi tidak ada teks Inggris yang tidak disengaja, emoji, tanda seru, `Oops`, `Yay`, atau copy generik berlebihan.
 
 ### Operational docs
 
@@ -2271,6 +2849,11 @@ Outbox processing harus:
 - Lazy evidence preview.
 - Camera-only flow tidak merender file input.
 - Permission denied/no camera/retake/track cleanup states.
+- Empty state first-use, filtered, role-specific, dan completed queue.
+- Forbidden, not-found, recoverable error, internal error dengan request ID, dan stale-data state.
+- Confirmation dialog memakai action label spesifik dan menjelaskan dampak.
+- Loading/progress memakai stage atau count nyata tanpa persentase palsu.
+- Error code memetakan ke copy Bahasa Indonesia dan tidak merender raw exception.
 
 ### E2E test
 
@@ -2325,6 +2908,8 @@ Satu tiket dinyatakan selesai hanya jika:
 - Operasi D1/R2 mempunyai compensation.
 - Form validation mengikuti UX requirement.
 - UI accessible dan responsive.
+- Copy mengikuti glossary Bahasa Indonesia, struktur state, dan tone role-specific.
+- Empty state, error, success, warning, confirmation, loading, dan notification telah direview menggunakan checklist copywriting.
 - Import alias digunakan.
 - Unit, integration, negative authorization, dan E2E relevan lulus.
 - D1/R2 dapat dites lokal.
@@ -2356,6 +2941,10 @@ Satu tiket dinyatakan selesai hanya jika:
 | Camera stream tetap hidup setelah route ditutup | Cleanup seluruh `MediaStreamTrack` pada submit, cancel, error, dan unmount; component/E2E test |
 | Internal error sulit ditelusuri | Structured server logger, request/job ID, error cause, source map, dan Workers Logs |
 | Log membocorkan credential/PII | Central redaction dan automated log-capture tests |
+| Copy berbeda-beda antar-modul | Shared glossary, message catalog, typed state content, dan content owner |
+| Empty state dipakai untuk error/forbidden | Variant state terpisah dan component test untuk setiap kondisi |
+| Pesan terasa berlebihan atau generik | Checklist copy tanpa emoji, tanda seru, basa-basi, label ambigu, dan AI slop |
+| Raw internal error tampil ke pengguna | Map stable error code ke copy Indonesia; tampilkan hanya request ID |
 | Grade berbeda antara preview/final | Satu pure calculation function dan policy version yang sama |
 
 ---
