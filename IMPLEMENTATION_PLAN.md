@@ -134,6 +134,24 @@ Pengaturan minimum:
 
 Perubahan setting harus versioned, audited, tervalidasi, dan tidak boleh mengubah hasil transaksi historis secara retroaktif.
 
+### 3.4 Foto presensi hanya dari kamera browser
+
+Foto evidence presensi wajib diambil langsung dari live camera stream pada halaman presensi. Pengguna tidak diberi file picker, tombol galeri, drag-and-drop, paste image, atau input URL.
+
+Keputusan implementasi:
+
+- Gunakan `navigator.mediaDevices.getUserMedia()` untuk membuka live camera stream.
+- Jangan menggunakan `<input type="file" capture>` sebagai flow utama karena atribut `capture` hanya merupakan hint dan pada browser/OS tertentu masih dapat membuka file picker atau galeri.
+- Foto diambil dari frame elemen `<video>` lalu dikonversi menjadi `Blob` melalui `<canvas>` atau API capture yang kompatibel.
+- Kamera belakang diprioritaskan melalui `facingMode: { ideal: "environment" }`, tetapi pengguna dapat mengganti kamera jika perangkat mendukung lebih dari satu kamera.
+- Akses kamera hanya dimulai setelah tindakan eksplisit pengguna.
+- Seluruh video track harus dihentikan setelah foto diambil, flow dibatalkan, dialog ditutup, route berubah, atau komponen unmount.
+- Jika izin kamera ditolak, kamera tidak tersedia, atau browser tidak mendukung API, presensi foto tidak dapat dilanjutkan dan **tidak ada fallback ke galeri**.
+- Production wajib menggunakan HTTPS. `localhost` tetap dapat digunakan untuk local development.
+- Browser tetap dapat menyediakan virtual camera dan client-side code dapat dimanipulasi oleh pengguna yang sangat teknis. Web app dapat memaksa flow UI melalui kamera live, tetapi tidak dapat memberi jaminan forensik mutlak bahwa source adalah kamera fisik yang tidak dimanipulasi.
+
+Referensi: [MDN `getUserMedia()`](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia) dan [MDN `capture` attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/capture).
+
 ---
 
 ## 4. Scope dan Non-Scope
@@ -144,6 +162,7 @@ Perubahan setting harus versioned, audited, tervalidasi, dan tidak boleh menguba
 - Web responsive untuk role Superadmin, Admin Akademik, Kaprodi, Dosen, Mahasiswa, Admin Keuangan, dan Staf.
 - In-app notification.
 - Upload file private ke R2.
+- Pengambilan foto presensi dari live camera browser tanpa gallery picker.
 - Pengujian D1 dan R2 secara lokal.
 - Audit perubahan data dan security event.
 - CSV dan XLSX untuk import Master Data.
@@ -157,6 +176,7 @@ Perubahan setting harus versioned, audited, tervalidasi, dan tidak boleh menguba
 - Integrasi video conference; kelas online hanya menyimpan link/instruksi.
 - Face recognition atau analisis isi foto presensi.
 - Anti-GPS-spoofing tingkat perangkat.
+- Pembuktian forensik bahwa video source berasal dari kamera fisik dan bukan virtual camera/manipulated client.
 - Push notification, WhatsApp, SMS, atau email notification.
 - Plagiarism detection.
 - Native mobile application.
@@ -330,6 +350,74 @@ Setiap transisi harus:
 - Menulis audit log.
 - Menulis notification/outbox bila diperlukan.
 - Menolak stale update.
+
+### 5.7 Server logging dan internal error diagnostics
+
+Backend wajib memiliki centralized structured logger untuk meningkatkan developer experience pada local debugging dan production incident investigation.
+
+Interface minimum:
+
+```ts
+interface ServerLogger {
+  debug(event: string, context?: Record<string, unknown>): void;
+  info(event: string, context?: Record<string, unknown>): void;
+  warn(event: string, context?: Record<string, unknown>): void;
+  error(event: string, error: unknown, context?: Record<string, unknown>): void;
+  child(context: Record<string, unknown>): ServerLogger;
+}
+```
+
+Implementasi:
+
+- Seluruh application code memakai `ServerLogger`; jangan menyebarkan pemanggilan `console.*`.
+- Adapter logger terpusat boleh memakai console API Cloudflare sebagai transport terakhir.
+- Local development memakai format pretty/readable dengan warna bila terminal mendukung.
+- Production memakai structured JSON agar dapat dicari berdasarkan field pada Workers Logs.
+- Default log level: `debug` pada local development, `info` pada production, dan dapat dioverride melalui environment variable.
+- Setiap request membuat child logger dengan `requestId`, method, route, deployment version, dan environment.
+- Setelah authentication, tambahkan opaque/masked `userId`, active role, dan scope ID; jangan log nama, NIM, email, atau identifier penuh jika tidak diperlukan.
+
+Central error capture wajib tersedia pada:
+
+- Hono `app.onError`/top-level error boundary.
+- oRPC error interceptor.
+- Better Auth adapter/hook yang relevan.
+- Background job/workflow handler.
+- D1 atomic batch executor.
+- R2 upload/download/delete adapter.
+- Outbox processor.
+
+Internal error log minimum:
+
+- Stable event name, misalnya `request.internal_error`.
+- `requestId` dan optional `jobId`.
+- Error name, message, stack, dan sanitized `cause` chain.
+- Route/procedure/module.
+- Actor ID yang dimasking dan active role.
+- Relevant entity type/ID.
+- D1 operation name, batch statement count, chunk number, dan retry attempt tanpa mencetak SQL parameter sensitif.
+- HTTP status dan duration.
+- Deployment version/commit SHA bila tersedia.
+
+Redaction wajib menghapus:
+
+- `Authorization`, cookie, session token, CSRF token, dan API secret.
+- Password dan temporary password.
+- Full request/response body pada auth, presensi, nilai, dan upload.
+- Image/blob/file content.
+- Exact GPS coordinate dari general error log; coordinate hanya tersimpan pada authorized domain record.
+- Personal identifier kecuali sudah dimasking/hash untuk korelasi.
+
+Client hanya menerima generic internal error beserta `requestId`; stack trace dan internal cause tidak pernah dikirim ke browser pada production.
+
+Tambahkan source map pada deployment Worker agar uncaught production stack trace dapat dipetakan kembali ke TypeScript. Workers Logs/observability harus diaktifkan pada infrastructure configuration. Structured error log dan source map mengikuti mekanisme resmi Cloudflare Workers. Referensi: [Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/) dan [Workers source maps](https://developers.cloudflare.com/workers/observability/source-maps/).
+
+Logging dan audit log merupakan dua hal berbeda:
+
+- Logging untuk diagnosis teknis dan operasional.
+- Audit log untuk jejak perubahan bisnis/security yang immutable.
+- Kegagalan mengirim log observability tidak boleh menggagalkan transaksi domain.
+- Audit log yang diwajibkan business rule harus masuk atomic D1 batch bersama mutation.
 
 ---
 
@@ -821,12 +909,27 @@ Repository kembali buildable dan seluruh modul berikutnya memiliki fondasi arsit
 
 - Standard error contract.
 - Request ID middleware.
-- Structured logger.
+- `ServerLogger` abstraction dan structured logging adapter.
 - Context berisi database, auth, storage, clock, request metadata, dan active-role resolver.
 - Base policy helpers.
 - Pagination/cursor schema.
 - Idempotency middleware/helper.
 - Safe result mapping untuk D1.
+
+#### Logging dan debugging foundation
+
+- Central Hono error handler.
+- oRPC error interceptor yang meneruskan error ke logger dan mengembalikan safe error contract.
+- Pretty local log dan JSON production log.
+- Child logger per request/job.
+- Error serializer untuk `Error`, `cause`, dan unknown thrown value.
+- Redaction utility untuk header, cookie, password, token, request body, GPS, dan file.
+- Request completion log berisi method, route, status, duration, dan request ID.
+- Internal error log berisi sanitized stack/cause dan deployment metadata.
+- D1/R2/job operation logs dengan operation name, count, chunk, attempt, dan duration.
+- Environment schema untuk `LOG_LEVEL`, `LOG_FORMAT`, dan deployment version.
+- Aktifkan Workers observability dan upload source maps melalui infrastructure configuration.
+- Unit test redaction, log level, unknown error serialization, dan request ID correlation.
 
 #### D1 foundation
 
@@ -892,6 +995,9 @@ Repository kembali buildable dan seluruh modul berikutnya memiliki fondasi arsit
 - D1 atomic batch rollback terbukti melalui integration test.
 - D1 >100 parameter tidak pernah dibuat karena helper melakukan chunking.
 - R2 upload/download/delete berhasil pada local Worker runtime.
+- Internal error pada Hono, oRPC, background job, D1, dan R2 menghasilkan structured server log dengan request/job ID.
+- Internal stack trace tersedia di local/server logs tetapi tidak pernah muncul pada response production.
+- Secret, password, cookie, token, GPS, dan file body terbukti ter-redact melalui test.
 - App shell responsive dan keyboard accessible.
 - Semua quality gate global lulus.
 
@@ -1643,9 +1749,51 @@ Status:
 - Server clock adalah sumber kebenaran.
 - Published schedule revision terbaru menjadi sumber waktu.
 
+### Camera-only capture flow
+
+Flow participant-facing tidak menggunakan file upload control untuk evidence foto.
+
+Urutan implementasi:
+
+1. Pengguna membuka pertemuan dan menekan tombol `Mulai Presensi`.
+2. Server memvalidasi actor, enrollment/teaching assignment, modality, window, dan existing attendance.
+3. Server menerbitkan `captureAttemptId`/nonce berumur pendek yang terikat ke participant, meeting, dan modality.
+4. Browser meminta izin live camera melalui `navigator.mediaDevices.getUserMedia()` dengan audio dimatikan.
+5. UI menampilkan live `<video playsInline>` dan memprioritaskan kamera belakang.
+6. Pengguna menekan `Ambil Foto`.
+7. Frame video digambar ke canvas dan dikonversi menjadi JPEG/WebP `Blob` sesuai browser support dan file policy.
+8. UI menampilkan preview hasil capture dan hanya menyediakan `Ambil Ulang` atau `Gunakan Foto`.
+9. Jika ambil ulang, Blob/Object URL lama dibuang dari memory.
+10. Saat submit, kirim Blob bersama `captureAttemptId`, location bila offline, dan idempotency key.
+11. Server memvalidasi capture attempt belum expired/digunakan dan melakukan validasi image magic bytes, MIME, size, dan dimension.
+12. Setelah submit/cancel/unmount, hentikan seluruh `MediaStreamTrack` dan revoke seluruh Object URL.
+
+Ketentuan browser/UI:
+
+- Tidak merender `<input type="file">` untuk foto presensi.
+- Tidak menyediakan gallery/file picker fallback.
+- Tidak menerima drag-and-drop, paste clipboard, URL, atau file attachment sebagai foto check-in.
+- Gunakan `video: { facingMode: { ideal: "environment" } }` dan `audio: false`.
+- Tombol ganti kamera hanya muncul jika lebih dari satu video input tersedia.
+- Camera permission diminta setelah user gesture, bukan otomatis saat page load.
+- Tambahkan `Permissions-Policy: camera=(self), microphone=()` pada response yang relevan.
+- Production origin wajib HTTPS; localhost boleh untuk development/test.
+- Tangani `NotAllowedError`, `NotFoundError`, `NotReadableError`, `OverconstrainedError`, request yang tidak dijawab pengguna, dan browser tanpa `mediaDevices` menggunakan pesan yang membantu.
+- Jika kamera/permission tidak tersedia, check-in foto berhenti. Pengguna diarahkan menghubungi petugas; tidak ada tombol galeri tersembunyi.
+- Ukuran frame dinormalisasi di client sebelum upload untuk mengendalikan bandwidth, tetapi server tetap melakukan seluruh validation.
+- Client capture timestamp, camera label, facing mode, dan dimension hanya metadata diagnostik; tidak boleh dijadikan bukti keamanan tunggal.
+- EXIF tidak diperlukan dan sebaiknya tidak dipertahankan setelah canvas capture untuk mengurangi metadata personal yang tidak dibutuhkan.
+
+Batas keamanan:
+
+- Short-lived capture attempt mengurangi reuse melalui flow normal, tetapi tidak membuktikan keaslian kamera terhadap client yang dimodifikasi.
+- `getUserMedia()` dapat memakai physical maupun virtual video source yang disediakan browser/OS.
+- Server tidak dapat mengetahui secara pasti apakah image blob berasal dari physical camera hanya dari HTTP request.
+- Requirement yang dijamin adalah **tidak ada akses galeri pada UI resmi dan capture dilakukan dari live media stream pada browser yang tidak dimodifikasi**.
+
 ### Offline evidence
 
-- Foto wajib.
+- Foto camera-only wajib.
 - Latitude/longitude wajib.
 - Optional accuracy direkam.
 - Reference coordinate berasal dari ruang.
@@ -1655,7 +1803,7 @@ Status:
 
 ### Online evidence
 
-- Foto wajib.
+- Foto camera-only wajib.
 - Lokasi tidak wajib.
 - Tidak ada pemeriksaan wajah/isi foto.
 
@@ -1664,7 +1812,7 @@ Status:
 Rancangan default:
 
 - Self check-in normal membuat `HADIR`.
-- `IZIN`/`SAKIT` diajukan dengan catatan dan optional evidence pendukung lalu direview.
+- `IZIN`/`SAKIT` diajukan dengan catatan dan optional evidence pendukung lalu direview; jika evidence berbentuk foto pada flow web, foto juga wajib diambil melalui camera-only flow.
 - `ALPA` digenerate setelah window tutup bagi participant tanpa record valid.
 - Koreksi status memakai adjustment, bukan overwrite tanpa history.
 
@@ -1702,6 +1850,13 @@ Rancangan default:
 - Invalid coordinate.
 - Missing photo/location.
 - Online tanpa location.
+- Tidak ada file input/gallery path pada halaman capture.
+- Camera permission granted, denied, dismissed/tidak dijawab, device not found, dan device busy.
+- Switching front/back camera bila tersedia.
+- Retake membuang Blob/Object URL lama.
+- Route leave/cancel/submit menghentikan seluruh media track.
+- Expired, reused, dan participant-mismatched `captureAttemptId`.
+- Invalid MIME/magic bytes/dimension meskipun dikirim dari client yang dimodifikasi.
 - Duplicate submit/concurrent submit.
 - R2 berhasil D1 gagal.
 - Modality revision.
@@ -1711,6 +1866,10 @@ Rancangan default:
 ### Acceptance criteria
 
 - Seluruh rule evidence dan waktu requirements terpenuhi.
+- UI resmi hanya dapat menghasilkan foto dari live camera stream dan tidak menyediakan galeri/file picker.
+- Browser tanpa akses kamera tidak dapat melanjutkan check-in foto.
+- Camera stream selalu berhenti setelah capture flow selesai atau ditinggalkan.
+- Batasan virtual camera/manipulated client terdokumentasi dan tidak diklaim sebagai physical-camera attestation.
 - Tidak ada public evidence URL.
 - Mahasiswa/Dosen tidak dapat submit atas nama orang lain.
 - Historical record dapat direproduksi dari policy snapshot.
@@ -1841,7 +2000,7 @@ Seluruh modul terbukti bekerja sebagai satu sistem yang aman, konsisten, dapat d
 12. Verifikasi notification Dosen/Mahasiswa.
 13. Upload materi/tugas.
 14. Submission tugas.
-15. Presensi offline Mahasiswa dan Dosen.
+15. Presensi offline Mahasiswa dan Dosen menggunakan camera-only capture; buktikan tidak ada gallery/file picker.
 16. Ubah sesi online sebelum cutoff dan lakukan presensi online.
 17. Buktikan perubahan setelah cutoff tanggal ditolak.
 18. Input/submit/lock/publish nilai.
@@ -1861,6 +2020,18 @@ Seluruh modul terbukti bekerja sebagai satu sistem yang aman, konsisten, dapat d
 - Stale version update.
 - Duplicate idempotency key dengan payload berbeda.
 - Log inspection untuk secret/PII.
+- Client mencoba mengirim gallery/file payload dengan melewati UI; server tetap melakukan MIME/magic-byte/attempt validation dan mendokumentasikan bahwa source attestation absolut tidak tersedia di web.
+
+### Logging dan diagnostics hardening
+
+- Trigger internal error dari Hono route, oRPC procedure, background job, D1 adapter, dan R2 adapter pada test environment.
+- Pastikan setiap error dapat dicari menggunakan `requestId` atau `jobId` yang sama dari awal hingga akhir.
+- Pastikan exception name, message, sanitized cause, stack, module, dan deployment version tersedia pada server log.
+- Pastikan response browser hanya berisi safe message dan request ID.
+- Pastikan password, temporary password, cookie, session token, authorization header, raw request body, GPS, dan file body tidak muncul pada log.
+- Pastikan log level dapat diubah tanpa perubahan kode.
+- Pastikan source map production ter-upload dan stack trace dapat dipetakan ke TypeScript pada Workers Logs.
+- Dokumentasikan cara menjalankan local log, tail production log, memfilter request ID, dan mencari failed job.
 
 ### D1/R2 hardening
 
@@ -1908,6 +2079,7 @@ Ukur:
 - Empty/loading/error/forbidden states.
 - Validation hanya setelah submit.
 - Evidence preview benar-benar lazy.
+- Camera capture dapat digunakan dengan keyboard dan mempunyai status permission/error yang dapat dibaca screen reader.
 
 ### Operational docs
 
@@ -1922,6 +2094,8 @@ Ukur:
 - R2 orphan cleanup.
 - Job retry/cancel.
 - Account recovery.
+- Camera permission troubleshooting tanpa menyarankan gallery fallback.
+- Server logging, request ID correlation, Workers Logs query, dan source-map debugging.
 
 ### Release gate
 
@@ -2012,6 +2186,8 @@ Outbox processing harus:
 - Parameter/batch chunking.
 - State transition.
 - Permission/scope policy.
+- Server error serialization dan recursive cause redaction.
+- Camera capture state machine dan cleanup media track.
 
 ### D1 integration test
 
@@ -2038,6 +2214,8 @@ Outbox processing harus:
 - Auth/role/scope/ownership/state.
 - Rate limit.
 - Idempotency.
+- Internal error response tidak mengekspos stack/cause.
+- Request ID response sama dengan request ID structured log.
 
 ### Component test
 
@@ -2046,6 +2224,8 @@ Outbox processing harus:
 - Data table/filter.
 - Role-specific action visibility.
 - Lazy evidence preview.
+- Camera-only flow tidak merender file input.
+- Permission denied/no camera/retake/track cleanup states.
 
 ### E2E test
 
@@ -2053,6 +2233,7 @@ Outbox processing harus:
 - Negative access antar-role.
 - Session expiration.
 - File flow.
+- Camera-only attendance flow dengan fake media device pada browser test.
 - Mobile viewport minimum.
 
 ---
@@ -2075,7 +2256,7 @@ Ketentuan:
 - `bun run check-types` wajib dan tidak boleh diganti hanya dengan build.
 - Tidak boleh menambahkan `@ts-ignore`/`any` untuk sekadar meloloskan check tanpa alasan terdokumentasi.
 - Semua Promise harus ditunggu atau secara eksplisit ditangani.
-- Tidak ada `console.log`, `debugger`, atau `alert` pada production code.
+- Tidak ada pemanggilan `console.*` di application code selain centralized logger transport adapter; tidak ada `debugger` atau `alert` pada production code.
 - Tidak ada skipped/only test yang masuk commit.
 - React Doctor finding harus diperbaiki atau diberi keputusan teknis terdokumentasi.
 - Formatter dijalankan sebelum lint/typecheck final.
@@ -2092,6 +2273,7 @@ Satu tiket dinyatakan selesai hanya jika:
 - API input/output typed dan tervalidasi.
 - Authorization berada di server.
 - Audit dan notification sesuai kebutuhan tersedia.
+- Internal error memiliki structured server log dan request/job correlation ID tanpa membocorkan secret/PII.
 - Operasi retry-safe dan idempotent.
 - Query mematuhi bound parameter dan batch budget.
 - Operasi multi-statement kritis menggunakan atomic batch.
@@ -2124,6 +2306,11 @@ Satu tiket dinyatakan selesai hanya jika:
 | Perubahan setting mengubah hasil lama | Policy version/reference disimpan pada transaction snapshot |
 | Duplicate akibat retry jaringan | Idempotency key dan unique constraints |
 | Evidence photo bocor | Private R2, opaque key, authorized lazy preview |
+| File galeri masuk melalui UI presensi | Jangan gunakan file input; gunakan live `getUserMedia()` + canvas/blob capture |
+| Browser tidak dapat membuktikan physical camera | Dokumentasikan batas; short-lived capture attempt; jangan mengklaim physical-camera attestation |
+| Camera stream tetap hidup setelah route ditutup | Cleanup seluruh `MediaStreamTrack` pada submit, cancel, error, dan unmount; component/E2E test |
+| Internal error sulit ditelusuri | Structured server logger, request/job ID, error cause, source map, dan Workers Logs |
+| Log membocorkan credential/PII | Central redaction dan automated log-capture tests |
 | Grade berbeda antara preview/final | Satu pure calculation function dan policy version yang sama |
 
 ---
@@ -2135,6 +2322,10 @@ Satu tiket dinyatakan selesai hanya jika:
 - [Cloudflare D1 Sessions dan read replication](https://developers.cloudflare.com/d1/best-practices/read-replication/)
 - [Cloudflare Workers Testing](https://developers.cloudflare.com/workers/testing/)
 - [Cloudflare Workers Vitest Integration](https://developers.cloudflare.com/workers/testing/vitest-integration/)
+- [Cloudflare Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/)
+- [Cloudflare Workers Source Maps](https://developers.cloudflare.com/workers/observability/source-maps/)
 - [Better Auth Username Plugin](https://better-auth.com/docs/plugins/username)
 - [Better Auth Session Management](https://better-auth.com/docs/concepts/session-management)
 - [Better Auth Rate Limit](https://better-auth.com/docs/concepts/rate-limit)
+- [MDN MediaDevices `getUserMedia()`](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia)
+- [MDN HTML `capture` attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/capture)
