@@ -58,6 +58,7 @@
     "@types/node": "catalog:",
     "oxfmt": "latest",
     "oxlint": "latest",
+    "react-doctor": "^0.9.14",
     "turbo": "^2.10.12",
     "typescript": "catalog:",
     "ultracite": "7.11.0",
