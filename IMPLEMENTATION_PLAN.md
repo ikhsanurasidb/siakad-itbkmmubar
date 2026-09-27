@@ -3,7 +3,7 @@
 ## Metadata Dokumen
 
 | Atribut | Nilai |
-|---|---|
+| --- | --- |
 | Status | Draft siap implementasi |
 | Tanggal | 28 September 2026 |
 | Repository | `siakad-itbkmmubar` |
@@ -312,14 +312,14 @@ Hindari barrel file yang mengekspor semua simbol. Gunakan explicit subpath impor
 
 Alias target:
 
-| Workspace | Alias lokal |
-|---|---|
-| Web | `@/*` |
-| Server | `@server/*` |
-| API | `@api/*` |
-| Auth | `@auth/*` |
-| Database | `@db/*` |
-| UI | `@siakad-itbkmmubar/ui/*` |
+| Workspace       | Alias lokal                      |
+| --------------- | -------------------------------- |
+| Web             | `@/*`                            |
+| Server          | `@server/*`                      |
+| API             | `@api/*`                         |
+| Auth            | `@auth/*`                        |
+| Database        | `@db/*`                          |
+| UI              | `@siakad-itbkmmubar/ui/*`        |
 | Cross-workspace | `@siakad-itbkmmubar/<package>/*` |
 
 Aturan:
@@ -779,13 +779,13 @@ Setiap procedure dilindungi oleh kombinasi:
 
 ### 8.4 Route per role
 
-| Role | Root path |
-|---|---|
-| Superadmin | `/superadmin/*` |
+| Role           | Root path           |
+| -------------- | ------------------- |
+| Superadmin     | `/superadmin/*`     |
 | Admin Akademik | `/admin-akademik/*` |
-| Kaprodi | `/kaprodi/*` |
-| Dosen | `/dosen/*` |
-| Mahasiswa | `/mahasiswa/*` |
+| Kaprodi        | `/kaprodi/*`        |
+| Dosen          | `/dosen/*`          |
+| Mahasiswa      | `/mahasiswa/*`      |
 | Admin Keuangan | `/admin-keuangan/*` |
 
 Menu domain bersama wajib memiliki path role-specific. Komponen presentasional boleh digunakan ulang, tetapi route loader, action, copy, dan available action disusun sesuai role.
@@ -875,7 +875,7 @@ Hindari copy generik, berlebihan, atau terasa dihasilkan AI, termasuk:
 Contoh:
 
 | Hindari | Gunakan |
-|---|---|
+| --- | --- |
 | “Yay! Data kamu berhasil disimpan dengan sukses!” | “Data mahasiswa disimpan.” |
 | “Oops, sepertinya ada sesuatu yang salah.” | “Data belum dapat disimpan. Coba lagi.” |
 | “Jangan khawatir, kami sedang memproses data Anda.” | “Import sedang diproses: 320 dari 1.200 baris.” |
@@ -884,27 +884,27 @@ Contoh:
 
 #### 9.5.3 Istilah UI baku
 
-| Hindari di UI | Gunakan |
-|---|---|
-| Login | Masuk |
-| Logout | Keluar |
-| Password | Kata sandi |
-| Reset password | Atur ulang kata sandi |
-| Upload | Unggah |
-| Download | Unduh |
-| Submit | Kirim atau Ajukan, sesuai proses |
-| Preview | Pratinjau |
-| Delete | Hapus |
-| Edit | Ubah |
-| Save | Simpan |
-| Cancel | Batal |
-| Retry | Coba lagi |
-| Role | Peran |
-| Scope | Lingkup akses |
-| User | Pengguna |
-| Error | Kesalahan atau kendala, sesuai konteks |
-| Success | Berhasil hanya jika diperlukan; utamakan hasil konkret |
-| Loading | Memuat atau kata kerja proses yang sedang berlangsung |
+| Hindari di UI  | Gunakan                                                |
+| -------------- | ------------------------------------------------------ |
+| Login          | Masuk                                                  |
+| Logout         | Keluar                                                 |
+| Password       | Kata sandi                                             |
+| Reset password | Atur ulang kata sandi                                  |
+| Upload         | Unggah                                                 |
+| Download       | Unduh                                                  |
+| Submit         | Kirim atau Ajukan, sesuai proses                       |
+| Preview        | Pratinjau                                              |
+| Delete         | Hapus                                                  |
+| Edit           | Ubah                                                   |
+| Save           | Simpan                                                 |
+| Cancel         | Batal                                                  |
+| Retry          | Coba lagi                                              |
+| Role           | Peran                                                  |
+| Scope          | Lingkup akses                                          |
+| User           | Pengguna                                               |
+| Error          | Kesalahan atau kendala, sesuai konteks                 |
+| Success        | Berhasil hanya jika diperlukan; utamakan hasil konkret |
+| Loading        | Memuat atau kata kerja proses yang sedang berlangsung  |
 
 Istilah resmi yang boleh tetap berupa singkatan:
 
@@ -932,7 +932,7 @@ Setiap halaman utama menggunakan struktur:
 Contoh role-specific:
 
 | Role | Judul | Deskripsi | Aksi utama |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Superadmin | Pengaturan keamanan | Atur kebijakan akses yang berlaku untuk seluruh pengguna. | Ubah kebijakan |
 | Admin Akademik | Data mahasiswa | Kelola identitas akademik dan status mahasiswa. | Tambah mahasiswa |
 | Kaprodi | Persetujuan jadwal | Tinjau jadwal kelas pada Program Studi yang Anda kelola. | Tinjau pengajuan |
@@ -1073,17 +1073,17 @@ Aturan:
 
 Contoh:
 
-| Kondisi | Pesan |
-|---|---|
-| Required | “NIM wajib diisi.” |
-| Format | “NIDN harus terdiri dari 10 digit angka.” |
-| Minimum password | “Kata sandi minimal 16 karakter.” |
-| Duplicate | “NIM ini sudah digunakan oleh mahasiswa lain.” |
-| Coordinate | “Latitude harus berada antara -90 dan 90.” |
-| Weight | “Total bobot harus tepat 100%. Saat ini 90%.” |
-| File size | “Ukuran file maksimal 10 MB.” |
-| Unsupported file | “Gunakan file PDF atau DOCX.” |
-| Date rule | “Perubahan terakhir dapat dilakukan pada 1 Oktober 2026.” |
+| Kondisi          | Pesan                                                     |
+| ---------------- | --------------------------------------------------------- |
+| Required         | “NIM wajib diisi.”                                        |
+| Format           | “NIDN harus terdiri dari 10 digit angka.”                 |
+| Minimum password | “Kata sandi minimal 16 karakter.”                         |
+| Duplicate        | “NIM ini sudah digunakan oleh mahasiswa lain.”            |
+| Coordinate       | “Latitude harus berada antara -90 dan 90.”                |
+| Weight           | “Total bobot harus tepat 100%. Saat ini 90%.”             |
+| File size        | “Ukuran file maksimal 10 MB.”                             |
+| Unsupported file | “Gunakan file PDF atau DOCX.”                             |
+| Date rule        | “Perubahan terakhir dapat dilakukan pada 1 Oktober 2026.” |
 
 Error summary di atas form hanya muncul jika form panjang atau error tersebar:
 
@@ -1162,7 +1162,7 @@ Jangan memakai empty state untuk forbidden.
 ##### Camera errors
 
 | Kondisi | Pesan |
-|---|---|
+| --- | --- |
 | Permission denied | “Akses kamera ditolak. Izinkan akses kamera pada pengaturan browser, lalu coba lagi.” |
 | No camera | “Kamera tidak ditemukan pada perangkat ini.” |
 | Camera busy | “Kamera sedang digunakan aplikasi lain. Tutup aplikasi tersebut, lalu coba lagi.” |
@@ -1442,7 +1442,7 @@ Simpan operation scope, actor, request hash, result reference, status, dan expir
 ## 11. Roadmap Tiket
 
 | ID | Modul | Ukuran | Dependency utama |
-|---|---|---:|---|
+| --- | --- | --: | --- |
 | SIAKAD-00 | Platform Foundation dan Engineering Guardrails | XL | - |
 | SIAKAD-01 | Identitas, Akses, Login, dan Sesi | XL | 00 |
 | SIAKAD-02 | Master Data dan Import | XL | 00, kontrak IAM 01 |
@@ -2922,7 +2922,7 @@ Satu tiket dinyatakan selesai hanya jika:
 ## 18. Risiko Utama dan Mitigasi
 
 | Risiko | Mitigasi |
-|---|---|
+| --- | --- |
 | Query melewati 100 bind parameter | Central chunk helper dengan safe budget 80 dan boundary test |
 | Import/mapping terlalu besar untuk satu Worker invocation | Durable job, checkpoint, lease, atomic chunk, idempotency |
 | Developer memakai interactive transaction | Larang melalui convention/review; sediakan AtomicBatchExecutor |

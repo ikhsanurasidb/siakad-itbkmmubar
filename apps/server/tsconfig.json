@@ -3,8 +3,12 @@
   "references": [{ "path": "../../packages/api" }],
   "compilerOptions": {
     "noEmit": true,
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@server/*": ["./src/*"],
+      "@api/*": ["../../packages/api/src/*"],
+      "@auth/*": ["../../packages/auth/src/*"],
+      "@db/*": ["../../packages/db/src/*"]
     },
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",

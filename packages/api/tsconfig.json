@@ -6,6 +6,10 @@
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@api/*": ["./src/*"]
+    },
     "strictNullChecks": true
   },
   "include": ["src/**/*.ts"],

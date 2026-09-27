@@ -1,6 +1,5 @@
+import type { Context } from "@api/context";
 import { ORPCError, os } from "@orpc/server";
-
-import type { Context } from "./context";
 
 export const o = os.$context<Context>();
 
@@ -18,3 +17,5 @@ const requireAuth = o.middleware(({ context, next }) => {
 });
 
 export const protectedProcedure = publicProcedure.use(requireAuth);
+
+export { ApiError, getApiErrorPayload } from "@api/errors";

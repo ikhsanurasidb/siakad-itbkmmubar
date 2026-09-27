@@ -9,6 +9,7 @@ import {
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import Header from "@/components/header";
+import Sidebar from "@/components/sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import type { orpc } from "@/utils/orpc";
 
@@ -28,9 +29,17 @@ const RootComponent = () => (
       disableTransitionOnChange
       storageKey="vite-ui-theme"
     >
-      <div className="grid h-svh grid-rows-[auto_1fr]">
+      <div className="grid min-h-svh grid-rows-[auto_1fr]">
+        <a className="sr-only focus:not-sr-only" href="#main-content">
+          Lewati ke konten utama
+        </a>
         <Header />
-        <Outlet />
+        <div className="flex min-h-0">
+          <Sidebar />
+          <main className="min-w-0 flex-1" id="main-content">
+            <Outlet />
+          </main>
+        </div>
       </div>
       <Toaster richColors />
     </ThemeProvider>

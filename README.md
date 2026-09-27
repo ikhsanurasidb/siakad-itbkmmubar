@@ -135,3 +135,5 @@ siakad-itbkmmubar/
 - `bun run lint`: Run Ultracite lint and format checks
 - `bun run db:generate`: Generate database client/types
 - `bun run check`: Run Oxlint and Oxfmt
+- `bun run test`: Run the unit test suite with Bun
+- `bun run verify`: Run formatting, typecheck, tests, and production builds

@@ -8,6 +8,8 @@ export const db = Cloudflare.D1.Database("database", {
   migrations: "../../packages/db/src/migrations",
 });
 
+export const fileBucket = Cloudflare.R2.Bucket("file-objects");
+
 export const server = Cloudflare.Worker("server", {
   compatibility: {
     flags: ["nodejs_compat"],
@@ -20,6 +22,10 @@ export const server = Cloudflare.Worker("server", {
     BETTER_AUTH_URL: Cloudflare.Worker.URL,
     CORS_ORIGIN: Config.String("CORS_ORIGIN"),
     DB: db,
+    DEPLOYMENT_VERSION: Config.String("DEPLOYMENT_VERSION"),
+    LOG_FORMAT: Config.String("LOG_FORMAT"),
+    LOG_LEVEL: Config.String("LOG_LEVEL"),
+    R2: fileBucket,
   },
   main: "../../apps/server/src/index.ts",
 });

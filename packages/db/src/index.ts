@@ -1,7 +1,6 @@
+import type { DatabaseConfig } from "@db/config";
+import { relations } from "@db/relations";
 import { drizzle } from "drizzle-orm/d1";
-
-import type { DatabaseConfig } from "./config";
-import { relations } from "./relations";
 
 export const createDb = (env: DatabaseConfig) => drizzle(env.DB, { relations });
 

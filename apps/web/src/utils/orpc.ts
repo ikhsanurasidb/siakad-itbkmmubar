@@ -5,7 +5,7 @@ import type { AppRouterClient } from "@siakad-itbkmmubar/api/routers/index";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { ENV } from "../env.public";
+import { ENV } from "@/env.public";
 
 export const createQueryClient = () =>
   new QueryClient({

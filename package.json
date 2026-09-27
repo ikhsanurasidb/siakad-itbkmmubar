@@ -44,7 +44,12 @@
     "lint": "ultracite check",
     "fix": "ultracite fix",
     "doctor": "ultracite doctor",
-    "react-doctor": "react-doctor"
+    "react-doctor": "react-doctor",
+    "test": "bun test",
+    "test:unit": "bun test tests",
+    "test:integration": "bun test tests",
+    "test:e2e": "bun test tests",
+    "verify": "bun run check && bun run check-types && bun run test && bun run build"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
