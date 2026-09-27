@@ -1,0 +1,25 @@
+{
+  "name": "@siakad-itbkmmubar/api",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check-types": "tsc -b"
+  },
+  "dependencies": {
+    "@orpc/client": "catalog:",
+    "@orpc/openapi": "catalog:",
+    "@orpc/server": "catalog:",
+    "@orpc/zod": "catalog:",
+    "@siakad-itbkmmubar/auth": "workspace:*",
+    "@siakad-itbkmmubar/db": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@siakad-itbkmmubar/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
