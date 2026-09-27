@@ -152,6 +152,31 @@ Keputusan implementasi:
 
 Referensi: [MDN `getUserMedia()`](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia) dan [MDN `capture` attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/capture).
 
+### 3.5 Staff bukan role sistem
+
+Istilah **staff** hanya merupakan kategori umum untuk personel institusi. Staff tidak menjadi role, identity type, menu, route, permission group, scope, maupun profile generik di dalam sistem.
+
+Role konkret yang sebelumnya dapat disebut staff adalah:
+
+- `DOSEN`
+- `KAPRODI`, sebagai assignment tambahan pada Dosen.
+- `ADMIN_AKADEMIK`
+- `ADMIN_KEUANGAN`
+
+Implikasi desain:
+
+- Tidak ada enum/key `STAFF`.
+- Tidak ada route `/staff/*`.
+- Tidak ada `staff_profiles` atau menu Master Data Staff.
+- Dosen tetap mempunyai profile pada Master Data Dosen dan menggunakan identifier institusional yang digenerate sistem dengan prefix `DSN`.
+- Kaprodi tidak mempunyai profile atau akun terpisah; Kaprodi adalah role/assignment berscope Prodi pada akun Dosen.
+- Admin Akademik dan Admin Keuangan memakai identity account masing-masing dengan role konkret, bukan profile Staff.
+- Identifier institusional role-based digunakan untuk Dosen, Admin Akademik, Admin Keuangan, dan Superadmin.
+- Prefix awal adalah `DSN`, `AKD`, `KEU`, dan `SUP`; semuanya tetap tiga karakter dan dapat dikelola melalui konfigurasi role sistem yang berwenang.
+- Format identifier Dosen adalah `DSN{YYYYMMDD}{SEQ3}`, misalnya `DSN20260928001`.
+- Kaprodi tetap login menggunakan identifier `DSN` milik akun Dosennya; assignment Kaprodi tidak menerbitkan identifier baru.
+- Segregation of duties `ADMIN_AKADEMIK` dengan `ADMIN_KEUANGAN` tetap berlaku.
+
 ---
 
 ## 4. Scope dan Non-Scope
@@ -159,7 +184,7 @@ Referensi: [MDN `getUserMedia()`](https://developer.mozilla.org/en-US/docs/Web/A
 ### 4.1 Dalam scope
 
 - Seluruh modul yang tercantum pada bagian tujuan.
-- Web responsive untuk role Superadmin, Admin Akademik, Kaprodi, Dosen, Mahasiswa, Admin Keuangan, dan Staf.
+- Web responsive untuk role Superadmin, Admin Akademik, Kaprodi, Dosen, Mahasiswa, dan Admin Keuangan.
 - In-app notification.
 - Upload file private ke R2.
 - Pengambilan foto presensi dari live camera browser tanpa gallery picker.
@@ -251,7 +276,6 @@ apps/
       dosen/
       mahasiswa/
       admin-keuangan/
-      staff/
 packages/
   api/src/modules/
     identity/
@@ -575,7 +599,7 @@ Contoh:
 
 #### Atomic counter
 
-Sequence identifier staf memakai satu upsert atomic dengan `RETURNING`, bukan read-counter lalu update terpisah.
+Sequence identifier institusional berbasis role untuk Dosen, Admin Akademik, Admin Keuangan, dan Superadmin memakai satu upsert atomic dengan `RETURNING`, bukan read-counter lalu update terpisah.
 
 #### Transactional outbox
 
@@ -728,7 +752,6 @@ attendance/<attendanceRecordId>/<uuid>
 - `KAPRODI`
 - `DOSEN`
 - `MAHASISWA`
-- `STAFF`
 
 Asumsi kerja: istilah Operator Akademik pada requirements merujuk pada `ADMIN_AKADEMIK`. Jika kelak dipisah, permission catalog tetap memungkinkan role baru tanpa mengubah business service utama.
 
@@ -764,7 +787,6 @@ Setiap procedure dilindungi oleh kombinasi:
 | Dosen | `/dosen/*` |
 | Mahasiswa | `/mahasiswa/*` |
 | Admin Keuangan | `/admin-keuangan/*` |
-| Staff | `/staff/*` |
 
 Menu domain bersama wajib memiliki path role-specific. Komponen presentasional boleh digunakan ulang, tetapi route loader, action, copy, dan available action disusun sesuai role.
 
@@ -1020,6 +1042,7 @@ Seluruh pengguna dapat diprovision, login dengan identifier resmi, mengganti tem
 - `user_scopes`
 - `role_conflicts`
 - `identifier_sequences`
+- `identifier_reservations`
 - `program_heads`
 - `security_events`
 - Better Auth rate limit table bila database storage digunakan.
@@ -1027,11 +1050,20 @@ Seluruh pengguna dapat diprovision, login dengan identifier resmi, mengganti tem
 ### Identifier
 
 - Mahasiswa memakai NIM.
-- Dosen memakai kode dosen.
+- Dosen memakai identifier `DSN{YYYYMMDD}{SEQ3}`, misalnya `DSN20260928001`.
 - Kaprodi tetap memakai akun Dosen.
-- Staf memakai `{PREFIX3}{YYYYMMDD}{SEQ3}`.
+- Admin Akademik memakai prefix `AKD`, Admin Keuangan memakai prefix `KEU`, dan Superadmin memakai prefix `SUP` dengan format `{PREFIX3}{YYYYMMDD}{SEQ3}`.
 - Prefix role tiga huruf uppercase.
 - Sequence dibuat dengan atomic upsert/returning.
+- Tanggal pada identifier Dosen berasal dari tanggal provisioning/pembuatan akun dalam zona `Asia/Jakarta`.
+- Record Master Data Dosen yang belum selesai diprovision boleh berada pada status internal `PENDING_PROVISIONING` tanpa identifier login; record tersebut belum boleh dipakai pada transaksi akademik.
+- Identifier Dosen dibuat server-side pada proses provisioning; form dan file import tidak boleh menentukan sequence sendiri.
+- Setelah diterbitkan, identifier `DSN` ditautkan ke record Master Data Dosen dan menjadi username login yang sama serta immutable.
+- Service generator IAM menjadi satu-satunya penerbit identifier agar kode pada Master Data selalu identik dengan username login.
+- Untuk provisioning massal Dosen hasil import, service mereservasi range sequence per tanggal/prefix secara atomic, lalu mengalokasikan kode dari range tersebut ke row secara deterministik. Gap akibat batch gagal boleh terjadi dan identifier tidak boleh didaur ulang.
+- `identifier_reservations` mengikat identifier yang sudah dialokasikan ke Master Data Dosen dan idempotency key sehingga retry memakai identifier yang sama.
+- Range reservation memakai counter version/expected value, conditional update, unique identifier constraint, dan atomic batch untuk reservation rows; conflict menyebabkan retry memakai counter terbaru.
+- Sequence tiga digit divalidasi terhadap overflow; generator menolak penerbitan setelah `999` untuk prefix/tanggal yang sama dan menghasilkan operational error yang dapat ditelusuri melalui server log.
 - Identifier dinormalisasi sebelum uniqueness check.
 - Username Better Auth immutable.
 
@@ -1041,8 +1073,10 @@ Seluruh pengguna dapat diprovision, login dengan identifier resmi, mengganti tem
 - Bulk provisioning dengan preview.
 - Integrasi event dari Master Data import.
 - Admin Akademik hanya dapat membuat akun Mahasiswa dan Dosen.
-- Superadmin membuat admin/staf.
+- Superadmin membuat akun Admin Akademik, Admin Keuangan, dan Superadmin lain sesuai policy provisioning.
 - Dosen di-assign sebagai Kaprodi; tidak dibuat akun Kaprodi terpisah.
+- Provisioning Dosen menerima Master Data Dosen `PENDING_PROVISIONING`, mereservasi identifier `DSN`, membuat credential, menautkan identifier ke Master Data, lalu mengubah status provisioning menjadi `PROVISIONED`.
+- Jika pembuatan credential atau domain batch gagal, Dosen tetap `PENDING_PROVISIONING` dan proses dapat di-retry menggunakan idempotency key tanpa menerbitkan identifier kedua.
 - Temporary password random dan minimal 16 karakter.
 - Plaintext ditampilkan/diunduh satu kali.
 - Temporary password expiry berasal dari Modul Pengaturan.
@@ -1083,6 +1117,8 @@ Seluruh pengguna dapat diprovision, login dengan identifier resmi, mengganti tem
 
 ### Role dan scope
 
+- Role catalog awal hanya memuat `SUPERADMIN`, `ADMIN_AKADEMIK`, `ADMIN_KEUANGAN`, `KAPRODI`, `DOSEN`, dan `MAHASISWA`; tidak ada generic `STAFF` role.
+- Personel institusi wajib memperoleh role konkret sesuai tanggung jawabnya; sistem tidak boleh memberikan fallback permission melalui kategori staff.
 - Active role disimpan pada session preference yang tervalidasi terhadap assignment aktif.
 - Kaprodi mempunyai Prodi scope dan periode assignment.
 - Dosen memakai assignment kelas.
@@ -1121,7 +1157,7 @@ Seluruh pengguna dapat diprovision, login dengan identifier resmi, mengganti tem
 
 ### Test minimum
 
-- Login NIM/kode dosen.
+- Login NIM/identifier `DSN`.
 - Generic invalid credential.
 - Inactive account.
 - First-login limited capability.
@@ -1134,10 +1170,16 @@ Seluruh pengguna dapat diprovision, login dengan identifier resmi, mengganti tem
 - Scope lintas Prodi ditolak.
 - Reset/deactivate revoke all.
 - Concurrent sequence identifier menghasilkan kode unik.
+- Dosen pertama pada tanggal tertentu memperoleh `DSN{YYYYMMDD}001`; Kaprodi memakai kode yang sama tanpa sequence baru.
+- Concurrent dan bulk provisioning Dosen menghasilkan range `DSN` unik, terurut deterministik, dan tidak mendaur ulang gap.
+- Dosen `PENDING_PROVISIONING` tidak dapat dipilih pada kurikulum, kelas, penugasan, nilai, atau presensi.
+- Overflow sequence setelah `999` ditolak dengan internal error terstruktur dan tidak menghasilkan identifier invalid.
+- Seed, provisioning, assignment, dan API menolak key role `STAFF` yang tidak dikenal.
 
 ### Acceptance criteria
 
 - Seluruh flow requirements Identitas & Akses dan Login terpenuhi.
+- Tidak ada role, route, menu, scope, atau profile generik Staff; seluruh personel memakai role konkret.
 - Tidak ada route bisnis yang dapat dibuka dengan `mustChangePassword=true`.
 - Session tidak aktif 72 jam selalu ditolak.
 - Semua role/scope enforcement ada di API.
@@ -1157,7 +1199,6 @@ Sistem mempunyai satu sumber data resmi dan tervalidasi untuk identitas akademik
 - `cohorts`
 - `students`
 - `lecturers`
-- `staff_profiles`
 - `rooms`
 - `courses`
 - `academic_years`
@@ -1169,7 +1210,7 @@ Sistem mempunyai satu sumber data resmi dan tervalidasi untuk identitas akademik
 ### Field penting
 
 - Mahasiswa: NIM, nama, Prodi, angkatan, email, telepon, status akademik.
-- Dosen: kode dosen, NIDN, NUPTK, nama, email, telepon, status.
+- Dosen: identifier `DSN` yang digenerate saat provisioning akun, NIDN, NUPTK, nama, email, telepon, status provisioning, dan status akademik.
 - Prodi: kode, nama, jenjang, status.
 - Angkatan: tahun masuk, Prodi, status.
 - Ruang: kode, nama, kapasitas, latitude, longitude, status.
@@ -1211,11 +1252,13 @@ Sistem mempunyai satu sumber data resmi dan tervalidasi untuk identitas akademik
 11. Confirm commit.
 12. Commit chunk-safe.
 13. Simpan result setiap row.
-14. Emit provisioning outbox untuk Mahasiswa/Dosen yang membutuhkan akun.
+14. Dosen hasil commit masuk `PENDING_PROVISIONING`; template import tidak menerima identifier `DSN` buatan pengguna.
+15. Emit provisioning outbox untuk Mahasiswa/Dosen yang membutuhkan akun.
+16. Setelah IAM berhasil menerbitkan identifier, update hasil import dengan `DSN` dan status provisioning final per row.
 
 ### D1 strategy
 
-- Tidak membuat `IN` berisi seluruh NIM file.
+- Tidak membuat `IN` berisi seluruh NIM/NIDN/NUPTK file.
 - Dedup di memory per parsing chunk dan staging unique index.
 - Lookup existing identifier memakai chunk maksimal safe parameter budget.
 - Insert staging dan commit memakai batch maksimal setting.
@@ -1243,6 +1286,8 @@ Sistem mempunyai satu sumber data resmi dan tervalidasi untuk identitas akademik
 - Invalid reference.
 - Coordinate boundary.
 - Identifier locked.
+- Import Dosen tidak dapat menyuntikkan identifier/sequence `DSN` dari file.
+- Provisioning retry tidak mengubah identifier `DSN` yang sudah berhasil diterbitkan.
 - Import failure di tengah chunk dan resume.
 - Recommit idempotent.
 - File besar melampaui satu Worker invocation.
