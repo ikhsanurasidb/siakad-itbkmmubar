@@ -1,11 +1,10 @@
 import { createAuth as createConfiguredAuth } from "@siakad-itbkmmubar/auth";
-import { type Database, createDb } from "@siakad-itbkmmubar/db";
+import { createDb } from "@siakad-itbkmmubar/db";
+import type { Database } from "@siakad-itbkmmubar/db";
 
 import { ENV } from "./env.server";
 
-export function getDb(): Database {
-  return createDb(ENV);
-}
-export async function createAuth(database?: Database) {
-  return createConfiguredAuth(ENV, database ?? (await getDb()));
-}
+export const getDb = (): Database => createDb(ENV);
+
+export const createAuth = async (database?: Database) =>
+  createConfiguredAuth(ENV, database ?? (await getDb()));

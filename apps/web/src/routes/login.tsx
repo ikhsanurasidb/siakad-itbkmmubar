@@ -4,6 +4,4 @@ export const Route = createFileRoute("/login")({
   component: RouteComponent,
 });
 
-function RouteComponent() {
-  return <div />;
-}
+const RouteComponent = () => <div />;

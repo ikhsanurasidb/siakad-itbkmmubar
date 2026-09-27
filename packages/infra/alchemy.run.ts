@@ -9,19 +9,19 @@ export const db = Cloudflare.D1.Database("database", {
 });
 
 export const server = Cloudflare.Worker("server", {
-  main: "../../apps/server/src/index.ts",
   compatibility: {
     flags: ["nodejs_compat"],
-  },
-  env: {
-    DB: db,
-    CORS_ORIGIN: Config.String("CORS_ORIGIN"),
-    BETTER_AUTH_SECRET: Config.Redacted("BETTER_AUTH_SECRET"),
-    BETTER_AUTH_URL: Cloudflare.Worker.URL,
   },
   dev: {
     port: 3000,
   },
+  env: {
+    BETTER_AUTH_SECRET: Config.Redacted("BETTER_AUTH_SECRET"),
+    BETTER_AUTH_URL: Cloudflare.Worker.URL,
+    CORS_ORIGIN: Config.String("CORS_ORIGIN"),
+    DB: db,
+  },
+  main: "../../apps/server/src/index.ts",
 });
 
 export type ServerEnv = Cloudflare.InferEnv<typeof server>;
@@ -32,25 +32,25 @@ export default Alchemy.Stack(
     providers: Cloudflare.providers(),
     state: Cloudflare.state(),
   },
-  Effect.gen(function* () {
+  Effect.gen(function* createStack() {
     const serverWorker = yield* server;
     const webWorker = yield* Cloudflare.Website.Vite("web", {
-      rootDir: "../../apps/web",
       assets: {
         htmlHandling: "auto-trailing-slash",
         notFoundHandling: "single-page-application",
       },
-      env: {
-        VITE_SERVER_URL: serverWorker.url.as<string>(),
-      },
       dev: {
         port: 3001,
       },
+      env: {
+        VITE_SERVER_URL: serverWorker.url.as<string>(),
+      },
+      rootDir: "../../apps/web",
     });
 
     return {
-      web: webWorker.url,
       server: serverWorker.url,
+      web: webWorker.url,
     };
-  }),
+  })
 );

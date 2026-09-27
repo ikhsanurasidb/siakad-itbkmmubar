@@ -4,7 +4,7 @@ export const Route = createFileRoute("/_auth/dashboard")({
   component: RouteComponent,
 });
 
-function RouteComponent() {
+const RouteComponent = () => {
   const { session } = Route.useRouteContext();
 
   return (
@@ -13,4 +13,4 @@ function RouteComponent() {
       <p>Welcome {session.data?.user.name}</p>
     </div>
   );
-}
+};

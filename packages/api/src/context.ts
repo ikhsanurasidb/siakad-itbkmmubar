@@ -1,7 +1,7 @@
 import type { Session } from "@siakad-itbkmmubar/auth";
 import type { Database } from "@siakad-itbkmmubar/db";
 
-export type Context = {
+export interface Context {
   session: Session | null;
   db: Database;
-};
+}

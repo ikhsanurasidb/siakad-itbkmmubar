@@ -41,8 +41,10 @@
     "env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
     "postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
     "check": "ultracite check",
+    "lint": "ultracite check",
     "fix": "ultracite fix",
-    "doctor": "npx react-doctor@latest"
+    "doctor": "ultracite doctor",
+    "react-doctor": "react-doctor"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -56,8 +58,8 @@
     "@cloudflare/workers-types": "catalog:",
     "@siakad-itbkmmubar/config": "workspace:*",
     "@types/node": "catalog:",
-    "oxfmt": "latest",
-    "oxlint": "latest",
+    "oxfmt": "0.70.0",
+    "oxlint": "1.85.0",
     "react-doctor": "^0.9.14",
     "turbo": "^2.10.12",
     "typescript": "catalog:",
