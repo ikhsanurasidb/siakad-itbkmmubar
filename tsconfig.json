@@ -1,6 +1,10 @@
 {
   "extends": "@siakad-itbkmmubar/config/tsconfig.base.json",
   "compilerOptions": {
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    }
   }
 }
