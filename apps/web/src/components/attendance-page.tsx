@@ -401,15 +401,23 @@ const CameraCapture = ({
 };
 
 interface AttendancePageProps {
+  classSectionId?: string;
   mode: "PARTICIPANT" | "REVIEWER";
   roleName: string;
 }
 
-const AttendancePage = ({ mode, roleName }: AttendancePageProps) => {
+const AttendancePage = ({
+  classSectionId,
+  mode,
+  roleName,
+}: AttendancePageProps) => {
   const queryClient = useQueryClient();
   const [attempt, setAttempt] = useState<CaptureAttempt | null>(null);
   const meetings = useQuery(
-    orpc.attendance.list.queryOptions({ enabled: mode === "PARTICIPANT" })
+    orpc.attendance.list.queryOptions({
+      enabled: mode === "PARTICIPANT",
+      input: { classSectionId },
+    })
   );
   const reviews = useQuery(
     orpc.attendance.reviews.list.queryOptions({

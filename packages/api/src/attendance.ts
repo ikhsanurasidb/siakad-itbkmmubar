@@ -36,6 +36,7 @@ export interface AttendanceWindow {
 
 export interface AttendanceMeetingRecord {
   classCode: string;
+  classSectionId: string;
   closeAt: string;
   courseName: string;
   endAt: string;

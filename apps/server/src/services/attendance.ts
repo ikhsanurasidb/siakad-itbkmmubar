@@ -334,6 +334,7 @@ export const createAttendanceService = ({
   const list: AttendanceService["list"] = async ({
     actorRoles,
     actorUserId,
+    classSectionId,
   }) => {
     const rows = await database
       .select({
@@ -347,7 +348,12 @@ export const createAttendanceService = ({
         eq(classSections.id, classMeetings.classSectionId)
       )
       .innerJoin(courses, eq(courses.id, classSections.courseId))
-      .where(eq(classSections.status, "PUBLISHED"))
+      .where(
+        and(
+          eq(classSections.status, "PUBLISHED"),
+          ...(classSectionId ? [eq(classSections.id, classSectionId)] : [])
+        )
+      )
       .orderBy(asc(classMeetings.startAt));
     const participantType = participantTypeForRoles(actorRoles);
     const currentPolicy = await getAttendancePolicy();
@@ -397,6 +403,7 @@ export const createAttendanceService = ({
         : [];
       result.push({
         classCode: row.section.code,
+        classSectionId: row.section.id,
         closeAt: toIso(window.closeAt),
         courseName: row.courseName,
         endAt: toIso(row.meeting.endAt),

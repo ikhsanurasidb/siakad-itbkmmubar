@@ -154,13 +154,16 @@ export const appRouter = {
           actorUserId: context.session?.user.id as string,
         });
       }),
-    list: protectedProcedure.handler(({ context }) => {
-      requireRole(context, ["MAHASISWA", "DOSEN"]);
-      return context.attendanceService.list({
-        actorRoles: context.identity?.roles ?? [],
-        actorUserId: context.session?.user.id as string,
-      });
-    }),
+    list: protectedProcedure
+      .input(z.object({ classSectionId: z.string().min(1).optional() }))
+      .handler(({ context, input }) => {
+        requireRole(context, ["MAHASISWA", "DOSEN"]);
+        return context.attendanceService.list({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
     reviews: {
       list: protectedProcedure
         .input(z.object({ status: attendanceReviewStatusSchema.optional() }))

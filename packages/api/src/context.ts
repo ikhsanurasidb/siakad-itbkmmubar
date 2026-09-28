@@ -473,6 +473,7 @@ export interface AttendanceService {
   list: (input: {
     actorRoles: readonly RoleKey[];
     actorUserId: string;
+    classSectionId?: string;
   }) => Promise<readonly AttendanceMeetingRecord[]>;
   listReviews: (input: {
     actorRoles: readonly RoleKey[];
