@@ -22,6 +22,7 @@ import {
   BookOpen,
   Building2,
   CalendarDays,
+  Camera,
   ClipboardList,
   ChevronRight,
   Database,
@@ -118,6 +119,15 @@ const lecturerSchedulingItems: readonly NavigationItem[] = [
   },
 ];
 
+const lecturerAttendanceItems: readonly NavigationItem[] = [
+  {
+    icon: Camera,
+    label: "Presensi",
+    roles: LECTURER,
+    to: "/dosen/presensi",
+  },
+];
+
 const studentSchedulingItems: readonly NavigationItem[] = [
   {
     icon: CalendarDays,
@@ -130,6 +140,33 @@ const studentSchedulingItems: readonly NavigationItem[] = [
     label: "Ruang pembelajaran",
     roles: STUDENT,
     to: "/mahasiswa/lms",
+  },
+];
+
+const studentAttendanceItems: readonly NavigationItem[] = [
+  {
+    icon: Camera,
+    label: "Presensi",
+    roles: STUDENT,
+    to: "/mahasiswa/presensi",
+  },
+];
+
+const programHeadAttendanceItems: readonly NavigationItem[] = [
+  {
+    icon: Camera,
+    label: "Tinjauan presensi",
+    roles: PROGRAM_HEAD,
+    to: "/kaprodi/presensi",
+  },
+];
+
+const academicAdminAttendanceItems: readonly NavigationItem[] = [
+  {
+    icon: Camera,
+    label: "Tinjauan presensi",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/presensi",
   },
 ];
 
@@ -532,25 +569,31 @@ const navigationSections: readonly NavigationSection[] = [
         roles: SUPERADMIN,
       },
       {
-        children: academicAdminSchedulingItems,
+        children: [
+          ...academicAdminSchedulingItems,
+          ...academicAdminAttendanceItems,
+        ],
         icon: UsersRound,
         label: "Admin Akademik",
         roles: ACADEMIC_ADMIN,
       },
       {
-        children: programHeadSchedulingItems,
+        children: [
+          ...programHeadSchedulingItems,
+          ...programHeadAttendanceItems,
+        ],
         icon: GraduationCap,
         label: "Kaprodi",
         roles: PROGRAM_HEAD,
       },
       {
-        children: lecturerSchedulingItems,
+        children: [...lecturerSchedulingItems, ...lecturerAttendanceItems],
         icon: GraduationCap,
         label: "Dosen",
         roles: LECTURER,
       },
       {
-        children: studentSchedulingItems,
+        children: [...studentSchedulingItems, ...studentAttendanceItems],
         icon: UserRound,
         label: "Mahasiswa",
         roles: STUDENT,

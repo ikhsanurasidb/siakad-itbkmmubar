@@ -1,4 +1,5 @@
 import { ENV } from "@server/env.server";
+import { createAttendanceService as createConfiguredAttendanceService } from "@server/services/attendance";
 import { seedSuperadmin as seedConfiguredSuperadmin } from "@server/services/bootstrap";
 import { createCurriculumService as createConfiguredCurriculumService } from "@server/services/curriculum";
 import { createGradesService as createConfiguredGradesService } from "@server/services/grades";
@@ -76,6 +77,16 @@ export const createGradesService = async (database?: Database) => {
     database: db,
     getGradingPolicy: (asOf) =>
       settingsService.getGradingPolicy(undefined, asOf),
+  });
+};
+
+export const createAttendanceService = async (database?: Database) => {
+  const db = database ?? (await getDb());
+  const settingsService = await createSettingsService(db);
+  return createConfiguredAttendanceService({
+    database: db,
+    getAttendancePolicy: () => settingsService.getAttendancePolicy(),
+    storage: getStorage(),
   });
 };
 

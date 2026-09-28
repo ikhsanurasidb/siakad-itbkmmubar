@@ -1,4 +1,11 @@
 import type {
+  AttendanceCaptureAttemptRecord,
+  AttendanceMeetingRecord,
+  AttendanceRecordResult,
+  AttendanceReviewRecord,
+  AttendanceStatus,
+} from "@api/attendance";
+import type {
   CurriculumAssessmentComponent,
   CurriculumListItem,
   CurriculumRecord,
@@ -440,6 +447,59 @@ export interface SchedulingService {
   }) => Promise<{ slotId: string }>;
 }
 
+export interface AttendanceService {
+  decideRequest: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    approve: boolean;
+    reason?: string;
+    requestId: string;
+    expectedVersion: number;
+  }) => Promise<{ status: "APPROVED" | "REJECTED" }>;
+  downloadEvidence: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    evidenceId: string;
+  }) => Promise<{
+    body: ReadableStream;
+    contentType: string;
+  }>;
+  generateAlpa: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    idempotencyKey: string;
+    sessionId: string;
+  }) => Promise<{ createdCount: number; jobId: string; status: string }>;
+  list: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+  }) => Promise<readonly AttendanceMeetingRecord[]>;
+  listReviews: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    status?: "PENDING" | "APPROVED" | "REJECTED";
+  }) => Promise<readonly AttendanceReviewRecord[]>;
+  startCapture: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    meetingId: string;
+  }) => Promise<AttendanceCaptureAttemptRecord>;
+  submit: (input: {
+    accuracyMeters?: number;
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    captureAttemptId: string;
+    contentBase64: string;
+    declaredMime: string;
+    filename?: string;
+    idempotencyKey: string;
+    latitude?: number;
+    longitude?: number;
+    note?: string;
+    status: AttendanceStatus;
+  }) => Promise<AttendanceRecordResult>;
+}
+
 export interface SettingsScope {
   scopeId: string;
   scopeType: SettingScopeType;
@@ -746,6 +806,7 @@ export interface ServerLogger {
 }
 
 export interface Context {
+  attendanceService: AttendanceService;
   db: Database;
   clock: Clock;
   curriculumService: CurriculumService;

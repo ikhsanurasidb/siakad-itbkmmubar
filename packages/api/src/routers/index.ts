@@ -1,3 +1,4 @@
+import { attendanceStatuses } from "@api/attendance";
 import type { Context } from "@api/context";
 import { curriculumCourseTypes, curriculumStatuses } from "@api/curriculum";
 import {
@@ -102,8 +103,115 @@ const lmsFileSchema = z.object({
   mimeType: z.string().trim().min(1).max(120),
 });
 const lmsFilesSchema = z.array(lmsFileSchema).max(5).optional();
+const attendanceStatusSchema = z.enum(attendanceStatuses);
+const attendanceReviewStatusSchema = z.enum([
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+] as const);
 
 export const appRouter = {
+  attendance: {
+    decideRequest: protectedProcedure
+      .input(
+        z.object({
+          approve: z.boolean(),
+          expectedVersion: z.number().int().min(1),
+          reason: z.string().trim().max(500).optional(),
+          requestId: z.string().min(1),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, [
+          "SUPERADMIN",
+          "ADMIN_AKADEMIK",
+          "KAPRODI",
+          "DOSEN",
+        ]);
+        return context.attendanceService.decideRequest({
+          ...input,
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+        });
+      }),
+    generateAlpa: protectedProcedure
+      .input(
+        z.object({
+          idempotencyKey: z.string().trim().min(16).max(128),
+          sessionId: z.string().min(1),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, [
+          "SUPERADMIN",
+          "ADMIN_AKADEMIK",
+          "KAPRODI",
+          "DOSEN",
+        ]);
+        return context.attendanceService.generateAlpa({
+          ...input,
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+        });
+      }),
+    list: protectedProcedure.handler(({ context }) => {
+      requireRole(context, ["MAHASISWA", "DOSEN"]);
+      return context.attendanceService.list({
+        actorRoles: context.identity?.roles ?? [],
+        actorUserId: context.session?.user.id as string,
+      });
+    }),
+    reviews: {
+      list: protectedProcedure
+        .input(z.object({ status: attendanceReviewStatusSchema.optional() }))
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+          ]);
+          return context.attendanceService.listReviews({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
+    startCapture: protectedProcedure
+      .input(z.object({ meetingId: z.string().min(1) }))
+      .handler(({ context, input }) => {
+        requireRole(context, ["MAHASISWA", "DOSEN"]);
+        return context.attendanceService.startCapture({
+          ...input,
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+        });
+      }),
+    submit: protectedProcedure
+      .input(
+        z.object({
+          accuracyMeters: z.number().finite().nonnegative().optional(),
+          captureAttemptId: z.string().min(1),
+          contentBase64: z.string().min(1).max(20_000_000),
+          declaredMime: z.string().trim().min(1).max(120),
+          filename: z.string().trim().min(1).max(180).optional(),
+          idempotencyKey: z.string().trim().min(16).max(128),
+          latitude: z.number().finite().optional(),
+          longitude: z.number().finite().optional(),
+          note: z.string().trim().max(1000).optional(),
+          status: attendanceStatusSchema,
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["MAHASISWA", "DOSEN"]);
+        return context.attendanceService.submit({
+          ...input,
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+        });
+      }),
+  },
   curriculum: {
     activate: protectedProcedure
       .input(z.object({ curriculumId: z.string().min(1) }))

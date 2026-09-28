@@ -100,6 +100,22 @@ export {
   submissionFiles,
 } from "@db/schema/lms";
 export {
+  attendanceAdjustments,
+  attendanceCaptureAttempts,
+  attendanceEvidences,
+  attendanceEvidenceTypes,
+  attendanceGenerationJobs,
+  attendanceJobStatuses,
+  attendanceParticipantTypes,
+  attendanceRecords,
+  attendanceRequests,
+  attendanceRequestStatuses,
+  attendanceReviewDecisions,
+  attendanceReviewLogs,
+  attendanceSessions,
+  attendanceStatuses,
+} from "@db/schema/attendance";
+export {
   classEnrollments,
   classMappingJobs,
   classMeetings,

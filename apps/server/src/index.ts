@@ -53,6 +53,7 @@ app.use("/*", async (c, next) => {
   const startedAt = performance.now();
 
   c.header("x-request-id", requestId);
+  c.header("Permissions-Policy", "camera=(self), microphone=()");
   c.set("logger", requestLogger);
   c.set("requestId", requestId);
 
@@ -242,6 +243,33 @@ app.get("/api/lms/file/:fileObjectId", async (c) => {
     });
   } catch {
     return c.json({ message: "Berkas LMS tidak ditemukan." }, 404);
+  }
+});
+
+app.get("/api/attendance/evidence/:evidenceId", async (c) => {
+  const context = await createContext({
+    context: c,
+    logger: c.get("logger"),
+    requestId: c.get("requestId"),
+  });
+  if (!context.session?.user || !context.identity) {
+    return c.json({ message: "Masuk diperlukan." }, 401);
+  }
+  try {
+    const evidence = await context.attendanceService.downloadEvidence({
+      actorRoles: context.identity.roles,
+      actorUserId: context.session.user.id,
+      evidenceId: c.req.param("evidenceId"),
+    });
+    return c.body(evidence.body, 200, {
+      "cache-control": "private, no-store",
+      "content-type": evidence.contentType,
+      "x-content-type-options": "nosniff",
+    });
+  } catch {
+    return c.json({ message: "Bukti presensi belum dapat ditampilkan." }, 404);
+  }
+});
   }
 });
 
