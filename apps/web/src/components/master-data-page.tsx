@@ -1,40 +1,19 @@
 import { studyProgramDegreeOptions } from "@siakad-itbkmmubar/api/master-data";
-import { Button } from "@siakad-itbkmmubar/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@siakad-itbkmmubar/ui/components/card";
-import { DataTable } from "@siakad-itbkmmubar/ui/components/data-table";
-import { FormField } from "@siakad-itbkmmubar/ui/components/form-field";
-import { Input } from "@siakad-itbkmmubar/ui/components/input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search } from "lucide-react";
 import { useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent } from "react";
 import { toast } from "sonner";
 
+import MasterDataCreateForm from "@/components/master-data-create-form";
+import type {
+  FieldDefinition,
+  SuggestionOption,
+} from "@/components/master-data-create-form";
+import MasterDataListCard from "@/components/master-data-list-card";
+import type { MasterDataEntityType } from "@/components/master-data-types";
 import { orpc } from "@/utils/orpc";
 
-export type MasterDataEntityType =
-  | "ACADEMIC_PERIOD"
-  | "ACADEMIC_YEAR"
-  | "COHORT"
-  | "COURSE"
-  | "LECTURER"
-  | "ROOM"
-  | "STUDENT"
-  | "STUDY_PROGRAM";
-
-interface FieldDefinition {
-  id: string;
-  label: string;
-  optional?: boolean;
-  options?: readonly string[];
-  type?: "date" | "number" | "select" | "text";
-}
+export type { MasterDataEntityType } from "@/components/master-data-types";
 
 interface MasterDataPageProps {
   description: string;
@@ -62,7 +41,7 @@ const definitions: Record<MasterDataEntityType, readonly FieldDefinition[]> = {
     { id: "code", label: "Kode" },
     { id: "name", label: "Nama" },
     { id: "credits", label: "SKS", type: "number" },
-    { id: "defaultSemester", label: "Semester default", type: "number" },
+    { id: "defaultSemester", label: "Semester awal", type: "number" },
     { id: "studyProgramId", label: "Prodi" },
   ],
   LECTURER: [
@@ -110,12 +89,6 @@ const labels: Record<MasterDataEntityType, string> = {
   STUDY_PROGRAM: "Prodi",
 };
 
-const referenceFieldIds = new Set([
-  "academicYearId",
-  "cohortId",
-  "studyProgramId",
-]);
-
 const recordText = (row: Record<string, unknown>, key: string): string => {
   const value = row[key];
   return typeof value === "string" || typeof value === "number"
@@ -123,118 +96,8 @@ const recordText = (row: Record<string, unknown>, key: string): string => {
     : "";
 };
 
-const getErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : "Perubahan belum dapat disimpan.";
-
-interface SuggestionOption {
-  description?: string;
-  id: string;
-  label: string;
-}
-
-interface ReferenceSearchFieldProps {
-  error?: string;
-  id: string;
-  label: string;
-  loading?: boolean;
-  onClear: () => void;
-  onSearch: (value: string) => void;
-  onSelect: (option: SuggestionOption) => void;
-  options: readonly SuggestionOption[];
-  value: string;
-}
-
-const ReferenceSearchField = ({
-  error,
-  id,
-  label,
-  loading,
-  onClear,
-  onSearch,
-  onSelect,
-  options,
-  value,
-}: ReferenceSearchFieldProps) => {
-  const listId = `${id}-suggestions`;
-  return (
-    <FormField
-      error={error}
-      helper="Ketik untuk mencari, lalu pilih data aktif."
-      id={id}
-      label={label}
-    >
-      <div className="relative">
-        <Input
-          aria-busy={loading}
-          aria-invalid={Boolean(error)}
-          autoComplete="off"
-          id={id}
-          list={listId}
-          onChange={(event) => {
-            const selected = options.find(
-              (option) => option.label === event.target.value
-            );
-            if (selected) {
-              onSelect(selected);
-              return;
-            }
-            onClear();
-            onSearch(event.target.value);
-          }}
-          value={value}
-        />
-        <datalist id={listId}>
-          {options.map((option) => (
-            <option
-              aria-label={option.description ?? option.label}
-              key={option.id}
-              label={option.description ?? option.label}
-              value={option.label}
-            />
-          ))}
-        </datalist>
-      </div>
-    </FormField>
-  );
-};
-
-type DisplayRow = Record<string, unknown> & {
-  id: string;
-  status?: string;
-};
-
-const MasterDataRowActions = ({
-  entityType,
-  onArchive,
-  onReactivate,
-  row,
-}: {
-  entityType: MasterDataEntityType;
-  onArchive: (input: { entityType: MasterDataEntityType; id: string }) => void;
-  onReactivate: (input: {
-    entityType: MasterDataEntityType;
-    id: string;
-  }) => void;
-  row: DisplayRow;
-}) => {
-  const isArchived = row.status === "ARCHIVED";
-  return (
-    <Button
-      onClick={() => {
-        if (isArchived) {
-          onReactivate({ entityType, id: row.id });
-        } else {
-          onArchive({ entityType, id: row.id });
-        }
-      }}
-      size="sm"
-      type="button"
-      variant="outline"
-    >
-      {isArchived ? "Aktifkan" : "Arsipkan"}
-    </Button>
-  );
-};
+const getErrorMessage = (): string =>
+  "Perubahan belum dapat disimpan. Periksa data lalu coba lagi.";
 
 const MasterDataPage = ({
   description,
@@ -303,7 +166,7 @@ const MasterDataPage = ({
   );
   const createRecord = useMutation(
     orpc.masterData.create.mutationOptions({
-      onError: (error) => toast.error(getErrorMessage(error)),
+      onError: () => toast.error(getErrorMessage()),
       onSuccess: async () => {
         setValues({});
         setReferenceLabels({});
@@ -318,7 +181,7 @@ const MasterDataPage = ({
   );
   const archiveRecord = useMutation(
     orpc.masterData.archive.mutationOptions({
-      onError: (error) => toast.error(getErrorMessage(error)),
+      onError: () => toast.error(getErrorMessage()),
       onSuccess: async () => {
         toast.success("Data diarsipkan.");
         await queryClient.invalidateQueries({
@@ -329,7 +192,7 @@ const MasterDataPage = ({
   );
   const reactivateRecord = useMutation(
     orpc.masterData.reactivate.mutationOptions({
-      onError: (error) => toast.error(getErrorMessage(error)),
+      onError: () => toast.error(getErrorMessage()),
       onSuccess: async () => {
         toast.success("Data diaktifkan kembali.");
         await queryClient.invalidateQueries({
@@ -428,220 +291,55 @@ const MasterDataPage = ({
     }
   };
 
-  const rows: DisplayRow[] = (records.data?.data ?? []).map((row) => ({
-    ...row,
-    action: row.status === "ARCHIVED" ? "ARCHIVED" : "ACTIVE",
-    id: String(row.id),
-  }));
-  const renderRowActions = (row: DisplayRow): ReactNode => (
-    <MasterDataRowActions
-      entityType={entityType}
-      onArchive={(input) => archiveRecord.mutate(input)}
-      onReactivate={(input) => reactivateRecord.mutate(input)}
-      row={row}
-    />
-  );
-  const columns = [
-    ...fields.slice(0, 4).map((field) => ({
-      header: field.label,
-      id: field.id,
-    })),
-    { header: "Status", id: "status" },
-    {
-      cell: renderRowActions,
-      header: "Aksi",
-      id: "action",
-    },
-  ];
-
   return (
     <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
       <div className="grid gap-2">
         <p className="text-muted-foreground text-xs font-medium tracking-widest uppercase">
-          Master data
+          Data master
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="text-muted-foreground text-sm">{description}</p>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Tambah {labels[entityType]}</CardTitle>
-          <CardDescription>
-            Validasi dilakukan setelah formulir dikirim.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={submitCreate}>
-            {fields.map((field) => {
-              const error =
-                hasSubmitted && !field.optional && !values[field.id]?.trim()
-                  ? `${field.label} wajib diisi.`
-                  : undefined;
-              if (referenceFieldIds.has(field.id)) {
-                return (
-                  <ReferenceSearchField
-                    error={error}
-                    id={`create-${field.id}`}
-                    key={field.id}
-                    label={field.label}
-                    loading={referenceLoading[field.id]}
-                    onClear={() => clearReference(field.id)}
-                    onSearch={(value) => {
-                      setReferenceSearch((current) => ({
-                        ...current,
-                        [field.id]: value,
-                      }));
-                      setReferenceLabels((current) => ({
-                        ...current,
-                        [field.id]: value,
-                      }));
-                    }}
-                    onSelect={(option) => selectReference(field.id, option)}
-                    options={referenceOptions[field.id] ?? []}
-                    value={referenceLabels[field.id] ?? ""}
-                  />
-                );
-              }
-              if (field.type === "select") {
-                return (
-                  <FormField
-                    error={error}
-                    id={`create-${field.id}`}
-                    key={field.id}
-                    label={field.label}
-                    optional={field.optional}
-                  >
-                    <select
-                      className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
-                      id={`create-${field.id}`}
-                      onChange={(event) =>
-                        setValues((current) => ({
-                          ...current,
-                          [field.id]: event.target.value,
-                        }))
-                      }
-                      value={values[field.id] ?? ""}
-                    >
-                      <option value="">
-                        Pilih {field.label.toLowerCase()}
-                      </option>
-                      {field.options?.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </FormField>
-                );
-              }
-              return (
-                <FormField
-                  error={error}
-                  id={`create-${field.id}`}
-                  key={field.id}
-                  label={field.label}
-                  optional={field.optional}
-                >
-                  <Input
-                    id={`create-${field.id}`}
-                    onChange={(event) =>
-                      setValues((current) => ({
-                        ...current,
-                        [field.id]: event.target.value,
-                      }))
-                    }
-                    type={field.type ?? "text"}
-                    value={values[field.id] ?? ""}
-                  />
-                </FormField>
-              );
-            })}
-            <div className="flex items-end">
-              <Button disabled={createRecord.isPending} type="submit">
-                {createRecord.isPending ? "Menyimpan..." : "Simpan data"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Daftar {labels[entityType]}</CardTitle>
-          <CardDescription>
-            Gunakan pencarian dan status untuk memuat data dari server.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <form
-            className="flex flex-wrap items-end gap-3"
-            onSubmit={submitSearch}
-          >
-            <FormField id="master-search" label="Cari">
-              <Input
-                id="master-search"
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Kode, identifier, atau nama"
-                value={search}
-              />
-            </FormField>
-            <FormField id="master-status" label="Status">
-              <select
-                className="border-input bg-background h-9 rounded-md border px-3 text-sm"
-                id="master-status"
-                onChange={(event) => {
-                  setCursor(undefined);
-                  setStatus(
-                    event.target.value
-                      ? (event.target.value as "ACTIVE" | "ARCHIVED")
-                      : undefined
-                  );
-                }}
-                value={status ?? ""}
-              >
-                <option value="">Semua status</option>
-                <option value="ACTIVE">Aktif</option>
-                <option value="ARCHIVED">Diarsipkan</option>
-              </select>
-            </FormField>
-            <Button type="submit" variant="outline">
-              <Search aria-hidden="true" />
-              Terapkan
-            </Button>
-          </form>
-          {(() => {
-            let content: ReactNode = (
-              <DataTable
-                columns={columns}
-                getRowKey={(row) => row.id}
-                rows={rows}
-              />
-            );
-            if (records.isPending) {
-              content = (
-                <p className="text-muted-foreground text-sm">Memuat data...</p>
-              );
-            } else if (records.isError) {
-              content = (
-                <p className="text-destructive text-sm" role="alert">
-                  Data belum dapat dimuat. Coba lagi.
-                </p>
-              );
-            }
-            return content;
-          })()}
-          {records.data?.nextCursor ? (
-            <div>
-              <Button
-                onClick={() => setCursor(records.data?.nextCursor ?? undefined)}
-                type="button"
-                variant="outline"
-              >
-                Muat halaman berikutnya
-              </Button>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+      <MasterDataCreateForm
+        createPending={createRecord.isPending}
+        entityLabel={labels[entityType]}
+        fields={fields}
+        hasSubmitted={hasSubmitted}
+        onClearReference={clearReference}
+        onSearchReference={(fieldId, value) => {
+          setReferenceSearch((current) => ({ ...current, [fieldId]: value }));
+          setReferenceLabels((current) => ({ ...current, [fieldId]: value }));
+        }}
+        onSelectReference={selectReference}
+        onSubmit={submitCreate}
+        onValueChange={(fieldId, value) =>
+          setValues((current) => ({ ...current, [fieldId]: value }))
+        }
+        referenceLabels={referenceLabels}
+        referenceLoading={referenceLoading}
+        referenceOptions={referenceOptions}
+        values={values}
+      />
+      <MasterDataListCard
+        entityLabel={labels[entityType]}
+        entityType={entityType}
+        fields={fields}
+        isError={records.isError}
+        isPending={records.isPending}
+        nextCursor={records.data?.nextCursor}
+        onArchive={(input) => archiveRecord.mutate(input)}
+        onNextPage={() => setCursor(records.data?.nextCursor ?? undefined)}
+        onReactivate={(input) => reactivateRecord.mutate(input)}
+        onSearchChange={setSearch}
+        onStatusChange={(value) => {
+          setCursor(undefined);
+          setStatus(value);
+        }}
+        onSubmitSearch={submitSearch}
+        rows={records.data?.data ?? []}
+        search={search}
+        status={status}
+      />
     </div>
   );
 };

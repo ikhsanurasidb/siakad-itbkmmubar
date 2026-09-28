@@ -27,8 +27,14 @@ const entityOptions = [
   ["ACADEMIC_PERIOD", "Periode"],
 ] as const;
 
-const getErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : "Import belum dapat diproses.";
+const getErrorMessage = (): string =>
+  "Impor belum dapat diproses. Periksa file lalu coba lagi.";
+
+const importRowStatusLabels: Record<string, string> = {
+  INVALID: "Perlu diperbaiki",
+  VALID: "Lolos validasi",
+  WARNING: "Peringatan",
+};
 
 const calculateChecksum = async (content: string): Promise<string> => {
   const bytes = new TextEncoder().encode(content);
@@ -59,20 +65,18 @@ const MasterDataImportPage = ({
   );
   const createImport = useMutation(
     orpc.masterData.import.create.mutationOptions({
-      onError: (error) => toast.error(getErrorMessage(error)),
+      onError: () => toast.error(getErrorMessage()),
       onSuccess: (result) => {
         setJobId(result.id);
-        toast.success(
-          "File berhasil divalidasi. Periksa preview sebelum commit."
-        );
+        toast.success("File tervalidasi. Periksa pratinjau sebelum menyimpan.");
       },
     })
   );
   const commitImport = useMutation(
     orpc.masterData.import.commit.mutationOptions({
-      onError: (error) => toast.error(getErrorMessage(error)),
+      onError: () => toast.error(getErrorMessage()),
       onSuccess: () => {
-        toast.success("Batch import dilanjutkan.");
+        toast.success("Pemrosesan impor dilanjutkan.");
         void preview.refetch();
       },
     })
@@ -98,24 +102,23 @@ const MasterDataImportPage = ({
     errors: typeof row.errors === "string" ? row.errors : "—",
     id: String(row.id),
     rowNumber: String(row.rowNumber),
-    status: String(row.status),
+    status: importRowStatusLabels[String(row.status)] ?? String(row.status),
   }));
 
   return (
     <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
       <div className="grid gap-2">
         <p className="text-muted-foreground text-xs font-medium tracking-widest uppercase">
-          Master data
+          Data master
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="text-muted-foreground text-sm">{description}</p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Upload dan validasi</CardTitle>
+          <CardTitle>Unggah dan validasi</CardTitle>
           <CardDescription>
-            Gunakan CSV template versi 1. DSN tidak boleh diisi dari file
-            import.
+            Gunakan templat CSV versi 1. DSN tidak boleh diisi dari file impor.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
@@ -139,7 +142,9 @@ const MasterDataImportPage = ({
           </FormField>
           <FormField
             helper={
-              fileName ? `File dipilih: ${fileName}` : "CSV maksimal 10 MB."
+              fileName
+                ? `File dipilih: ${fileName}`
+                : "Ukuran CSV maksimal 10 MB."
             }
             id="import-file"
             label="File CSV"
@@ -156,10 +161,10 @@ const MasterDataImportPage = ({
       {jobId && preview.data ? (
         <Card>
           <CardHeader>
-            <CardTitle>Preview hasil validasi</CardTitle>
+            <CardTitle>Pratinjau hasil validasi</CardTitle>
             <CardDescription>
-              Valid: {String(preview.data.job.validCount ?? 0)} · Warning:{" "}
-              {String(preview.data.job.warningCount ?? 0)} · Invalid:{" "}
+              Lolos: {String(preview.data.job.validCount ?? 0)} · Peringatan:{" "}
+              {String(preview.data.job.warningCount ?? 0)} · Perlu diperbaiki:{" "}
               {String(preview.data.job.invalidCount ?? 0)}
             </CardDescription>
           </CardHeader>
@@ -179,7 +184,9 @@ const MasterDataImportPage = ({
                 onClick={() => commitImport.mutate({ jobId, limit: 25 })}
                 type="button"
               >
-                {commitImport.isPending ? "Memproses..." : "Commit data valid"}
+                {commitImport.isPending
+                  ? "Menyimpan..."
+                  : "Simpan data tervalidasi"}
               </Button>
             </div>
           </CardContent>

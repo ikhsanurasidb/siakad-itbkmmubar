@@ -4,9 +4,9 @@ import MasterDataPage from "@/components/master-data-page";
 
 const Page = () => (
   <MasterDataPage
-    description="Kelola identitas akademik mahasiswa dan status provisioning."
+    description="Kelola identitas akademik mahasiswa dan penerbitan akun."
     entityType="STUDENT"
-    title="Master Mahasiswa"
+    title="Data mahasiswa"
   />
 );
 export const Route = createFileRoute(

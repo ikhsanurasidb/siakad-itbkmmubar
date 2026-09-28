@@ -49,9 +49,16 @@ import {
   isNull,
   like,
   or,
+  sql,
 } from "drizzle-orm";
 
 type MasterDataRecord = Record<string, unknown>;
+
+interface StatusCount {
+  active: number | null;
+  archived: number | null;
+  total: number | null;
+}
 
 const IMPORT_ROW_BATCH_SIZE = 10;
 
@@ -62,6 +69,23 @@ const toRecords = async <T extends object>(
 ): Promise<MasterDataRecord[]> => {
   const values = await query;
   return values.map(asRecord);
+};
+
+const normalizeCount = (value: number | null): number => value ?? 0;
+
+const readStatusCount = async (
+  query: PromiseLike<readonly StatusCount[]>
+): Promise<{
+  activeCount: number;
+  archivedCount: number;
+  totalCount: number;
+}> => {
+  const [row] = await query;
+  return {
+    activeCount: normalizeCount(row?.active ?? null),
+    archivedCount: normalizeCount(row?.archived ?? null),
+    totalCount: normalizeCount(row?.total ?? null),
+  };
 };
 
 const ensureRecordAbsent = async (
@@ -577,6 +601,160 @@ export const createMasterDataService = ({
     return {
       data: hasMore ? rows.slice(0, limit) : rows,
       nextCursor: hasMore ? String(offset + limit) : null,
+    };
+  };
+
+  const summary: MasterDataService["summary"] = async () => {
+    const [
+      academicPeriodCount,
+      academicYearCount,
+      cohortCount,
+      courseCount,
+      lecturerCount,
+      roomCount,
+      studentCount,
+      studyProgramCount,
+    ] = await Promise.all([
+      readStatusCount(
+        database
+          .select({
+            active: sql<number>`sum(case when ${academicPeriods.status} = 'ACTIVE' then 1 else 0 end)`,
+            archived: sql<number>`sum(case when ${academicPeriods.status} = 'ARCHIVED' then 1 else 0 end)`,
+            total: sql<number>`count(*)`,
+          })
+          .from(academicPeriods)
+      ),
+      readStatusCount(
+        database
+          .select({
+            active: sql<number>`sum(case when ${academicYears.status} = 'ACTIVE' then 1 else 0 end)`,
+            archived: sql<number>`sum(case when ${academicYears.status} = 'ARCHIVED' then 1 else 0 end)`,
+            total: sql<number>`count(*)`,
+          })
+          .from(academicYears)
+      ),
+      readStatusCount(
+        database
+          .select({
+            active: sql<number>`sum(case when ${cohorts.status} = 'ACTIVE' then 1 else 0 end)`,
+            archived: sql<number>`sum(case when ${cohorts.status} = 'ARCHIVED' then 1 else 0 end)`,
+            total: sql<number>`count(*)`,
+          })
+          .from(cohorts)
+      ),
+      readStatusCount(
+        database
+          .select({
+            active: sql<number>`sum(case when ${courses.status} = 'ACTIVE' then 1 else 0 end)`,
+            archived: sql<number>`sum(case when ${courses.status} = 'ARCHIVED' then 1 else 0 end)`,
+            total: sql<number>`count(*)`,
+          })
+          .from(courses)
+      ),
+      readStatusCount(
+        database
+          .select({
+            active: sql<number>`sum(case when ${lecturers.status} = 'ACTIVE' then 1 else 0 end)`,
+            archived: sql<number>`sum(case when ${lecturers.status} = 'ARCHIVED' then 1 else 0 end)`,
+            total: sql<number>`count(*)`,
+          })
+          .from(lecturers)
+      ),
+      readStatusCount(
+        database
+          .select({
+            active: sql<number>`sum(case when ${rooms.status} = 'ACTIVE' then 1 else 0 end)`,
+            archived: sql<number>`sum(case when ${rooms.status} = 'ARCHIVED' then 1 else 0 end)`,
+            total: sql<number>`count(*)`,
+          })
+          .from(rooms)
+      ),
+      readStatusCount(
+        database
+          .select({
+            active: sql<number>`sum(case when ${students.status} = 'ACTIVE' then 1 else 0 end)`,
+            archived: sql<number>`sum(case when ${students.status} = 'ARCHIVED' then 1 else 0 end)`,
+            total: sql<number>`count(*)`,
+          })
+          .from(students)
+      ),
+      readStatusCount(
+        database
+          .select({
+            active: sql<number>`sum(case when ${studyPrograms.status} = 'ACTIVE' then 1 else 0 end)`,
+            archived: sql<number>`sum(case when ${studyPrograms.status} = 'ARCHIVED' then 1 else 0 end)`,
+            total: sql<number>`count(*)`,
+          })
+          .from(studyPrograms)
+      ),
+    ]);
+    const entityCounts = [
+      { counts: academicPeriodCount, entityType: "ACADEMIC_PERIOD" as const },
+      { counts: academicYearCount, entityType: "ACADEMIC_YEAR" as const },
+      { counts: cohortCount, entityType: "COHORT" as const },
+      { counts: courseCount, entityType: "COURSE" as const },
+      { counts: lecturerCount, entityType: "LECTURER" as const },
+      { counts: roomCount, entityType: "ROOM" as const },
+      { counts: studentCount, entityType: "STUDENT" as const },
+      { counts: studyProgramCount, entityType: "STUDY_PROGRAM" as const },
+    ].map(({ counts, entityType }) => ({
+      activeCount: counts.activeCount,
+      archivedCount: counts.archivedCount,
+      entityType,
+      totalCount: counts.totalCount,
+    }));
+    const [importSummary] = await database
+      .select({
+        attentionCount: sql<number>`sum(case when ${importJobs.status} in ('READY', 'PARTIAL_FAILED', 'FAILED') then 1 else 0 end)`,
+        completedCount: sql<number>`sum(case when ${importJobs.status} = 'COMPLETED' then 1 else 0 end)`,
+        inProgressCount: sql<number>`sum(case when ${importJobs.status} in ('UPLOADED', 'VALIDATING', 'COMMITTING') then 1 else 0 end)`,
+      })
+      .from(importJobs);
+    const recent = await database
+      .select({
+        createdAt: importJobs.createdAt,
+        entityType: importJobs.entityType,
+        filename: importJobs.filename,
+        id: importJobs.id,
+        invalidCount: importJobs.invalidCount,
+        status: importJobs.status,
+        totalRows: importJobs.totalRows,
+        validCount: importJobs.validCount,
+        warningCount: importJobs.warningCount,
+      })
+      .from(importJobs)
+      .orderBy(desc(importJobs.createdAt))
+      .limit(5);
+    const totals = {
+      activeCount: 0,
+      archivedCount: 0,
+      totalCount: 0,
+    };
+    for (const entity of entityCounts) {
+      totals.activeCount += entity.activeCount;
+      totals.archivedCount += entity.archivedCount;
+      totals.totalCount += entity.totalCount;
+    }
+    return {
+      entities: entityCounts,
+      generatedAt: new Date().toISOString(),
+      imports: {
+        attentionCount: normalizeCount(importSummary?.attentionCount ?? null),
+        completedCount: normalizeCount(importSummary?.completedCount ?? null),
+        inProgressCount: normalizeCount(importSummary?.inProgressCount ?? null),
+        recent: recent.map((job) => ({
+          createdAt: job.createdAt?.toISOString() ?? new Date(0).toISOString(),
+          entityType: job.entityType as MasterDataEntityType,
+          filename: job.filename,
+          id: job.id,
+          invalidCount: job.invalidCount,
+          status: job.status,
+          totalRows: job.totalRows,
+          validCount: job.validCount,
+          warningCount: job.warningCount,
+        })),
+      },
+      totals,
     };
   };
 
@@ -2007,6 +2185,7 @@ export const createMasterDataService = ({
     list,
     previewImport,
     reactivate: (input) => setStatus({ ...input, status: "ACTIVE" }),
+    summary,
     update,
   };
 };

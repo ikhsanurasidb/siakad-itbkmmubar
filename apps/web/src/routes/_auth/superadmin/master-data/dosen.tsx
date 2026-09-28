@@ -4,9 +4,9 @@ import MasterDataPage from "@/components/master-data-page";
 
 const Page = () => (
   <MasterDataPage
-    description="Kelola seluruh data dosen. DSN diterbitkan otomatis oleh provisioning."
+    description="Kelola seluruh data dosen dan pantau penerbitan akun DSN."
     entityType="LECTURER"
-    title="Master Dosen"
+    title="Data dosen"
   />
 );
 export const Route = createFileRoute("/_auth/superadmin/master-data/dosen")({

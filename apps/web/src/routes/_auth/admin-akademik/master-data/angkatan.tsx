@@ -4,9 +4,9 @@ import MasterDataPage from "@/components/master-data-page";
 
 const Page = () => (
   <MasterDataPage
-    description="Kelola tahun masuk mahasiswa per program studi."
+    description="Kelola tahun masuk mahasiswa pada setiap program studi."
     entityType="COHORT"
-    title="Master Angkatan"
+    title="Data angkatan"
   />
 );
 export const Route = createFileRoute(

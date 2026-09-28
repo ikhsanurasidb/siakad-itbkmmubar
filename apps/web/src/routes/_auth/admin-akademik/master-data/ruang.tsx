@@ -4,9 +4,9 @@ import MasterDataPage from "@/components/master-data-page";
 
 const Page = () => (
   <MasterDataPage
-    description="Kelola kapasitas dan koordinat ruang untuk operasional akademik."
+    description="Kelola ruang, kapasitas, dan koordinat untuk operasional akademik."
     entityType="ROOM"
-    title="Master Ruang"
+    title="Data ruang"
   />
 );
 export const Route = createFileRoute("/_auth/admin-akademik/master-data/ruang")(

@@ -4,9 +4,9 @@ import MasterDataPage from "@/components/master-data-page";
 
 const Page = () => (
   <MasterDataPage
-    description="Kelola tahun akademik beserta periode dan tanggal berlakunya."
+    description="Kelola tahun akademik, periode, dan tanggal berlakunya."
     entityType="ACADEMIC_YEAR"
-    title="Master Semester"
+    title="Periode akademik"
   />
 );
 export const Route = createFileRoute(

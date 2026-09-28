@@ -4,8 +4,8 @@ import MasterDataImportPage from "@/components/master-data-import-page";
 
 const Page = () => (
   <MasterDataImportPage
-    description="Validasi dan commit data master melalui staging yang dapat dilanjutkan."
-    title="Import Master Data"
+    description="Unggah, validasi, dan simpan data master secara bertahap."
+    title="Impor data master"
   />
 );
 export const Route = createFileRoute(

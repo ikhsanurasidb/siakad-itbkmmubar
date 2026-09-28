@@ -137,6 +137,36 @@ export interface MasterDataService {
     data: readonly Record<string, unknown>[];
     nextCursor: string | null;
   }>;
+  summary: () => Promise<{
+    entities: readonly {
+      activeCount: number;
+      archivedCount: number;
+      entityType: MasterDataEntityType;
+      totalCount: number;
+    }[];
+    generatedAt: string;
+    imports: {
+      attentionCount: number;
+      completedCount: number;
+      inProgressCount: number;
+      recent: readonly {
+        createdAt: string;
+        entityType: MasterDataEntityType;
+        filename: string;
+        id: string;
+        invalidCount: number;
+        status: string;
+        totalRows: number;
+        validCount: number;
+        warningCount: number;
+      }[];
+    };
+    totals: {
+      activeCount: number;
+      archivedCount: number;
+      totalCount: number;
+    };
+  }>;
   previewImport: (input: {
     jobId: string;
     limit: number;

@@ -6,7 +6,7 @@ const Page = () => (
   <MasterDataPage
     description="Kelola seluruh mata kuliah dan Prodi pemiliknya."
     entityType="COURSE"
-    title="Master Mata Kuliah"
+    title="Data mata kuliah"
   />
 );
 export const Route = createFileRoute(

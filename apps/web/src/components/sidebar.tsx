@@ -114,7 +114,7 @@ const superadminMasterDataItems: readonly NavigationItem[] = [
   },
   {
     icon: Upload,
-    label: "Import Master Data",
+    label: "Impor data master",
     roles: SUPERADMIN,
     to: "/superadmin/master-data/import",
   },
@@ -171,7 +171,7 @@ const academicAdminMasterDataItems: readonly NavigationItem[] = [
   },
   {
     icon: Upload,
-    label: "Import Master Data",
+    label: "Impor data master",
     roles: ACADEMIC_ADMIN,
     to: "/admin-akademik/master-data/import",
   },
@@ -243,7 +243,7 @@ const navigationSections: readonly NavigationSection[] = [
         roles: ACADEMIC_ADMIN,
       },
     ],
-    label: "Master Data",
+    label: "Data master",
   },
   {
     items: [{ icon: Settings, label: "Keamanan akun", to: "/akun/keamanan" }],
