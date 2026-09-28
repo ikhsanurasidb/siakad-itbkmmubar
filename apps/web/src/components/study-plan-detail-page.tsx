@@ -23,7 +23,11 @@ import {
 import { orpc } from "@/utils/orpc";
 
 interface StudyPlanDetailPageProps {
-  basePath: "/admin-akademik/krs" | "/kaprodi/krs" | "/mahasiswa/krs";
+  basePath:
+    | "/admin-akademik/krs"
+    | "/kaprodi/krs"
+    | "/mahasiswa/krs"
+    | "/superadmin/krs";
   canManage: boolean;
   studyPlanId: string;
 }

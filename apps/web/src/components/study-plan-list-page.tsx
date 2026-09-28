@@ -9,7 +9,6 @@ import {
 import { PageHeader } from "@siakad-itbkmmubar/ui/components/page-header";
 import { State } from "@siakad-itbkmmubar/ui/components/state";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { FileText, Plus, RefreshCw } from "lucide-react";
 
 import {
@@ -21,7 +20,11 @@ import {
 import { orpc } from "@/utils/orpc";
 
 interface StudyPlanListPageProps {
-  basePath: "/admin-akademik/krs" | "/kaprodi/krs" | "/mahasiswa/krs";
+  basePath:
+    | "/admin-akademik/krs"
+    | "/kaprodi/krs"
+    | "/mahasiswa/krs"
+    | "/superadmin/krs";
   canGenerate: boolean;
   roleName: string;
 }
@@ -78,12 +81,12 @@ const StudyPlanListPage = ({
       <PageHeader
         action={
           canGenerate ? (
-            <Link to="/admin-akademik/krs/generate">
+            <a href={`${basePath}/generate`}>
               <Button>
                 <Plus aria-hidden="true" />
                 Buat KRS Paket
               </Button>
-            </Link>
+            </a>
           ) : undefined
         }
         description={

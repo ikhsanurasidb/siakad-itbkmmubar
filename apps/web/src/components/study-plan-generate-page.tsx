@@ -19,7 +19,15 @@ import { toast } from "sonner";
 import { recordText } from "@/components/study-plan-ui";
 import { orpc } from "@/utils/orpc";
 
-const StudyPlanGeneratePage = () => {
+interface StudyPlanGeneratePageProps {
+  basePath: "/admin-akademik/krs" | "/superadmin/krs";
+  roleName: "Admin Akademik" | "Superadmin";
+}
+
+const StudyPlanGeneratePage = ({
+  basePath,
+  roleName,
+}: StudyPlanGeneratePageProps) => {
   const queryClient = useQueryClient();
   const [academicPeriodId, setAcademicPeriodId] = useState("");
   const [prodiId, setProdiId] = useState("");
@@ -69,7 +77,7 @@ const StudyPlanGeneratePage = () => {
       <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
         <PageHeader
           description="Buat KRS Paket berdasarkan periode, Prodi, dan angkatan aktif."
-          eyebrow="KRS Paket · Admin Akademik"
+          eyebrow={`KRS Paket · ${roleName}`}
           title="Buat KRS Paket"
         />
         <State
@@ -86,7 +94,7 @@ const StudyPlanGeneratePage = () => {
       <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
         <PageHeader
           description="Buat KRS Paket berdasarkan periode, Prodi, dan angkatan aktif."
-          eyebrow="KRS Paket · Admin Akademik"
+          eyebrow={`KRS Paket · ${roleName}`}
           title="Buat KRS Paket"
         />
         <State
@@ -111,7 +119,7 @@ const StudyPlanGeneratePage = () => {
     <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
       <PageHeader
         action={
-          <Link to="/admin-akademik/krs">
+          <Link to={basePath}>
             <Button variant="outline">
               <ArrowLeft aria-hidden="true" />
               Kembali ke KRS
@@ -119,7 +127,7 @@ const StudyPlanGeneratePage = () => {
           </Link>
         }
         description="Buat KRS Paket berdasarkan periode, Prodi, dan angkatan aktif."
-        eyebrow="KRS Paket · Admin Akademik"
+        eyebrow={`KRS Paket · ${roleName}`}
         title="Buat KRS Paket"
       />
       <Card>

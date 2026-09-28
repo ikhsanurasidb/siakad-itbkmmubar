@@ -3,12 +3,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import StudyPlanGeneratePage from "@/components/study-plan-generate-page";
 
 const Page = () => (
-  <StudyPlanGeneratePage
-    basePath="/admin-akademik/krs"
-    roleName="Admin Akademik"
-  />
+  <StudyPlanGeneratePage basePath="/superadmin/krs" roleName="Superadmin" />
 );
 
-export const Route = createFileRoute("/_auth/admin-akademik/krs/generate")({
+export const Route = createFileRoute("/_auth/superadmin/krs/generate")({
   component: Page,
 });
