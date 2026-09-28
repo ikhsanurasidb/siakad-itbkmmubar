@@ -2,12 +2,12 @@ import type { CurriculumCourseType } from "@siakad-itbkmmubar/api/curriculum";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@siakad-itbkmmubar/ui/components/card";
-import { Input } from "@siakad-itbkmmubar/ui/components/input";
 import { PageHeader } from "@siakad-itbkmmubar/ui/components/page-header";
 import { State } from "@siakad-itbkmmubar/ui/components/state";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +16,7 @@ import { ArrowLeft, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import CurriculumCourseDialog from "@/components/curriculum-course-dialog";
 import { curriculumRoutePaths, recordText } from "@/components/curriculum-ui";
 import type { CurriculumBasePath } from "@/components/curriculum-ui";
 import { orpc } from "@/utils/orpc";
@@ -34,6 +35,8 @@ interface StructureRow {
   semester: number;
 }
 
+const semesters = Array.from({ length: 8 }, (_, index) => index + 1);
+
 const CurriculumStructurePage = ({
   basePath,
   canManage,
@@ -45,6 +48,9 @@ const CurriculumStructurePage = ({
     curriculumId: string;
     rows: StructureRow[];
   }>();
+  const [addDialog, setAddDialog] = useState<
+    { id: number; semester: number } | undefined
+  >();
   const detail = useQuery(
     orpc.curriculum.detail.queryOptions({ input: { curriculumId } })
   );
@@ -129,28 +135,57 @@ const CurriculumStructurePage = ({
     );
     return current ? `${current.courseCode} · ${current.courseName}` : courseId;
   };
-  const updateRow = (id: string, patch: Partial<StructureRow>) => {
-    updateRows((current) =>
-      current.map((row) => (row.id === id ? { ...row, ...patch } : row))
-    );
+  const courseSuggestions = availableCourses.flatMap((course) => {
+    const id = recordText(course, "id");
+    const code = recordText(course, "code");
+    const name = recordText(course, "name");
+    if (!(id && code && name)) {
+      return [];
+    }
+    return [
+      {
+        code,
+        credits: recordText(course, "credits"),
+        id,
+        name,
+      },
+    ];
+  });
+  const openAddDialog = (semester: number) => {
+    setAddDialog((current) => ({
+      id: (current?.id ?? 0) + 1,
+      semester,
+    }));
   };
-  const addRow = () => {
-    const courseId = availableCourses.find(
-      (course) => !rows.some((row) => row.courseId === recordText(course, "id"))
-    );
-    if (!courseId) {
-      toast.error("Tidak ada mata kuliah aktif lain pada Prodi ini.");
+  const addCourse = (
+    course: (typeof courseSuggestions)[number],
+    courseType: CurriculumCourseType
+  ) => {
+    if (!addDialog) {
+      return;
+    }
+    if (rows.some((row) => row.courseId === course.id)) {
+      toast.error("Mata kuliah tersebut sudah ada dalam kurikulum.");
       return;
     }
     updateRows((current) => [
       ...current,
       {
-        courseId: recordText(courseId, "id"),
-        courseType: "REQUIRED",
+        courseId: course.id,
+        courseType,
         id: crypto.randomUUID(),
-        semester: 1,
+        semester: addDialog.semester,
       },
     ]);
+    setAddDialog(undefined);
+  };
+  const updateCourseType = (id: string, courseType: CurriculumCourseType) => {
+    updateRows((current) =>
+      current.map((row) => (row.id === id ? { ...row, courseType } : row))
+    );
+  };
+  const removeCourse = (id: string) => {
+    updateRows((current) => current.filter((row) => row.id !== id));
   };
   const save = () => {
     if (!canManage || curriculum.status !== "DRAFT") {
@@ -181,132 +216,112 @@ const CurriculumStructurePage = ({
         eyebrow={`Kurikulum · ${roleName}`}
         title="Struktur kurikulum"
       />
-      <Card>
-        <CardHeader>
-          <CardTitle>Mata kuliah semester 1–8</CardTitle>
-          <CardDescription>
-            Setiap mata kuliah hanya dapat dicantumkan satu kali dalam
-            kurikulum.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3">
-          {rows.length === 0 ? (
-            <State
-              description={
-                canManage && curriculum.status === "DRAFT"
-                  ? "Tambahkan mata kuliah untuk mulai menyusun semester."
-                  : "Belum ada struktur mata kuliah."
-              }
-              title="Struktur masih kosong"
-              variant="not-found"
-            />
-          ) : (
-            rows.map((row, index) => (
-              <div
-                className="grid gap-2 rounded-xl border border-[#dbe5ee] p-3 md:grid-cols-[minmax(0,1fr)_8rem_10rem_auto] md:items-end"
-                key={row.id}
-              >
-                <label
-                  className="grid gap-1 text-sm font-medium"
-                  htmlFor={`course-${row.id}`}
-                >
-                  Mata kuliah {index + 1}
-                  {canManage && curriculum.status === "DRAFT" ? (
-                    <select
-                      className="border-input bg-background h-9 rounded-md border px-3 text-sm"
-                      id={`course-${row.id}`}
-                      onChange={(event) =>
-                        updateRow(row.id, { courseId: event.target.value })
-                      }
-                      value={row.courseId}
-                    >
-                      {availableCourses.map((course) => (
-                        <option
-                          key={recordText(course, "id")}
-                          value={recordText(course, "id")}
-                        >
-                          {recordText(course, "code")} ·{" "}
-                          {recordText(course, "name")}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <span className="rounded-md border border-[#dbe5ee] px-3 py-2 text-sm font-normal">
-                      {courseLabel(row.courseId)}
-                    </span>
-                  )}
-                </label>
-                <label
-                  className="grid gap-1 text-sm font-medium"
-                  htmlFor={`semester-${row.id}`}
-                >
-                  Semester
-                  <Input
-                    disabled={!canManage || curriculum.status !== "DRAFT"}
-                    id={`semester-${row.id}`}
-                    max={8}
-                    min={1}
-                    onChange={(event) =>
-                      updateRow(row.id, {
-                        semester: Number(event.target.value),
-                      })
-                    }
-                    type="number"
-                    value={row.semester}
-                  />
-                </label>
-                <label
-                  className="grid gap-1 text-sm font-medium"
-                  htmlFor={`type-${row.id}`}
-                >
-                  Jenis
-                  <select
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
-                    disabled={!canManage || curriculum.status !== "DRAFT"}
-                    id={`type-${row.id}`}
-                    onChange={(event) =>
-                      updateRow(row.id, {
-                        courseType: event.target.value as CurriculumCourseType,
-                      })
-                    }
-                    value={row.courseType}
-                  >
-                    <option value="REQUIRED">Wajib</option>
-                    <option value="ELECTIVE">Pilihan</option>
-                  </select>
-                </label>
+      <section
+        aria-label="Struktur mata kuliah per semester"
+        className="grid gap-4 md:grid-cols-2"
+      >
+        {semesters.map((semester) => {
+          const semesterRows = rows.filter((row) => row.semester === semester);
+          return (
+            <Card key={semester}>
+              <CardHeader>
+                <div>
+                  <CardTitle>Semester {semester}</CardTitle>
+                  <CardDescription>
+                    {semesterRows.length} mata kuliah
+                  </CardDescription>
+                </div>
                 {canManage && curriculum.status === "DRAFT" ? (
-                  <Button
-                    aria-label={`Hapus mata kuliah ${index + 1}`}
-                    onClick={() =>
-                      updateRows((current) =>
-                        current.filter((item) => item.id !== row.id)
-                      )
-                    }
-                    size="icon"
-                    variant="outline"
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </Button>
+                  <CardAction>
+                    <Button
+                      onClick={() => openAddDialog(semester)}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <Plus aria-hidden="true" />
+                      Tambah mata kuliah
+                    </Button>
+                  </CardAction>
                 ) : null}
-              </div>
-            ))
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                {semesterRows.length === 0 ? (
+                  <p className="text-muted-foreground rounded-xl border border-dashed p-3 text-sm">
+                    Belum ada mata kuliah pada semester ini.
+                  </p>
+                ) : (
+                  semesterRows.map((row, index) => (
+                    <div
+                      className="grid gap-2 rounded-xl border border-[#dbe5ee] p-3 sm:grid-cols-[minmax(0,1fr)_8rem_auto] sm:items-center"
+                      key={row.id}
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">
+                          {courseLabel(row.courseId)}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          Mata kuliah {index + 1}
+                        </p>
+                      </div>
+                      <label
+                        className="grid gap-1 text-xs font-medium"
+                        htmlFor={`type-${row.id}`}
+                      >
+                        Jenis
+                        <select
+                          className="border-input bg-background h-9 rounded-md border px-2 text-sm"
+                          disabled={!canManage || curriculum.status !== "DRAFT"}
+                          id={`type-${row.id}`}
+                          onChange={(event) =>
+                            updateCourseType(
+                              row.id,
+                              event.target.value as CurriculumCourseType
+                            )
+                          }
+                          value={row.courseType}
+                        >
+                          <option value="REQUIRED">Wajib</option>
+                          <option value="ELECTIVE">Pilihan</option>
+                        </select>
+                      </label>
+                      {canManage && curriculum.status === "DRAFT" ? (
+                        <Button
+                          aria-label={`Hapus ${courseLabel(row.courseId)}`}
+                          onClick={() => removeCourse(row.id)}
+                          size="icon-sm"
+                          variant="outline"
+                        >
+                          <Trash2 aria-hidden="true" />
+                        </Button>
+                      ) : null}
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </section>
+      {canManage && curriculum.status === "DRAFT" ? (
+        <div className="flex justify-end">
+          <Button disabled={replaceStructure.isPending} onClick={save}>
+            {replaceStructure.isPending ? "Menyimpan..." : "Simpan struktur"}
+          </Button>
+        </div>
+      ) : null}
+      {addDialog ? (
+        <CurriculumCourseDialog
+          courseSuggestions={courseSuggestions.filter(
+            (course) => !rows.some((row) => row.courseId === course.id)
           )}
-          {canManage && curriculum.status === "DRAFT" ? (
-            <div className="flex flex-wrap justify-between gap-2 pt-2">
-              <Button onClick={addRow} variant="outline">
-                <Plus aria-hidden="true" />
-                Tambah mata kuliah
-              </Button>
-              <Button disabled={replaceStructure.isPending} onClick={save}>
-                {replaceStructure.isPending
-                  ? "Menyimpan..."
-                  : "Simpan struktur"}
-              </Button>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+          isLoading={courseOptions.isPending}
+          key={addDialog.id}
+          onAdd={addCourse}
+          onClose={() => setAddDialog(undefined)}
+          open
+          semester={addDialog.semester}
+        />
+      ) : null}
     </div>
   );
 };

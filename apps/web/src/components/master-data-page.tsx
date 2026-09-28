@@ -41,7 +41,12 @@ const definitions: Record<MasterDataEntityType, readonly FieldDefinition[]> = {
     { id: "code", label: "Kode" },
     { id: "name", label: "Nama" },
     { id: "credits", label: "SKS", type: "number" },
-    { id: "defaultSemester", label: "Semester awal", type: "number" },
+    {
+      id: "defaultSemester",
+      label: "Semester",
+      optional: true,
+      type: "number",
+    },
     { id: "studyProgramId", label: "Prodi" },
   ],
   LECTURER: [

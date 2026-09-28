@@ -75,7 +75,7 @@ const entityCards = [
     slug: "ruang",
   },
   {
-    description: "SKS, semester awal, dan Prodi pemilik.",
+    description: "SKS, semester, dan Prodi pemilik.",
     entityType: "COURSE",
     icon: BookOpen,
     label: "Mata kuliah",

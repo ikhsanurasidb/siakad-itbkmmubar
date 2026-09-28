@@ -4,7 +4,7 @@ import MasterDataPage from "@/components/master-data-page";
 
 const Page = () => (
   <MasterDataPage
-    description="Kelola mata kuliah, SKS, semester awal, dan Prodi pemilik."
+    description="Kelola mata kuliah, SKS, semester, dan Prodi pemilik."
     entityType="COURSE"
     title="Data mata kuliah"
   />

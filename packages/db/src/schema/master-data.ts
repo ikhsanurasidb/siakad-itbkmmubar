@@ -192,7 +192,7 @@ export const courses = sqliteTable(
     code: text("code").notNull(),
     createdAt: timestamp("created_at"),
     credits: integer("credits").notNull(),
-    defaultSemester: integer("default_semester").notNull(),
+    defaultSemester: integer("default_semester"),
     id: text("id").primaryKey(),
     name: text("name").notNull(),
     status: text("status").default("ACTIVE").notNull(),
@@ -210,7 +210,7 @@ export const courses = sqliteTable(
     ),
     check(
       "courses_semester_range_ck",
-      sql`${table.defaultSemester} >= 1 AND ${table.defaultSemester} <= 14`
+      sql`${table.defaultSemester} IS NULL OR (${table.defaultSemester} >= 1 AND ${table.defaultSemester} <= 14)`
     ),
   ]
 );

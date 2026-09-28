@@ -140,6 +140,24 @@ const integerValue = (
   return parseInteger(valueAsString(data, key), key);
 };
 
+const optionalIntegerValue = (
+  data: Readonly<Record<string, unknown>>,
+  key: string
+): number | null => {
+  const value = data[key];
+  if (
+    value === undefined ||
+    value === null ||
+    (typeof value === "string" && !normalizeText(value))
+  ) {
+    return null;
+  }
+  if (typeof value === "number" && Number.isSafeInteger(value)) {
+    return value;
+  }
+  return parseInteger(valueAsString(data, key), key);
+};
+
 const coordinateValue = (
   data: Readonly<Record<string, unknown>>,
   key: "latitude" | "longitude"
@@ -912,7 +930,7 @@ export const createMasterDataService = ({
           code: normalizeCode(valueAsString(data, "code")),
           createdAt: currentTime,
           credits: integerValue(data, "credits"),
-          defaultSemester: integerValue(data, "defaultSemester"),
+          defaultSemester: optionalIntegerValue(data, "defaultSemester"),
           id,
           name: valueAsString(data, "name"),
           status: normalizeStatus(data.status),
@@ -925,7 +943,10 @@ export const createMasterDataService = ({
             "SKS harus berada pada rentang 1 sampai 6."
           );
         }
-        if (row.defaultSemester < 1 || row.defaultSemester > 14) {
+        if (
+          row.defaultSemester !== null &&
+          (row.defaultSemester < 1 || row.defaultSemester > 14)
+        ) {
           throw new MasterDataDomainError(
             "INVALID_SEMESTER",
             "Semester default harus berada pada rentang 1 sampai 14."
@@ -1264,6 +1285,24 @@ export const createMasterDataService = ({
             ? String(before.studyProgramId)
             : valueAsString(data, "studyProgramId");
         await getActiveProgram(database, studyProgramId);
+        const previousDefaultSemester =
+          before.defaultSemester === null ||
+          before.defaultSemester === undefined
+            ? null
+            : Number(before.defaultSemester);
+        const defaultSemester =
+          data.defaultSemester === undefined
+            ? previousDefaultSemester
+            : optionalIntegerValue(data, "defaultSemester");
+        if (
+          defaultSemester !== null &&
+          (defaultSemester < 1 || defaultSemester > 14)
+        ) {
+          throw new MasterDataDomainError(
+            "INVALID_SEMESTER",
+            "Semester harus berada pada rentang 1 sampai 14."
+          );
+        }
         await database
           .update(courses)
           .set({
@@ -1275,10 +1314,7 @@ export const createMasterDataService = ({
               data.credits === undefined
                 ? Number(before.credits)
                 : integerValue(data, "credits"),
-            defaultSemester:
-              data.defaultSemester === undefined
-                ? Number(before.defaultSemester)
-                : integerValue(data, "defaultSemester"),
+            defaultSemester,
             name:
               data.name === undefined
                 ? String(before.name)
