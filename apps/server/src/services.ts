@@ -7,6 +7,7 @@ import { createIdentityService as createConfiguredIdentityService } from "@serve
 import { createLmsService as createConfiguredLmsService } from "@server/services/lms";
 import { createMasterDataService as createConfiguredMasterDataService } from "@server/services/master-data";
 import { createSchedulingService as createConfiguredSchedulingService } from "@server/services/scheduling";
+import { seedData as seedConfiguredData } from "@server/services/seed-data";
 import { createSettingsService as createConfiguredSettingsService } from "@server/services/settings";
 import { createR2FileStorage } from "@server/services/storage";
 import { createStudyPlanService as createConfiguredStudyPlanService } from "@server/services/study-plan";
@@ -102,5 +103,17 @@ export const seedSuperadmin = async (
     database,
     input,
     minimumPasswordLength: securityPolicy.passwordMinimumLength,
+  });
+};
+
+export const seedData = async (
+  input: Parameters<typeof seedConfiguredData>[0]["input"]
+) => {
+  const database = await getDb();
+  return seedConfiguredData({
+    auth: await createAuth(database),
+    database,
+    input,
+    now: new Date(),
   });
 };

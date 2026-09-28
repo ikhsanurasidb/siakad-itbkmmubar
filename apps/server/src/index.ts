@@ -5,10 +5,11 @@ import { RPCHandler } from "@orpc/server/fetch";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { createContext } from "@server/context";
 import { ENV } from "@server/env.server";
-import { createAuth, seedSuperadmin } from "@server/services";
+import { createAuth, seedData, seedSuperadmin } from "@server/services";
 import { BootstrapSeedError } from "@server/services/bootstrap";
 import { createServerLogger } from "@server/services/logger";
 import type { LogFormat, LogLevel } from "@server/services/logger";
+import { DataSeedError } from "@server/services/seed-data";
 import { getApiErrorPayload } from "@siakad-itbkmmubar/api/errors";
 import { appRouter } from "@siakad-itbkmmubar/api/routers/index";
 import { Hono } from "hono";
@@ -136,6 +137,34 @@ app.post("/api/seed/superadmin", async (c) => {
     return c.json(result, 201);
   } catch (error) {
     if (error instanceof BootstrapSeedError) {
+      return c.json({ message: error.message }, 409);
+    }
+    throw error;
+  }
+});
+
+app.post("/api/seed/data", async (c) => {
+  const requestLogger = c.get("logger") ?? serverLogger;
+  if (!isLocalDevelopment()) {
+    requestLogger.warn("seed.data_attempted_outside_local_development", {
+      method: c.req.method,
+    });
+    return c.json(
+      { message: "Seed hanya tersedia pada environment development." },
+      404
+    );
+  }
+
+  const body = await c.req.json<{ password?: string }>();
+  if (!body.password) {
+    return c.json({ message: "Password seed wajib diisi." }, 400);
+  }
+
+  try {
+    const result = await seedData({ password: body.password });
+    return c.json(result, 201);
+  } catch (error) {
+    if (error instanceof DataSeedError) {
       return c.json({ message: error.message }, 409);
     }
     throw error;

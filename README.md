@@ -39,6 +39,18 @@ Alchemy provisions the D1 database and applies migrations during `deploy`.
 bun run db:generate
 ```
 
+### Development seed
+
+Seed data lengkap untuk pengujian tersedia melalui endpoint development dan mencakup dua program studi: Kewirausahaan (`KWU`) dan Teknik Sipil (`TS`). Data meliputi akun seluruh role, mahasiswa dengan beberapa status akademik, dosen dan Kaprodi, kurikulum, KRS, kelas, jadwal, ujian, presensi, nilai, LMS, pengaturan berscope, impor, notifikasi, audit, dan background job.
+
+Jalankan server terlebih dahulu, lalu seed dengan satu password development yang panjangnya minimal 16 karakter:
+
+```bash
+SEED_DATA_PASSWORD='ganti-dengan-password-lokal-yang-kuat' bun run seed:data
+```
+
+Seed menggunakan ID tetap dan `onConflictDoNothing`, sehingga aman dijalankan ulang pada database development. Semua akun hasil seed menggunakan password `SEED_DATA_PASSWORD`; identifier akun tercetak pada output command. Endpoint seed hanya aktif saat `NODE_ENV=development`.
+
 Then, run the development server:
 
 ```bash
