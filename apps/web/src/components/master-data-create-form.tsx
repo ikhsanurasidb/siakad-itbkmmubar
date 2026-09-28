@@ -8,6 +8,7 @@ import {
 } from "@siakad-itbkmmubar/ui/components/card";
 import { FormField } from "@siakad-itbkmmubar/ui/components/form-field";
 import { Input } from "@siakad-itbkmmubar/ui/components/input";
+import { useState } from "react";
 import type { FormEvent } from "react";
 
 export interface FieldDefinition {
@@ -53,6 +54,7 @@ export const ReferenceSearchField = ({
   options,
   value,
 }: ReferenceSearchFieldProps) => {
+  const [isFocused, setIsFocused] = useState(false);
   const normalizedValue = value.trim().toLowerCase();
   const filteredOptions = options.filter((option) => {
     if (!normalizedValue) {
@@ -69,7 +71,20 @@ export const ReferenceSearchField = ({
       id={id}
       label={label}
     >
-      <div className="relative">
+      <div
+        className="relative"
+        onBlur={(event) => {
+          const { relatedTarget } = event;
+          if (
+            relatedTarget instanceof HTMLElement &&
+            event.currentTarget.contains(relatedTarget)
+          ) {
+            return;
+          }
+          setIsFocused(false);
+        }}
+        onFocus={() => setIsFocused(true)}
+      >
         <Input
           aria-busy={loading}
           aria-invalid={Boolean(error)}
@@ -81,7 +96,7 @@ export const ReferenceSearchField = ({
           }}
           value={value}
         />
-        {filteredOptions.length > 0 ? (
+        {isFocused && filteredOptions.length > 0 ? (
           <div
             aria-label={`Saran ${label}`}
             className="bg-background absolute z-10 mt-1 grid max-h-48 w-full gap-1 overflow-auto rounded-xl border p-1 shadow-lg"
@@ -90,7 +105,10 @@ export const ReferenceSearchField = ({
               <button
                 className="hover:bg-muted grid gap-0.5 rounded-lg px-3 py-2 text-left text-sm"
                 key={option.id}
-                onClick={() => onSelect(option)}
+                onClick={() => {
+                  setIsFocused(false);
+                  onSelect(option);
+                }}
                 type="button"
               >
                 <span className="font-medium">{option.label}</span>
@@ -144,7 +162,7 @@ const MasterDataCreateForm = ({
   referenceOptions,
   values,
 }: MasterDataCreateFormProps) => (
-  <Card>
+  <Card className="overflow-visible">
     <CardHeader>
       <CardTitle>Tambah {entityLabel}</CardTitle>
       <CardDescription>
