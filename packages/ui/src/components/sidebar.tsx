@@ -186,7 +186,7 @@ const Sidebar = ({
   return (
     <div
       className={cn(
-        "group peer text-sidebar-foreground hidden h-svh shrink-0 md:flex",
+        "group peer text-sidebar-foreground sticky top-0 z-10 hidden h-svh shrink-0 self-start md:flex",
         getSidebarWidth(state, collapsible)
       )}
       data-collapsible={state === "collapsed" ? collapsible : ""}

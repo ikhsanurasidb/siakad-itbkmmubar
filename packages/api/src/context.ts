@@ -1,4 +1,5 @@
 import type { IdentityType, RoleKey } from "@api/identity";
+import type { MasterDataEntityType, MasterDataStatus } from "@api/master-data";
 import type { Session } from "@siakad-itbkmmubar/auth";
 import type { Database } from "@siakad-itbkmmubar/db";
 
@@ -94,6 +95,74 @@ export interface IdentityService {
   revokeScope: (input: { id: string; userId: string }) => Promise<void>;
 }
 
+export interface MasterDataService {
+  archive: (input: {
+    actorUserId: string;
+    entityType: MasterDataEntityType;
+    id: string;
+  }) => Promise<void>;
+  create: (input: {
+    actorUserId: string;
+    data: Readonly<Record<string, unknown>>;
+    entityType: MasterDataEntityType;
+  }) => Promise<Record<string, unknown>>;
+  createImport: (input: {
+    actorUserId: string;
+    checksum: string;
+    content: string;
+    entityType: MasterDataEntityType;
+    filename: string;
+    templateVersion: string;
+  }) => Promise<{
+    id: string;
+    status: string;
+    summary: Record<string, number>;
+  }>;
+  export: (input: {
+    entityType: MasterDataEntityType;
+    search?: string;
+    status?: MasterDataStatus;
+  }) => Promise<readonly Record<string, unknown>[]>;
+  get: (input: {
+    entityType: MasterDataEntityType;
+    id: string;
+  }) => Promise<Record<string, unknown>>;
+  list: (input: {
+    cursor?: string;
+    entityType: MasterDataEntityType;
+    limit: number;
+    search?: string;
+    status?: MasterDataStatus;
+  }) => Promise<{
+    data: readonly Record<string, unknown>[];
+    nextCursor: string | null;
+  }>;
+  previewImport: (input: {
+    jobId: string;
+    limit: number;
+    status?: "INVALID" | "VALID" | "WARNING";
+  }) => Promise<{
+    data: readonly Record<string, unknown>[];
+    job: Record<string, unknown>;
+  }>;
+  reactivate: (input: {
+    actorUserId: string;
+    entityType: MasterDataEntityType;
+    id: string;
+  }) => Promise<void>;
+  commitImport: (input: {
+    actorUserId: string;
+    jobId: string;
+    limit: number;
+  }) => Promise<Record<string, unknown>>;
+  update: (input: {
+    actorUserId: string;
+    data: Readonly<Record<string, unknown>>;
+    entityType: MasterDataEntityType;
+    id: string;
+  }) => Promise<Record<string, unknown>>;
+}
+
 export interface ServerLogger {
   debug: (event: string, context?: Record<string, unknown>) => void;
   info: (event: string, context?: Record<string, unknown>) => void;
@@ -113,5 +182,6 @@ export interface Context {
   request: RequestMetadata;
   identity: IdentityAccess | null;
   identityService: IdentityService;
+  masterDataService: MasterDataService;
   session: Session | null;
 }

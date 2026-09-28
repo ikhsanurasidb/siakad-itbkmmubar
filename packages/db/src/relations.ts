@@ -20,6 +20,17 @@ import {
   userScopes,
 } from "@db/schema/identity";
 import {
+  academicPeriods,
+  academicYears,
+  cohorts,
+  courses,
+  importJobs,
+  importRows,
+  lecturers,
+  students,
+  studyPrograms,
+} from "@db/schema/master-data";
+import {
   auditLogs,
   backgroundJobs,
   fileObjects,
@@ -30,14 +41,21 @@ import {
 import { defineRelations } from "drizzle-orm";
 
 const schema = {
+  academicPeriods,
+  academicYears,
   account,
   auditLogs,
   backgroundJobs,
+  cohorts,
+  courses,
   fileObjects,
   idempotencyKeys,
   identifierReservations,
   identifierSequences,
   identityAccounts,
+  importJobs,
+  importRows,
+  lecturers,
   notifications,
   outboxEvents,
   permissions,
@@ -48,6 +66,8 @@ const schema = {
   roles,
   securityEvents,
   session,
+  students,
+  studyPrograms,
   user,
   userRoles,
   userScopes,

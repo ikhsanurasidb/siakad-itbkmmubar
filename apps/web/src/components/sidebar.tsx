@@ -46,7 +46,11 @@ const academicNavigation = [
     label: "Identitas & Akses",
     to: "/superadmin/identitas/akun",
   },
-  { icon: ClipboardList, label: "Master Data", to: "/dashboard" },
+  {
+    icon: ClipboardList,
+    label: "Master Data",
+    to: "/admin-akademik/master-data/mahasiswa",
+  },
   { icon: BookOpen, label: "Kurikulum", to: "/dashboard" },
   { icon: FileText, label: "KRS Paket", to: "/dashboard" },
   { icon: UsersRound, label: "Kelas Kuliah", to: "/dashboard" },
@@ -74,7 +78,7 @@ const Sidebar = () => {
       active?: boolean;
       icon: typeof Home;
       label: string;
-      to: "/dashboard" | "/superadmin/identitas/akun";
+      to: string;
     }[]
   ) => (
     <SidebarMenu>

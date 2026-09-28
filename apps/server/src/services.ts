@@ -1,6 +1,7 @@
 import { ENV } from "@server/env.server";
 import { seedSuperadmin as seedConfiguredSuperadmin } from "@server/services/bootstrap";
 import { createIdentityService as createConfiguredIdentityService } from "@server/services/identity";
+import { createMasterDataService as createConfiguredMasterDataService } from "@server/services/master-data";
 import { createR2FileStorage } from "@server/services/storage";
 import { createAuth as createConfiguredAuth } from "@siakad-itbkmmubar/auth";
 import { createDb } from "@siakad-itbkmmubar/db";
@@ -20,6 +21,12 @@ export const createIdentityService = async (database?: Database) => {
     database: db,
   });
 };
+
+export const createMasterDataService = async (database?: Database) =>
+  createConfiguredMasterDataService({
+    database: database ?? (await getDb()),
+    storage: getStorage(),
+  });
 
 export const seedSuperadmin = async (
   input: Parameters<typeof seedConfiguredSuperadmin>[0]["input"]

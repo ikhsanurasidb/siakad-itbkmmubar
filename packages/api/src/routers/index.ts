@@ -10,6 +10,12 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "@api/index";
+import {
+  MASTER_DATA_TEMPLATE_VERSION,
+  templateHeaders,
+  masterDataEntityTypes,
+  masterDataStatusesList,
+} from "@api/master-data";
 import type { RouterClient } from "@orpc/server";
 import { ORPCError } from "@orpc/server";
 import { session, user } from "@siakad-itbkmmubar/db/schema/auth";
@@ -18,6 +24,7 @@ import {
   roles,
   userScopes,
 } from "@siakad-itbkmmubar/db/schema/identity";
+import { identifierUsages as masterIdentifierUsages } from "@siakad-itbkmmubar/db/schema/master-data";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 
@@ -35,6 +42,9 @@ const requireRole = (context: Context, allowedRoles: readonly string[]) => {
 const requireIdentityService = (context: Context) => context.identityService;
 
 const accountIdInput = z.object({ accountId: z.string().min(1) });
+const masterDataEntitySchema = z.enum(masterDataEntityTypes);
+const masterDataStatusSchema = z.enum(masterDataStatusesList);
+const masterDataDataSchema = z.record(z.string(), z.unknown());
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => "OK"),
@@ -347,6 +357,180 @@ export const appRouter = {
       mustChangePassword: context.identity?.mustChangePassword ?? false,
       status: context.identity?.status ?? "INACTIVE",
     })),
+  },
+  masterData: {
+    archive: protectedProcedure
+      .input(
+        z.object({
+          entityType: masterDataEntitySchema,
+          id: z.string().min(1),
+        })
+      )
+      .handler(async ({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        await context.masterDataService.archive({
+          ...input,
+          actorUserId: context.session?.user.id as string,
+        });
+        return { status: "ARCHIVED" as const };
+      }),
+    create: protectedProcedure
+      .input(
+        z.object({
+          data: masterDataDataSchema,
+          entityType: masterDataEntitySchema,
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        return context.masterDataService.create({
+          ...input,
+          actorUserId: context.session?.user.id as string,
+        });
+      }),
+    export: protectedProcedure
+      .input(
+        z.object({
+          entityType: masterDataEntitySchema,
+          search: z.string().trim().max(100).optional(),
+          status: masterDataStatusSchema.optional(),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        return context.masterDataService.export(input);
+      }),
+    get: protectedProcedure
+      .input(
+        z.object({
+          entityType: masterDataEntitySchema,
+          id: z.string().min(1),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        return context.masterDataService.get(input);
+      }),
+    identifierUsages: {
+      list: protectedProcedure
+        .input(
+          z.object({
+            entityId: z.string().min(1),
+            entityType: masterDataEntitySchema,
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+          return context.db
+            .select()
+            .from(masterIdentifierUsages)
+            .where(
+              and(
+                eq(masterIdentifierUsages.entityId, input.entityId),
+                eq(masterIdentifierUsages.entityType, input.entityType)
+              )
+            )
+            .orderBy(desc(masterIdentifierUsages.createdAt));
+        }),
+    },
+    import: {
+      commit: protectedProcedure
+        .input(
+          z.object({
+            jobId: z.string().min(1),
+            limit: z.coerce.number().int().min(1).max(100).default(25),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+          return context.masterDataService.commitImport({
+            ...input,
+            actorUserId: context.session?.user.id as string,
+          });
+        }),
+      create: protectedProcedure
+        .input(
+          z.object({
+            checksum: z.string().trim().min(8).max(128),
+            content: z.string().min(1).max(10_000_000),
+            entityType: masterDataEntitySchema,
+            filename: z.string().trim().min(1).max(180),
+            templateVersion: z.string().trim().min(1).max(20),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+          return context.masterDataService.createImport({
+            ...input,
+            actorUserId: context.session?.user.id as string,
+          });
+        }),
+      preview: protectedProcedure
+        .input(
+          z.object({
+            jobId: z.string().min(1),
+            limit: z.coerce.number().int().min(1).max(100).default(50),
+            status: z.enum(["INVALID", "VALID", "WARNING"]).optional(),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+          return context.masterDataService.previewImport(input);
+        }),
+      template: protectedProcedure
+        .input(z.object({ entityType: masterDataEntitySchema }))
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+          return {
+            headers: templateHeaders(input.entityType),
+            templateVersion: MASTER_DATA_TEMPLATE_VERSION,
+          };
+        }),
+    },
+    list: protectedProcedure
+      .input(
+        z.object({
+          cursor: z.string().min(1).optional(),
+          entityType: masterDataEntitySchema,
+          limit: z.coerce.number().int().min(1).max(100).default(25),
+          search: z.string().trim().max(100).optional(),
+          status: masterDataStatusSchema.optional(),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        return context.masterDataService.list(input);
+      }),
+    reactivate: protectedProcedure
+      .input(
+        z.object({
+          entityType: masterDataEntitySchema,
+          id: z.string().min(1),
+        })
+      )
+      .handler(async ({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        await context.masterDataService.reactivate({
+          ...input,
+          actorUserId: context.session?.user.id as string,
+        });
+        return { status: "ACTIVE" as const };
+      }),
+    update: protectedProcedure
+      .input(
+        z.object({
+          data: masterDataDataSchema,
+          entityType: masterDataEntitySchema,
+          id: z.string().min(1),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        return context.masterDataService.update({
+          ...input,
+          actorUserId: context.session?.user.id as string,
+        });
+      }),
   },
   privateData: protectedProcedure.handler(({ context }) => ({
     message: "This is private",

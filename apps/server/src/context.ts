@@ -1,4 +1,9 @@
-import { createIdentityService, getDb, createAuth } from "@server/services";
+import {
+  createIdentityService,
+  createMasterDataService,
+  getDb,
+  createAuth,
+} from "@server/services";
 import { createServerLogger } from "@server/services/logger";
 import type { Context as ApiContext } from "@siakad-itbkmmubar/api/context";
 import type { IdentityType } from "@siakad-itbkmmubar/api/identity";
@@ -27,6 +32,7 @@ export const createContext = async ({
     headers: context.req.raw.headers,
   });
   const identityService = await createIdentityService(db);
+  const masterDataService = await createMasterDataService(db);
   let identity: ApiContext["identity"] = null;
   if (session?.user) {
     const [account] = await db
@@ -71,6 +77,7 @@ export const createContext = async ({
       path: request.path,
       requestId,
     }),
+    masterDataService,
     request,
     session,
   };

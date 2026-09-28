@@ -20,8 +20,12 @@ export const auditLogActions = [
   "LOGIN",
   "LOGOUT",
   "ASSIGN_ROLE",
+  "ARCHIVE",
   "REVOKE_ROLE",
+  "REACTIVATE",
   "EXPORT",
+  "IMPORT_COMMIT",
+  "IMPORT_CREATE",
 ] as const;
 
 export const notificationStatuses = ["UNREAD", "READ"] as const;
