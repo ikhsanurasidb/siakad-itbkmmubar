@@ -43,6 +43,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 interface NavigationItem {
+  activePaths?: readonly string[];
   children?: readonly NavigationItem[];
   icon: LucideIcon;
   label: string;
@@ -88,6 +89,13 @@ const academicAdminSchedulingItems: readonly NavigationItem[] = [
     to: "/admin-akademik/kelas",
   },
   {
+    icon: SlidersHorizontal,
+    label: "Pemetaan kelas",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/kelas/pemetaan",
+  },
+  {
+    activePaths: ["/admin-akademik/jadwal/draft"],
     icon: CalendarDays,
     label: "Perubahan jadwal",
     roles: ACADEMIC_ADMIN,
@@ -111,6 +119,9 @@ const lecturerSchedulingItems: readonly NavigationItem[] = [
     roles: LECTURER,
     to: "/dosen/jadwal",
   },
+];
+
+const lecturerLearningItems: readonly NavigationItem[] = [
   {
     icon: BookOpen,
     label: "Ruang pembelajaran",
@@ -135,6 +146,9 @@ const studentSchedulingItems: readonly NavigationItem[] = [
     roles: STUDENT,
     to: "/mahasiswa/jadwal",
   },
+];
+
+const studentLearningItems: readonly NavigationItem[] = [
   {
     icon: BookOpen,
     label: "Ruang pembelajaran",
@@ -204,6 +218,12 @@ const academicAdminStudyPlanItems: readonly NavigationItem[] = [
     roles: ACADEMIC_ADMIN,
     to: "/admin-akademik/krs",
   },
+  {
+    icon: FileSliders,
+    label: "Buat KRS Paket",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/krs/generate",
+  },
 ];
 
 const superadminStudyPlanItems: readonly NavigationItem[] = [
@@ -212,6 +232,12 @@ const superadminStudyPlanItems: readonly NavigationItem[] = [
     label: "KRS Paket",
     roles: SUPERADMIN,
     to: "/superadmin/krs",
+  },
+  {
+    icon: FileSliders,
+    label: "Buat KRS Paket",
+    roles: SUPERADMIN,
+    to: "/superadmin/krs/generate",
   },
 ];
 
@@ -243,6 +269,12 @@ const lecturerGradeItems: readonly NavigationItem[] = [
 ];
 
 const academicAdminGradeItems: readonly NavigationItem[] = [
+  {
+    icon: CalendarDays,
+    label: "Periode nilai",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/nilai/periode",
+  },
   {
     icon: GraduationCap,
     label: "Publikasi nilai",
@@ -569,37 +601,77 @@ const navigationSections: readonly NavigationSection[] = [
         roles: SUPERADMIN,
       },
       {
-        children: [
-          ...academicAdminSchedulingItems,
-          ...academicAdminAttendanceItems,
-        ],
+        children: academicAdminSchedulingItems,
         icon: UsersRound,
         label: "Admin Akademik",
         roles: ACADEMIC_ADMIN,
       },
       {
-        children: [
-          ...programHeadSchedulingItems,
-          ...programHeadAttendanceItems,
-        ],
+        children: programHeadSchedulingItems,
         icon: GraduationCap,
         label: "Kaprodi",
         roles: PROGRAM_HEAD,
       },
       {
-        children: [...lecturerSchedulingItems, ...lecturerAttendanceItems],
+        children: lecturerSchedulingItems,
         icon: GraduationCap,
         label: "Dosen",
         roles: LECTURER,
       },
       {
-        children: [...studentSchedulingItems, ...studentAttendanceItems],
+        children: studentSchedulingItems,
         icon: UserRound,
         label: "Mahasiswa",
         roles: STUDENT,
       },
     ],
     label: "Kelas dan jadwal",
+  },
+  {
+    items: [
+      {
+        children: lecturerLearningItems,
+        icon: GraduationCap,
+        label: "Dosen",
+        roles: LECTURER,
+      },
+      {
+        children: studentLearningItems,
+        icon: UserRound,
+        label: "Mahasiswa",
+        roles: STUDENT,
+      },
+    ],
+    label: "Ruang pembelajaran",
+  },
+  {
+    items: [
+      {
+        children: academicAdminAttendanceItems,
+        icon: UsersRound,
+        label: "Admin Akademik",
+        roles: ACADEMIC_ADMIN,
+      },
+      {
+        children: programHeadAttendanceItems,
+        icon: GraduationCap,
+        label: "Kaprodi",
+        roles: PROGRAM_HEAD,
+      },
+      {
+        children: lecturerAttendanceItems,
+        icon: GraduationCap,
+        label: "Dosen",
+        roles: LECTURER,
+      },
+      {
+        children: studentAttendanceItems,
+        icon: UserRound,
+        label: "Mahasiswa",
+        roles: STUDENT,
+      },
+    ],
+    label: "Presensi",
   },
   {
     items: [
@@ -675,9 +747,12 @@ const getVisibleItems = (
 ): NavigationItem[] => getVisibleItemsForRoles(items, new Set(roles));
 
 const isPathActive = (pathname: string, item: NavigationItem): boolean => {
-  const itemIsActive = item.to
-    ? pathname === item.to || pathname.startsWith(`${item.to}/`)
-    : false;
+  const activePaths = item.to
+    ? [item.to, ...(item.activePaths ?? [])]
+    : (item.activePaths ?? []);
+  const itemIsActive = activePaths.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  );
 
   return (
     itemIsActive ||
