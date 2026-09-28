@@ -1,3 +1,4 @@
+import type { RoleKey } from "@siakad-itbkmmubar/api/identity";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
   DropdownMenu,
@@ -12,11 +13,22 @@ import { Input } from "@siakad-itbkmmubar/ui/components/input";
 import { NotificationCenter } from "@siakad-itbkmmubar/ui/components/notification-center";
 import { SidebarTrigger } from "@siakad-itbkmmubar/ui/components/sidebar";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronDown, CircleHelp, Home, LogOut, Search } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  CircleHelp,
+  Home,
+  LogOut,
+  Search,
+} from "lucide-react";
 
+import { roleLabels } from "@/lib/active-role";
 import { authClient } from "@/lib/auth-client";
 
 interface HeaderProps {
+  activeRole: RoleKey | null;
+  availableRoles: readonly RoleKey[];
+  onActiveRoleChange: (role: RoleKey) => Promise<void>;
   userName: string;
 }
 
@@ -33,8 +45,15 @@ const getInitials = (name: string) => {
   return initials || "AA";
 };
 
-const Header = ({ userName }: HeaderProps) => {
+const Header = ({
+  activeRole,
+  availableRoles,
+  onActiveRoleChange,
+  userName,
+}: HeaderProps) => {
   const navigate = useNavigate();
+  const activeRoleLabel = activeRole ? roleLabels[activeRole] : "Tanpa peran";
+  const canSwitchRole = availableRoles.includes("SUPERADMIN");
 
   const handleLogout = async () => {
     await authClient.signOut();
@@ -87,8 +106,9 @@ const Header = ({ userName }: HeaderProps) => {
           </Button>
 
           <DropdownMenu>
-            <DropdownMenuTrigger className="hidden h-11 items-center gap-2 rounded-lg border border-[#dbe5ee] bg-[#f8fafc] px-3 text-xs font-semibold text-[#102d4d] transition-colors outline-none hover:bg-[#eef4f9] focus-visible:ring-2 focus-visible:ring-[#1d78d4]/30 lg:flex">
-              <span>Admin Akademik</span>
+            <DropdownMenuTrigger className="flex h-11 items-center gap-2 rounded-lg border border-[#dbe5ee] bg-[#f8fafc] px-3 text-xs font-semibold text-[#102d4d] transition-colors outline-none hover:bg-[#eef4f9] focus-visible:ring-2 focus-visible:ring-[#1d78d4]/30">
+              <span className="hidden sm:inline">{activeRoleLabel}</span>
+              <span className="sm:hidden">Peran</span>
               <ChevronDown
                 aria-hidden="true"
                 className="size-4 text-[#71859c]"
@@ -100,11 +120,22 @@ const Header = ({ userName }: HeaderProps) => {
             >
               <DropdownMenuGroup>
                 <DropdownMenuLabel className="px-3 text-[#71859c]">
-                  Peran aktif
+                  {canSwitchRole ? "Pilih peran aktif" : "Peran aktif"}
                 </DropdownMenuLabel>
-                <DropdownMenuItem className="rounded-lg px-3 text-[#102d4d] focus:bg-[#eef4f9]">
-                  Admin Akademik
-                </DropdownMenuItem>
+                {(canSwitchRole ? availableRoles : [activeRole]).map((role) =>
+                  role ? (
+                    <DropdownMenuItem
+                      className="rounded-lg px-3 text-[#102d4d] focus:bg-[#eef4f9]"
+                      key={role}
+                      onClick={() => onActiveRoleChange(role)}
+                    >
+                      <span className="flex-1">{roleLabels[role]}</span>
+                      {role === activeRole && (
+                        <Check aria-hidden="true" className="size-4" />
+                      )}
+                    </DropdownMenuItem>
+                  ) : null
+                )}
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -130,7 +161,7 @@ const Header = ({ userName }: HeaderProps) => {
                 <DropdownMenuLabel className="px-3 text-[#102d4d]">
                   <span className="block truncate">{userName}</span>
                   <span className="mt-1 block text-xs font-normal text-[#71859c]">
-                    Admin Akademik
+                    {activeRoleLabel}
                   </span>
                 </DropdownMenuLabel>
               </DropdownMenuGroup>

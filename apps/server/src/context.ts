@@ -9,13 +9,14 @@ import {
 } from "@server/services";
 import { createServerLogger } from "@server/services/logger";
 import type { Context as ApiContext } from "@siakad-itbkmmubar/api/context";
+import { resolveActiveRoles } from "@siakad-itbkmmubar/api/identity";
 import type { IdentityType } from "@siakad-itbkmmubar/api/identity";
 import {
   roleKeys,
   identityAccounts,
   userRoles,
 } from "@siakad-itbkmmubar/db/schema/identity";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Context as HonoContext } from "hono";
 
 export interface CreateContextOptions {
@@ -50,18 +51,29 @@ export const createContext = async ({
       const roleRows = await db
         .select({ roleKey: userRoles.roleKey })
         .from(userRoles)
-        .where(eq(userRoles.userId, session.user.id));
-      const activeRoles = roleRows
+        .where(
+          and(
+            eq(userRoles.userId, session.user.id),
+            eq(userRoles.isActive, true)
+          )
+        );
+      const assignedRoles = roleRows
         .filter((role) =>
           roleKeys.includes(role.roleKey as (typeof roleKeys)[number])
         )
         .map((role) => role.roleKey as (typeof roleKeys)[number]);
+      const roleAccess = resolveActiveRoles(
+        assignedRoles,
+        context.req.header("x-active-role") ?? context.req.query("activeRole")
+      );
       identity = {
         accountId: account.id,
+        activeRole: roleAccess.activeRole,
+        availableRoles: roleAccess.availableRoles,
         identifier: account.identifier,
         identityType: account.identityType as IdentityType,
         mustChangePassword: account.mustChangePassword,
-        roles: activeRoles,
+        roles: roleAccess.effectiveRoles,
         status: account.status as "ACTIVE" | "INACTIVE",
         userId: account.userId,
       };

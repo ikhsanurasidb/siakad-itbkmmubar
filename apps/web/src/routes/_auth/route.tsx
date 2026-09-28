@@ -1,22 +1,51 @@
+import type { RoleKey } from "@siakad-itbkmmubar/api/identity";
 import {
   SidebarInset,
   SidebarProvider,
 } from "@siakad-itbkmmubar/ui/components/sidebar";
-import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  Outlet,
+  createFileRoute,
+  redirect,
+  useNavigate,
+} from "@tanstack/react-router";
+import { useState } from "react";
 
 import Header from "@/components/header";
 import Sidebar from "@/components/sidebar";
+import { storeActiveRole } from "@/lib/active-role";
 import { authClient } from "@/lib/auth-client";
 import { client } from "@/utils/orpc";
 
 const AuthLayout = () => {
   const { access, session } = Route.useRouteContext();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [activeRole, setActiveRole] = useState<RoleKey | null>(
+    access.activeRole
+  );
+  const canSwitchRole = access.availableRoles.includes("SUPERADMIN");
+  const visibleRoles =
+    canSwitchRole && activeRole ? [activeRole] : access.roles;
+
+  const handleActiveRoleChange = async (role: RoleKey): Promise<void> => {
+    storeActiveRole(role);
+    setActiveRole(role);
+    queryClient.removeQueries();
+    await navigate({ to: "/dashboard" });
+  };
 
   return (
     <SidebarProvider>
-      <Sidebar roles={access.roles} />
+      <Sidebar roles={visibleRoles} />
       <SidebarInset>
-        <Header userName={session.data?.user.name ?? "Pengguna"} />
+        <Header
+          activeRole={activeRole}
+          availableRoles={access.availableRoles}
+          onActiveRoleChange={handleActiveRoleChange}
+          userName={session.data?.user.name ?? "Pengguna"}
+        />
         <Outlet />
       </SidebarInset>
     </SidebarProvider>

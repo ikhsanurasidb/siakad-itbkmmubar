@@ -4,11 +4,13 @@ import {
   IDENTIFIER_SEQUENCE_MAX,
   IdentityDomainError,
   assertKnownRole,
+  assertProvisioningPermission,
   assertRoleConflictFree,
   formatInstitutionalIdentifier,
   getJakartaDate,
   normalizeIdentifier,
   previewIdentifierAllocations,
+  resolveActiveRoles,
 } from "../packages/api/src/identity";
 
 describe("SIAKAD-01 identity rules", () => {
@@ -62,5 +64,35 @@ describe("SIAKAD-01 identity rules", () => {
       assertRoleConflictFree(["ADMIN_KEUANGAN"], "ADMIN_AKADEMIK")
     ).toThrow("ADMIN_AKADEMIK dan ADMIN_KEUANGAN");
     expect(() => assertKnownRole("STAFF")).toThrow("tidak terdaftar");
+  });
+
+  test("limits administrator provisioning to academic administrators", () => {
+    expect(() =>
+      assertProvisioningPermission(["SUPERADMIN"], "ADMIN_AKADEMIK")
+    ).not.toThrow();
+    expect(() =>
+      assertProvisioningPermission(["SUPERADMIN"], "ADMIN_KEUANGAN")
+    ).toThrow("Role aktif Anda");
+    expect(() =>
+      assertProvisioningPermission(["SUPERADMIN"], "SUPERADMIN")
+    ).toThrow("Role aktif Anda");
+  });
+
+  test("lets superadmin choose a constrained active role", () => {
+    expect(resolveActiveRoles(["SUPERADMIN"], "ADMIN_AKADEMIK")).toEqual({
+      activeRole: "ADMIN_AKADEMIK",
+      availableRoles: ["SUPERADMIN", "ADMIN_AKADEMIK"],
+      effectiveRoles: ["ADMIN_AKADEMIK"],
+    });
+    expect(resolveActiveRoles(["SUPERADMIN"], "ADMIN_KEUANGAN")).toEqual({
+      activeRole: "SUPERADMIN",
+      availableRoles: ["SUPERADMIN", "ADMIN_AKADEMIK"],
+      effectiveRoles: ["SUPERADMIN"],
+    });
+    expect(resolveActiveRoles(["DOSEN", "KAPRODI"], "SUPERADMIN")).toEqual({
+      activeRole: "DOSEN",
+      availableRoles: ["DOSEN", "KAPRODI"],
+      effectiveRoles: ["DOSEN", "KAPRODI"],
+    });
   });
 });

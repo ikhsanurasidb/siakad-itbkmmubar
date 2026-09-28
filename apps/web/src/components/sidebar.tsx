@@ -36,6 +36,7 @@ import {
   SlidersHorizontal,
   Upload,
   UserRound,
+  UserRoundPlus,
   UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -282,6 +283,12 @@ const academicAdminMasterDataItems: readonly NavigationItem[] = [
 ];
 
 const superadminIdentityItems: readonly NavigationItem[] = [
+  {
+    icon: UserRoundPlus,
+    label: "Tambah admin",
+    roles: SUPERADMIN,
+    to: "/superadmin/identitas/admin",
+  },
   {
     icon: UserRound,
     label: "Akun identitas",

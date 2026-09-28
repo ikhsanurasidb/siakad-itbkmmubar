@@ -39,6 +39,8 @@ export interface RequestMetadata {
 
 export interface IdentityAccess {
   accountId: string;
+  activeRole: RoleKey | null;
+  availableRoles: readonly RoleKey[];
   identityType: IdentityType;
   identifier: string;
   mustChangePassword: boolean;

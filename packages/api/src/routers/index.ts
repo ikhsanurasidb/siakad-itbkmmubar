@@ -1,6 +1,7 @@
 import type { Context } from "@api/context";
 import { curriculumCourseTypes, curriculumStatuses } from "@api/curriculum";
 import {
+  assertProvisioningPermission,
   identityTypes,
   maskIpAddress,
   roleKeys,
@@ -44,6 +45,14 @@ const requireRole = (context: Context, allowedRoles: readonly string[]) => {
 };
 
 const requireIdentityService = (context: Context) => context.identityService;
+
+const requireBulkAcademicIdentityType = (
+  identityType: (typeof identityTypes)[number]
+): void => {
+  if (identityType !== "DOSEN" && identityType !== "MAHASISWA") {
+    throw new ORPCError("FORBIDDEN");
+  }
+};
 
 const accountIdInput = z.object({ accountId: z.string().min(1) });
 const masterDataEntitySchema = z.enum(masterDataEntityTypes);
@@ -233,6 +242,7 @@ export const appRouter = {
         )
         .handler(({ context, input }) => {
           requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+          requireBulkAcademicIdentityType(input.identityType);
           return requireIdentityService(context).provisionBulkAccounts({
             actorUserId: context.session?.user.id as string,
             identityType: input.identityType,
@@ -248,6 +258,7 @@ export const appRouter = {
         )
         .handler(({ context, input }) => {
           requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+          requireBulkAcademicIdentityType(input.identityType);
           return requireIdentityService(context).previewBulkAccounts(input);
         }),
       create: protectedProcedure
@@ -263,12 +274,9 @@ export const appRouter = {
         )
         .handler(({ context, input }) => {
           const actorRoles = context.identity?.roles ?? [];
-          const allowed =
-            actorRoles.includes("SUPERADMIN") ||
-            (actorRoles.includes("ADMIN_AKADEMIK") &&
-              (input.identityType === "MAHASISWA" ||
-                input.identityType === "DOSEN"));
-          if (!allowed) {
+          try {
+            assertProvisioningPermission(actorRoles, input.identityType);
+          } catch {
             throw new ORPCError("FORBIDDEN");
           }
           return requireIdentityService(context).createAccount({
@@ -343,6 +351,24 @@ export const appRouter = {
           return requireIdentityService(context).resetPassword({
             ...input,
             actorUserId: context.session?.user.id as string,
+          });
+        }),
+    },
+    admins: {
+      create: protectedProcedure
+        .input(
+          z.object({
+            email: z.email().optional(),
+            name: z.string().trim().min(1).max(160),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN"]);
+          return requireIdentityService(context).createAccount({
+            ...input,
+            actorUserId: context.session?.user.id as string,
+            identityType: "ADMIN_AKADEMIK",
+            roleKey: "ADMIN_AKADEMIK",
           });
         }),
     },
@@ -509,6 +535,8 @@ export const appRouter = {
       }),
     },
     status: authenticatedProcedure.handler(({ context }) => ({
+      activeRole: context.identity?.activeRole ?? null,
+      availableRoles: context.identity?.availableRoles ?? [],
       identifier: context.identity?.identifier ?? null,
       mustChangePassword: context.identity?.mustChangePassword ?? false,
       roles: context.identity?.roles ?? [],

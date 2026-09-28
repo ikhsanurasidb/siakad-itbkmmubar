@@ -98,6 +98,42 @@ export interface IdentifierPreview {
   sequenceNumber: number;
 }
 
+export interface ActiveRoleResolution {
+  activeRole: RoleKey | null;
+  availableRoles: readonly RoleKey[];
+  effectiveRoles: readonly RoleKey[];
+}
+
+const superadminSelectableRoles = [
+  "SUPERADMIN",
+  "ADMIN_AKADEMIK",
+] as const satisfies readonly RoleKey[];
+
+export const resolveActiveRoles = (
+  assignedRoles: readonly RoleKey[],
+  requestedRole?: string | null
+): ActiveRoleResolution => {
+  if (!assignedRoles.includes("SUPERADMIN")) {
+    return {
+      activeRole: assignedRoles[0] ?? null,
+      availableRoles: assignedRoles,
+      effectiveRoles: assignedRoles,
+    };
+  }
+
+  const activeRole = superadminSelectableRoles.includes(
+    requestedRole as (typeof superadminSelectableRoles)[number]
+  )
+    ? (requestedRole as (typeof superadminSelectableRoles)[number])
+    : "SUPERADMIN";
+
+  return {
+    activeRole,
+    availableRoles: superadminSelectableRoles,
+    effectiveRoles: [activeRole],
+  };
+};
+
 export const previewIdentifierAllocations = ({
   masterRecordIds,
   prefix,
@@ -175,8 +211,13 @@ export const assertProvisioningPermission = (
   const isAcademicAdmin = actorRoles.includes("ADMIN_AKADEMIK");
   const allowedForAcademicAdmin =
     targetIdentityType === "MAHASISWA" || targetIdentityType === "DOSEN";
+  const allowedForSuperadmin =
+    allowedForAcademicAdmin || targetIdentityType === "ADMIN_AKADEMIK";
 
-  if (!isSuperadmin && !(isAcademicAdmin && allowedForAcademicAdmin)) {
+  if (
+    !(isSuperadmin && allowedForSuperadmin) &&
+    !(isAcademicAdmin && allowedForAcademicAdmin)
+  ) {
     throw new IdentityDomainError(
       "FORBIDDEN_PROVISIONING",
       "Role aktif Anda tidak dapat memprovision akun dengan tipe tersebut."

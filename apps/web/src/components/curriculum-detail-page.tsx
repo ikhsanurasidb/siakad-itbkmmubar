@@ -30,6 +30,7 @@ import {
 } from "@/components/curriculum-ui";
 import type { CurriculumBasePath } from "@/components/curriculum-ui";
 import { ENV } from "@/env.public";
+import { getStoredActiveRole } from "@/lib/active-role";
 import { orpc } from "@/utils/orpc";
 
 interface CurriculumDetailPageProps {
@@ -129,6 +130,8 @@ const CurriculumDetailPage = ({
   }
 
   const curriculum = detail.data;
+  const activeRole = getStoredActiveRole();
+  const documentDownloadUrl = `${ENV.VITE_SERVER_URL.replace(/\/$/u, "")}/api/curriculum/${curriculumId}/document${activeRole ? `?activeRole=${encodeURIComponent(activeRole)}` : ""}`;
   const { assessment: assessmentRoute, structure: structureRoute } =
     curriculumRoutePaths[basePath];
   const isDraft = curriculum.status === "DRAFT";
@@ -298,7 +301,7 @@ const CurriculumDetailPage = ({
                   </div>
                   <a
                     className="ml-auto inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-[#0b63b6]"
-                    href={`${ENV.VITE_SERVER_URL.replace(/\/$/u, "")}/api/curriculum/${curriculumId}/document`}
+                    href={documentDownloadUrl}
                   >
                     <Download aria-hidden="true" className="size-4" />
                     Unduh

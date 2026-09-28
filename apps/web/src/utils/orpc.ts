@@ -6,6 +6,7 @@ import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { ENV } from "@/env.public";
+import { getStoredActiveRole } from "@/lib/active-role";
 
 export const createQueryClient = () =>
   new QueryClient({
@@ -27,9 +28,11 @@ export const queryClient = createQueryClient();
 
 export const link = new RPCLink({
   fetch(url, options) {
+    const activeRole = getStoredActiveRole();
     return fetch(url, {
       ...options,
       credentials: "include",
+      headers: activeRole ? { "x-active-role": activeRole } : undefined,
     });
   },
   url: `${ENV.VITE_SERVER_URL.replace(/\/$/u, "")}/rpc`,
