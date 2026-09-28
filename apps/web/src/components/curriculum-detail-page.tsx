@@ -250,10 +250,14 @@ const CurriculumDetailPage = ({
           <CardContent className="grid gap-4">
             {canManage && isDraft ? (
               <div className="flex flex-wrap items-center gap-3">
+                <label className="sr-only" htmlFor="curriculum-document-upload">
+                  Unggah dokumen kurikulum
+                </label>
                 <input
                   accept=".pdf,.jpg,.jpeg,.png"
                   className="block w-full max-w-sm text-sm"
                   disabled={uploadDocument.isPending}
+                  id="curriculum-document-upload"
                   onChange={(event) =>
                     handleFileChange(event.target.files?.[0])
                   }

@@ -6,14 +6,16 @@ const Page = () => {
   const { curriculumId } = Route.useParams();
   return (
     <CurriculumDetailPage
-      basePath="/kaprodi/kurikulum"
-      canManage
+      basePath="/admin-akademik/kurikulum"
+      canManage={false}
       curriculumId={curriculumId}
-      roleName="Kaprodi"
+      roleName="Admin Akademik"
     />
   );
 };
 
-export const Route = createFileRoute("/_auth/kaprodi/kurikulum/$curriculumId")({
+export const Route = createFileRoute(
+  "/_auth/admin-akademik/kurikulum/$curriculumId/"
+)({
   component: Page,
 });
