@@ -38,17 +38,30 @@ interface GradesClassPageProps {
   classSectionId: string;
 }
 
+interface GradeResultEntry {
+  courseCode: string;
+  courseName: string;
+  credits: number;
+  gradeCode: string;
+  gradePoint: number;
+  roundedScore: number;
+}
+
+interface StudentKhsData {
+  academicPeriodLabel: string;
+  entries: readonly GradeResultEntry[];
+  ips: number;
+}
+
+interface StudentTranscriptData {
+  entries: readonly GradeResultEntry[];
+  ipk: number;
+}
+
 const GradeResultTable = ({
   entries,
 }: {
-  entries: readonly {
-    courseCode: string;
-    courseName: string;
-    credits: number;
-    gradeCode: string;
-    gradePoint: number;
-    roundedScore: number;
-  }[];
+  entries: readonly GradeResultEntry[];
 }) =>
   entries.length ? (
     <div className="overflow-x-auto">
@@ -313,16 +326,20 @@ export const GradesClassPage = ({ classSectionId }: GradesClassPageProps) => {
 
 interface GradePublicationPageProps {
   roleName: string;
+  view?: "classes" | "period";
 }
 
 export const GradePublicationPage = ({
   roleName,
+  view = "classes",
 }: GradePublicationPageProps) => {
   const queryClient = useQueryClient();
   const [academicPeriodId, setAcademicPeriodId] = useState("");
-  const classes = useQuery(
-    orpc.grades.classes.list.queryOptions({ input: {} })
-  );
+  const isPeriodView = view === "period";
+  const classes = useQuery({
+    ...orpc.grades.classes.list.queryOptions({ input: {} }),
+    enabled: !isPeriodView,
+  });
   const publish = useMutation(
     orpc.grades.publish.mutationOptions({
       onError: () => toast.error("Nilai belum dapat diterbitkan."),
@@ -342,7 +359,7 @@ export const GradePublicationPage = ({
   );
   const canPublish = roleName === "Admin Akademik" || roleName === "Superadmin";
 
-  if (classes.isPending) {
+  if (!isPeriodView && classes.isPending) {
     return (
       <GradeState
         title="Memuat publikasi"
@@ -350,7 +367,7 @@ export const GradePublicationPage = ({
       />
     );
   }
-  if (classes.isError || !classes.data) {
+  if (!isPeriodView && (classes.isError || !classes.data)) {
     return (
       <GradeState
         title="Publikasi tidak tersedia"
@@ -363,168 +380,303 @@ export const GradePublicationPage = ({
       />
     );
   }
+  const classData = classes.data ?? [];
+
   return (
     <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
       <PageHeader
-        description="Tinjau nilai yang sudah dikunci dan terbitkan hasil resmi sesuai lingkup akses."
-        eyebrow={`Publikasi nilai · ${roleName}`}
-        title="Publikasi nilai"
+        description={
+          isPeriodView
+            ? "Terbitkan hasil nilai untuk satu periode akademik secara terkontrol."
+            : "Tinjau nilai yang sudah dikunci dan terbitkan hasil resmi sesuai lingkup akses."
+        }
+        eyebrow={`${isPeriodView ? "Periode nilai" : "Publikasi nilai"} · ${roleName}`}
+        title={isPeriodView ? "Periode nilai" : "Publikasi nilai"}
       />
-      <Card>
-        <CardHeader>
-          <CardTitle>Publikasi satu periode</CardTitle>
-          <CardDescription>
-            Job publikasi menyimpan progress agar dapat dilanjutkan.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-          <Input
-            aria-label="ID periode akademik"
-            onChange={(event) => setAcademicPeriodId(event.target.value)}
-            placeholder="ID periode akademik"
-            value={academicPeriodId}
-          />
-          <Button
-            disabled={
-              !canPublish || !academicPeriodId || publishPeriod.isPending
-            }
-            onClick={() => publishPeriod.mutate({ academicPeriodId })}
-          >
-            Terbitkan periode
-          </Button>
-        </CardContent>
-      </Card>
-      <section
-        aria-label="Daftar kelas nilai"
-        className="grid gap-4 md:grid-cols-2"
-      >
-        {classes.data.map((gradeClass) => (
-          <Card key={gradeClass.classSectionId}>
-            <CardHeader>
-              <CardTitle>
-                {gradeClass.courseCode} · {gradeClass.classCode}
-              </CardTitle>
-              <CardDescription>
-                {gradeClass.courseName} · {gradeClass.studentCount} mahasiswa
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex items-center justify-between gap-3">
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClassNames[gradeClass.status]}`}
-              >
-                {statusLabels[gradeClass.status]}
-              </span>
-              {roleName === "Dosen" ? (
-                <a
-                  className="text-primary text-sm font-semibold"
-                  href={`/dosen/kelas/${gradeClass.classSectionId}/nilai`}
+      {isPeriodView ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Publikasi satu periode</CardTitle>
+            <CardDescription>
+              Job publikasi menyimpan progress agar dapat dilanjutkan.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            <Input
+              aria-label="ID periode akademik"
+              onChange={(event) => setAcademicPeriodId(event.target.value)}
+              placeholder="ID periode akademik"
+              value={academicPeriodId}
+            />
+            <Button
+              disabled={
+                !canPublish || !academicPeriodId || publishPeriod.isPending
+              }
+              onClick={() => publishPeriod.mutate({ academicPeriodId })}
+            >
+              Terbitkan periode
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <section
+          aria-label="Daftar kelas nilai"
+          className="grid gap-4 md:grid-cols-2"
+        >
+          {classData.map((gradeClass) => (
+            <Card key={gradeClass.classSectionId}>
+              <CardHeader>
+                <CardTitle>
+                  {gradeClass.courseCode} · {gradeClass.classCode}
+                </CardTitle>
+                <CardDescription>
+                  {gradeClass.courseName} · {gradeClass.studentCount} mahasiswa
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center justify-between gap-3">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClassNames[gradeClass.status]}`}
                 >
-                  Buka daftar nilai
-                </a>
-              ) : (
-                <Button
-                  disabled={
-                    !canPublish ||
-                    gradeClass.status !== "LOCKED" ||
-                    publish.isPending
-                  }
-                  onClick={() =>
-                    publish.mutate({
-                      classSectionId: gradeClass.classSectionId,
-                      expectedVersion: gradeClass.version,
-                    })
-                  }
-                >
-                  Terbitkan nilai
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </section>
+                  {statusLabels[gradeClass.status]}
+                </span>
+                {roleName === "Dosen" ? (
+                  <a
+                    className="text-primary text-sm font-semibold"
+                    href={`/dosen/kelas/${gradeClass.classSectionId}/nilai`}
+                  >
+                    Buka daftar nilai
+                  </a>
+                ) : (
+                  <Button
+                    disabled={
+                      !canPublish ||
+                      gradeClass.status !== "LOCKED" ||
+                      publish.isPending
+                    }
+                    onClick={() =>
+                      publish.mutate({
+                        classSectionId: gradeClass.classSectionId,
+                        expectedVersion: gradeClass.version,
+                      })
+                    }
+                  >
+                    Terbitkan nilai
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+      )}
     </div>
   );
 };
 
-export const StudentGradesPage = ({ periodId }: { periodId?: string }) => {
-  const khs = useQuery(
-    orpc.grades.student.khs.queryOptions({
+interface StudentGradesPageProps {
+  periodId?: string;
+  view?: "grades" | "khs" | "transcript";
+}
+
+const studentGradesViewCopy = {
+  grades: {
+    description: "Lihat nilai resmi, IPS, dan KHS Anda.",
+    errorDescription: "KHS belum dapat dimuat.",
+    errorTitle: "KHS belum tersedia",
+    eyebrow: "Nilai · Mahasiswa",
+    loadingDescription: "Data KHS sedang dimuat.",
+    loadingTitle: "Memuat KHS",
+    title: "Nilai dan KHS",
+  },
+  khs: {
+    description:
+      "Lihat hasil studi dan IPS pada periode akademik yang dipilih.",
+    errorDescription: "KHS belum dapat dimuat.",
+    errorTitle: "KHS belum tersedia",
+    eyebrow: "KHS · Mahasiswa",
+    loadingDescription: "Data KHS sedang dimuat.",
+    loadingTitle: "Memuat KHS",
+    title: "KHS",
+  },
+  transcript: {
+    description:
+      "Lihat seluruh nilai terbaik Anda sesuai kebijakan mata kuliah ulang.",
+    errorDescription: "Transkrip belum dapat dimuat.",
+    errorTitle: "Transkrip belum tersedia",
+    eyebrow: "Transkrip · Mahasiswa",
+    loadingDescription: "Data transkrip sedang dimuat.",
+    loadingTitle: "Memuat transkrip",
+    title: "Transkrip",
+  },
+} as const;
+
+const StudentGradeSummary = ({
+  khsData,
+  transcriptData,
+}: {
+  khsData: StudentKhsData;
+  transcriptData: StudentTranscriptData;
+}) => (
+  <section className="grid gap-4 sm:grid-cols-2">
+    <Card>
+      <CardHeader>
+        <CardDescription>IPS periode ini</CardDescription>
+        <CardTitle>{khsData.ips.toFixed(2)}</CardTitle>
+      </CardHeader>
+    </Card>
+    <Card>
+      <CardHeader>
+        <CardDescription>IPK kumulatif</CardDescription>
+        <CardTitle>{transcriptData.ipk.toFixed(2)}</CardTitle>
+      </CardHeader>
+    </Card>
+  </section>
+);
+
+const StudentKhsMetric = ({ data }: { data: StudentKhsData }) => (
+  <Card>
+    <CardHeader>
+      <CardDescription>IPS periode ini</CardDescription>
+      <CardTitle>{data.ips.toFixed(2)}</CardTitle>
+    </CardHeader>
+  </Card>
+);
+
+const StudentTranscriptMetric = ({ data }: { data: StudentTranscriptData }) => (
+  <Card>
+    <CardHeader>
+      <CardDescription>IPK kumulatif</CardDescription>
+      <CardTitle>{data.ipk.toFixed(2)}</CardTitle>
+    </CardHeader>
+  </Card>
+);
+
+const StudentKhsCard = ({ data }: { data: StudentKhsData }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>KHS {data.academicPeriodLabel}</CardTitle>
+      <CardDescription>
+        Hanya nilai dengan status diterbitkan yang ditampilkan.
+      </CardDescription>
+    </CardHeader>
+    <CardContent>
+      <GradeResultTable entries={data.entries} />
+    </CardContent>
+  </Card>
+);
+
+const StudentTranscriptCard = ({ data }: { data: StudentTranscriptData }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>Transkrip</CardTitle>
+      <CardDescription>
+        Daftar nilai terbaik sesuai kebijakan mata kuliah ulang.
+      </CardDescription>
+    </CardHeader>
+    <CardContent>
+      <GradeResultTable entries={data.entries} />
+    </CardContent>
+  </Card>
+);
+
+const StudentGradesContent = ({
+  khsData,
+  transcriptData,
+  view,
+}: {
+  khsData?: StudentKhsData;
+  transcriptData?: StudentTranscriptData;
+  view: keyof typeof studentGradesViewCopy;
+}) => {
+  const viewCopy = studentGradesViewCopy[view];
+
+  return (
+    <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
+      <PageHeader
+        description={viewCopy.description}
+        eyebrow={viewCopy.eyebrow}
+        title={viewCopy.title}
+      />
+      {view === "grades" && khsData && transcriptData ? (
+        <StudentGradeSummary
+          khsData={khsData}
+          transcriptData={transcriptData}
+        />
+      ) : null}
+      {view === "khs" && khsData ? <StudentKhsMetric data={khsData} /> : null}
+      {view === "transcript" && transcriptData ? (
+        <StudentTranscriptMetric data={transcriptData} />
+      ) : null}
+      {view !== "transcript" && khsData ? (
+        <StudentKhsCard data={khsData} />
+      ) : null}
+      {view !== "khs" && transcriptData ? (
+        <StudentTranscriptCard data={transcriptData} />
+      ) : null}
+    </div>
+  );
+};
+
+export const StudentGradesPage = ({
+  periodId,
+  view = "grades",
+}: StudentGradesPageProps) => {
+  const showKhs = view !== "transcript";
+  const showTranscript = view !== "khs";
+  const viewCopy = studentGradesViewCopy[view];
+  const khs = useQuery({
+    ...orpc.grades.student.khs.queryOptions({
       input: { academicPeriodId: periodId },
-    })
-  );
-  const transcript = useQuery(
-    orpc.grades.student.transcript.queryOptions({ input: {} })
-  );
-  if (khs.isPending || transcript.isPending) {
+    }),
+    enabled: showKhs,
+  });
+  const transcript = useQuery({
+    ...orpc.grades.student.transcript.queryOptions({ input: {} }),
+    enabled: showTranscript,
+  });
+
+  if ((showKhs && khs.isPending) || (showTranscript && transcript.isPending)) {
     return (
       <GradeState
-        title="Memuat hasil studi"
-        description="KHS dan transkrip sedang dimuat."
+        description={viewCopy.loadingDescription}
+        title={viewCopy.loadingTitle}
       />
     );
   }
-  if (khs.isError || transcript.isError || !khs.data || !transcript.data) {
+
+  if (
+    (showKhs && (khs.isError || !khs.data)) ||
+    (showTranscript && (transcript.isError || !transcript.data))
+  ) {
     return (
       <GradeState
-        title="Hasil studi belum tersedia"
-        description="Nilai resmi belum tersedia atau belum dapat dimuat."
         action={
           <Button
             onClick={() => {
-              khs.refetch();
-              transcript.refetch();
+              if (showKhs) {
+                khs.refetch();
+              }
+              if (showTranscript) {
+                transcript.refetch();
+              }
             }}
             variant="outline"
           >
             <RefreshCw aria-hidden="true" /> Coba lagi
           </Button>
         }
+        description={viewCopy.errorDescription}
+        title={viewCopy.errorTitle}
       />
     );
   }
+
+  const khsData = khs.data;
+  const transcriptData = transcript.data;
   return (
-    <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
-      <PageHeader
-        description="Lihat nilai resmi yang telah diterbitkan, IPS, IPK, dan transkrip Anda."
-        eyebrow="Hasil studi · Mahasiswa"
-        title="Nilai dan KHS"
-      />
-      <section className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardDescription>IPS periode ini</CardDescription>
-            <CardTitle>{khs.data.ips.toFixed(2)}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>IPK kumulatif</CardDescription>
-            <CardTitle>{transcript.data.ipk.toFixed(2)}</CardTitle>
-          </CardHeader>
-        </Card>
-      </section>
-      <Card>
-        <CardHeader>
-          <CardTitle>KHS {khs.data.academicPeriodLabel}</CardTitle>
-          <CardDescription>
-            Hanya nilai dengan status diterbitkan yang ditampilkan.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <GradeResultTable entries={khs.data.entries} />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Transkrip</CardTitle>
-          <CardDescription>
-            Daftar nilai terbaik sesuai kebijakan mata kuliah ulang.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <GradeResultTable entries={transcript.data.entries} />
-        </CardContent>
-      </Card>
-    </div>
+    <StudentGradesContent
+      khsData={khsData}
+      transcriptData={transcriptData}
+      view={view}
+    />
   );
 };

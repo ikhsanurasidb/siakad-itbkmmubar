@@ -19,7 +19,26 @@ import { orpc } from "@/utils/orpc";
 interface SchedulingPageProps {
   mode: "ADMIN" | "APPROVAL" | "LECTURER" | "STUDENT";
   roleName: string;
+  view?: "changes" | "mapping" | "overview";
 }
+
+const schedulingViewCopy = {
+  changes: {
+    description:
+      "Tinjau pengajuan perubahan dan terbitkan draft jadwal yang sudah disetujui.",
+    title: "Perubahan jadwal",
+  },
+  mapping: {
+    description:
+      "Bentuk kelas dari KRS final dan periksa hasil pemetaan sebelum jadwal diterbitkan.",
+    title: "Pemetaan kelas",
+  },
+  overview: {
+    description:
+      "Bentuk kelas dari KRS final, selesaikan konflik, dan publikasikan jadwal secara terkontrol.",
+    title: "Kelas dan penjadwalan",
+  },
+} as const;
 
 const formatDate = new Intl.DateTimeFormat("id-ID", {
   dateStyle: "medium",
@@ -35,7 +54,11 @@ const statusLabels = {
 } as const;
 
 // eslint-disable-next-line complexity -- this component coordinates role-specific scheduling views and mutations.
-const SchedulingPage = ({ mode, roleName }: SchedulingPageProps) => {
+const SchedulingPage = ({
+  mode,
+  roleName,
+  view = "overview",
+}: SchedulingPageProps) => {
   const queryClient = useQueryClient();
   const [academicPeriodId, setAcademicPeriodId] = useState("");
   const [studyProgramId, setStudyProgramId] = useState("");
@@ -120,6 +143,9 @@ const SchedulingPage = ({ mode, roleName }: SchedulingPageProps) => {
     drafts.isError ||
     meetings.isError ||
     changeRequests.isError;
+  const viewCopy = schedulingViewCopy[view];
+  const showMappingPanel = mode === "ADMIN" && view !== "changes";
+  const showChangesPanel = mode === "ADMIN" && view !== "mapping";
 
   if (isPending) {
     return (
@@ -127,7 +153,7 @@ const SchedulingPage = ({ mode, roleName }: SchedulingPageProps) => {
         <PageHeader
           description="Kelola kelas kuliah, approval, dan jadwal pertemuan."
           eyebrow={`Penjadwalan · ${roleName}`}
-          title="Kelas dan penjadwalan"
+          title={viewCopy.title}
         />
         <State
           description="Data kelas dan jadwal sedang dimuat."
@@ -144,7 +170,7 @@ const SchedulingPage = ({ mode, roleName }: SchedulingPageProps) => {
         <PageHeader
           description="Kelola kelas kuliah, approval, dan jadwal pertemuan."
           eyebrow={`Penjadwalan · ${roleName}`}
-          title="Kelas dan penjadwalan"
+          title={viewCopy.title}
         />
         <State
           action={
@@ -171,12 +197,12 @@ const SchedulingPage = ({ mode, roleName }: SchedulingPageProps) => {
   return (
     <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
       <PageHeader
-        description="Bentuk kelas dari KRS final, selesaikan konflik, dan publikasikan jadwal secara terkontrol."
+        description={viewCopy.description}
         eyebrow={`Penjadwalan · ${roleName}`}
-        title="Kelas dan penjadwalan"
+        title={viewCopy.title}
       />
 
-      {mode === "ADMIN" && (
+      {showMappingPanel && (
         <Card>
           <CardHeader>
             <CardTitle>Pemetaan kelas dari KRS final</CardTitle>
@@ -418,7 +444,7 @@ const SchedulingPage = ({ mode, roleName }: SchedulingPageProps) => {
         </Card>
       </section>
 
-      {mode === "ADMIN" && (
+      {showChangesPanel && (
         <Card>
           <CardHeader>
             <CardTitle>Draft jadwal dan pengajuan perubahan</CardTitle>

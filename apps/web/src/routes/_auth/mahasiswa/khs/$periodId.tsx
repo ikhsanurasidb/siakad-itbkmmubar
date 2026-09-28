@@ -4,7 +4,7 @@ import { StudentGradesPage } from "@/components/grades-page";
 
 const Page = () => {
   const { periodId } = Route.useParams();
-  return <StudentGradesPage periodId={periodId} />;
+  return <StudentGradesPage periodId={periodId} view="khs" />;
 };
 
 export const Route = createFileRoute("/_auth/mahasiswa/khs/$periodId")({

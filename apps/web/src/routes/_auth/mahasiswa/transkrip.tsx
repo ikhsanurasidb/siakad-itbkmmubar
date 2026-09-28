@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { StudentGradesPage } from "@/components/grades-page";
 
-const Page = () => <StudentGradesPage />;
+const Page = () => <StudentGradesPage view="transcript" />;
 
 export const Route = createFileRoute("/_auth/mahasiswa/transkrip")({
   component: Page,
