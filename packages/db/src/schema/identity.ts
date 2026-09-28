@@ -54,6 +54,7 @@ export const identityAccounts = sqliteTable(
     })
       .default(true)
       .notNull(),
+    phone: text("phone"),
     status: text("status").default("ACTIVE").notNull(),
     temporaryPasswordExpiresAt: integer("temporary_password_expires_at", {
       mode: "timestamp_ms",
@@ -69,6 +70,31 @@ export const identityAccounts = sqliteTable(
     index("identity_accounts_status_type_idx").on(
       table.status,
       table.identityType
+    ),
+  ]
+);
+
+export const emailChangeRequests = sqliteTable(
+  "email_change_requests",
+  {
+    createdAt: timestamp("created_at"),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    id: text("id").primaryKey(),
+    newEmail: text("new_email").notNull(),
+    status: text("status").default("PENDING").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    verificationTokenHash: text("verification_token_hash").notNull(),
+    verifiedAt: integer("verified_at", { mode: "timestamp_ms" }),
+  },
+  (table) => [
+    index("email_change_requests_user_status_idx").on(
+      table.userId,
+      table.status
+    ),
+    index("email_change_requests_token_hash_idx").on(
+      table.verificationTokenHash
     ),
   ]
 );

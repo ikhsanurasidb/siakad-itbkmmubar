@@ -5,6 +5,7 @@ import IdentityAccountsPage from "@/components/identity-accounts-page";
 const SuperadminIdentityAccountsPage = () => (
   <IdentityAccountsPage
     description="Kelola seluruh akun identitas dan status provisioning."
+    resettableIdentityTypes={["ADMIN_AKADEMIK"]}
     title="Akun identitas"
   />
 );

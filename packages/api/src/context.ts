@@ -12,7 +12,12 @@ import type {
   CurriculumStatus,
 } from "@api/curriculum";
 import type { GradeStatus } from "@api/grades";
-import type { IdentityType, RoleKey } from "@api/identity";
+import type {
+  IdentityContactRecord,
+  IdentityType,
+  ProgramHeadRecord,
+  RoleKey,
+} from "@api/identity";
 import type {
   LmsAssignmentRecord,
   LmsActor,
@@ -82,6 +87,9 @@ export interface IdentityService {
     startsAt: Date;
     userId: string;
   }) => Promise<unknown>;
+  confirmEmailChange: (input: {
+    verificationToken: string;
+  }) => Promise<{ email: string }>;
   assignRole: (input: {
     assignedBy: string;
     roleKey: RoleKey;
@@ -121,6 +129,8 @@ export interface IdentityService {
     id: string;
     endsAt: Date;
   }) => Promise<void>;
+  getContact: (input: { userId: string }) => Promise<IdentityContactRecord>;
+  listProgramHeads: () => Promise<readonly ProgramHeadRecord[]>;
   previewBulkAccounts: (input: {
     identityType: IdentityType;
     masterRecordIds: readonly string[];
@@ -137,19 +147,35 @@ export interface IdentityService {
   resetPassword: (input: {
     accountId: string;
     actorUserId: string;
+    actorIdentityType: IdentityType | null;
   }) => Promise<{ temporaryPassword: string }>;
+  requestEmailChange: (input: {
+    currentPassword: string;
+    newEmail: string;
+    userId: string;
+  }) => Promise<{
+    email: string;
+    expiresAt: Date;
+    status: "PENDING_VERIFICATION";
+  }>;
   revokeRole: (input: {
     assignedBy: string;
     roleKey: RoleKey;
     userId: string;
   }) => Promise<void>;
   revokeScope: (input: { id: string; userId: string }) => Promise<void>;
+  updatePhone: (input: {
+    currentPassword: string;
+    phone: string | null;
+    userId: string;
+  }) => Promise<{ phone: string | null }>;
 }
 
 export interface MasterDataService {
   archive: (input: {
     actorUserId: string;
     entityType: MasterDataEntityType;
+    expectedVersion: number;
     id: string;
   }) => Promise<void>;
   create: (input: {
@@ -229,6 +255,7 @@ export interface MasterDataService {
   reactivate: (input: {
     actorUserId: string;
     entityType: MasterDataEntityType;
+    expectedVersion: number;
     id: string;
   }) => Promise<void>;
   commitImport: (input: {
@@ -240,6 +267,7 @@ export interface MasterDataService {
     actorUserId: string;
     data: Readonly<Record<string, unknown>>;
     entityType: MasterDataEntityType;
+    expectedVersion: number;
     id: string;
   }) => Promise<Record<string, unknown>>;
 }

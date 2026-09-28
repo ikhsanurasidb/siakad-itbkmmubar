@@ -7,6 +7,7 @@ export {
   verification,
 } from "@db/schema/auth";
 export {
+  emailChangeRequests,
   identityAccounts,
   identityAccountStatuses,
   identityTypes,

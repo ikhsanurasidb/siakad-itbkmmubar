@@ -480,6 +480,12 @@ const superadminIdentityItems: readonly NavigationItem[] = [
     to: "/superadmin/identitas/akun",
   },
   {
+    icon: GraduationCap,
+    label: "Assignment Kaprodi",
+    roles: SUPERADMIN,
+    to: "/superadmin/identitas/kaprodi",
+  },
+  {
     icon: ShieldCheck,
     label: "Role sistem",
     roles: SUPERADMIN,
@@ -499,6 +505,12 @@ const academicAdminIdentityItems: readonly NavigationItem[] = [
     label: "Akun akademik",
     roles: ACADEMIC_ADMIN,
     to: "/admin-akademik/identitas/akun",
+  },
+  {
+    icon: GraduationCap,
+    label: "Assignment Kaprodi",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/identitas/kaprodi",
   },
 ];
 

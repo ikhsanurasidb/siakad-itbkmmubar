@@ -1,0 +1,1 @@
+ALTER TABLE `identity_accounts` ADD `phone` text;

@@ -1,13 +1,16 @@
 import type { IdentityService } from "@siakad-itbkmmubar/api/context";
 import {
+  DEFAULT_EMAIL_CHANGE_TTL_MS,
   DEFAULT_TEMPORARY_PASSWORD_TTL_MS,
   IDENTIFIER_SEQUENCE_MAX,
   IdentityDomainError,
   assertKnownRole,
   assertRoleConflictFree,
+  assertResetPasswordPermission,
   formatInstitutionalIdentifier,
   getJakartaDate,
   normalizeIdentifier,
+  normalizePhoneNumber,
   previewIdentifierAllocations,
 } from "@siakad-itbkmmubar/api/identity";
 import type { IdentityType, RoleKey } from "@siakad-itbkmmubar/api/identity";
@@ -16,6 +19,7 @@ import type { Database } from "@siakad-itbkmmubar/db";
 import { session, user } from "@siakad-itbkmmubar/db/schema/auth";
 import {
   identityAccounts,
+  emailChangeRequests,
   identifierReservations,
   identifierSequences,
   programHeads,
@@ -24,7 +28,8 @@ import {
   userRoles,
   userScopes,
 } from "@siakad-itbkmmubar/db/schema/identity";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { studyPrograms } from "@siakad-itbkmmubar/db/schema/master-data";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 type ConfiguredAuth = ReturnType<typeof createConfiguredAuth>;
 
@@ -165,6 +170,39 @@ const recordSecurityEvent = async ({
     metadata: JSON.stringify(metadata),
     userId,
   });
+};
+
+const hashVerificationToken = async (token: string): Promise<string> => {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(token)
+  );
+  return Array.from(new Uint8Array(digest), (value) =>
+    value.toString(16).padStart(2, "0")
+  ).join("");
+};
+
+const assertCurrentPassword = async (
+  auth: ConfiguredAuth,
+  userId: string,
+  currentPassword: string
+): Promise<void> => {
+  const credential = await auth.$context.then((context) =>
+    context.internalAdapter.findCredentialAccount(userId)
+  );
+  const authContext = await auth.$context;
+  const valid = credential?.password
+    ? await authContext.password.verify({
+        hash: credential.password,
+        password: currentPassword,
+      })
+    : false;
+  if (!valid) {
+    throw new IdentityDomainError(
+      "INVALID_CURRENT_PASSWORD",
+      "Kata sandi saat ini tidak sesuai."
+    );
+  }
 };
 
 export const createIdentityService = ({
@@ -338,35 +376,111 @@ export const createIdentityService = ({
       startsAt,
       userId,
     }) => {
-      const [dosenRole] = await database
+      if (endsAt && endsAt <= startsAt) {
+        throw new IdentityDomainError(
+          "INVALID_PROGRAM_HEAD_DATES",
+          "Tanggal akhir assignment harus setelah tanggal mulai."
+        );
+      }
+      const [dosen] = await database
         .select({ id: userRoles.id })
         .from(userRoles)
+        .innerJoin(
+          identityAccounts,
+          eq(identityAccounts.userId, userRoles.userId)
+        )
         .where(
           and(
             eq(userRoles.userId, userId),
             eq(userRoles.roleKey, "DOSEN"),
-            eq(userRoles.isActive, true)
+            eq(userRoles.isActive, true),
+            eq(identityAccounts.status, "ACTIVE")
           )
         )
         .limit(1);
-      if (!dosenRole) {
+      if (!dosen) {
         throw new IdentityDomainError(
           "PROGRAM_HEAD_REQUIRES_DOSEN",
-          "Kaprodi hanya dapat ditetapkan pada akun Dosen."
+          "Kaprodi hanya dapat ditetapkan pada akun Dosen aktif."
         );
       }
-      await database
-        .update(programHeads)
-        .set({ endsAt: startsAt })
+      const [prodi] = await database
+        .select({ id: studyPrograms.id })
+        .from(studyPrograms)
         .where(
-          and(eq(programHeads.prodiId, prodiId), isNull(programHeads.endsAt))
+          and(eq(studyPrograms.id, prodiId), eq(studyPrograms.status, "ACTIVE"))
+        )
+        .limit(1);
+      if (!prodi) {
+        throw new IdentityDomainError(
+          "PROGRAM_NOT_FOUND",
+          "Program studi aktif tidak ditemukan."
         );
+      }
+      const existingAssignments = await database
+        .select()
+        .from(programHeads)
+        .where(eq(programHeads.prodiId, prodiId));
+      const newStart = startsAt.getTime();
+      const newEnd = endsAt?.getTime() ?? Number.POSITIVE_INFINITY;
+      const assignmentsToClose: typeof existingAssignments = [];
+      for (const assignment of existingAssignments) {
+        const existingEnd =
+          assignment.endsAt?.getTime() ?? Number.POSITIVE_INFINITY;
+        const overlaps =
+          assignment.startsAt.getTime() < newEnd && newStart < existingEnd;
+        if (!overlaps) {
+          continue;
+        }
+        if (
+          assignment.endsAt === null &&
+          assignment.startsAt.getTime() < newStart
+        ) {
+          assignmentsToClose.push(assignment);
+          continue;
+        }
+        throw new IdentityDomainError(
+          "PROGRAM_HEAD_OVERLAP",
+          "Periode assignment Kaprodi bertabrakan dengan assignment yang sudah ada."
+        );
+      }
+      await Promise.all(
+        assignmentsToClose.map((assignment) =>
+          Promise.all([
+            database
+              .update(programHeads)
+              .set({ endsAt: startsAt })
+              .where(eq(programHeads.id, assignment.id)),
+            database
+              .update(userScopes)
+              .set({ endsAt: startsAt })
+              .where(
+                and(
+                  eq(userScopes.scopeId, assignment.prodiId),
+                  eq(userScopes.scopeType, "PRODI"),
+                  eq(userScopes.startsAt, assignment.startsAt),
+                  eq(userScopes.userId, assignment.userId)
+                )
+              ),
+          ])
+        )
+      );
+      await thisAssignRole({ assignedBy, roleKey: "KAPRODI", userId });
       await database.insert(programHeads).values({
         assignedAt: now(),
         assignedBy,
         endsAt,
         id: crypto.randomUUID(),
         prodiId,
+        startsAt,
+        userId,
+      });
+      await database.insert(userScopes).values({
+        createdAt: now(),
+        endsAt,
+        id: crypto.randomUUID(),
+        scopeId: prodiId,
+        scopeType: "PRODI",
         startsAt,
         userId,
       });
@@ -377,7 +491,6 @@ export const createIdentityService = ({
         now: now(),
         userId,
       });
-      await thisAssignRole({ assignedBy, roleKey: "KAPRODI", userId });
     },
     assignRole: async ({ assignedBy, roleKey, userId }) => {
       const [role] = await database
@@ -478,6 +591,65 @@ export const createIdentityService = ({
         userId,
       });
     },
+    confirmEmailChange: async ({ verificationToken }) => {
+      const tokenHash = await hashVerificationToken(verificationToken.trim());
+      const [request] = await database
+        .select()
+        .from(emailChangeRequests)
+        .where(
+          and(
+            eq(emailChangeRequests.verificationTokenHash, tokenHash),
+            eq(emailChangeRequests.status, "PENDING")
+          )
+        )
+        .limit(1);
+      if (!request) {
+        throw new IdentityDomainError(
+          "INVALID_EMAIL_VERIFICATION",
+          "Token verifikasi email tidak valid."
+        );
+      }
+      const currentTime = now();
+      if (request.expiresAt <= currentTime) {
+        await database
+          .update(emailChangeRequests)
+          .set({ status: "EXPIRED" })
+          .where(eq(emailChangeRequests.id, request.id));
+        throw new IdentityDomainError(
+          "EXPIRED_EMAIL_VERIFICATION",
+          "Token verifikasi email sudah kedaluwarsa."
+        );
+      }
+      const existingUser = await auth.$context.then((context) =>
+        context.internalAdapter.findUserByEmail(request.newEmail, {
+          includeAccounts: false,
+        })
+      );
+      if (existingUser && existingUser.user.id !== request.userId) {
+        throw new IdentityDomainError(
+          "EMAIL_ALREADY_USED",
+          "Email tersebut sudah digunakan oleh akun lain."
+        );
+      }
+      const authContext = await auth.$context;
+      await authContext.internalAdapter.updateUser(request.userId, {
+        email: request.newEmail,
+        emailVerified: true,
+      });
+      await database
+        .update(emailChangeRequests)
+        .set({ status: "VERIFIED", verifiedAt: currentTime })
+        .where(eq(emailChangeRequests.id, request.id));
+      await database.delete(session).where(eq(session.userId, request.userId));
+      await recordSecurityEvent({
+        database,
+        eventType: "EMAIL_CHANGED",
+        metadata: { userId: request.userId },
+        now: currentTime,
+        userId: request.userId,
+      });
+      return { email: request.newEmail };
+    },
     createAccount,
     deactivateAccount: async ({ accountId, actorUserId }) => {
       const [identity] = await database
@@ -508,12 +680,141 @@ export const createIdentityService = ({
         userId: identity.userId,
       });
     },
-    endProgramHead: async ({ endsAt, id }) => {
+    endProgramHead: async ({ assignedBy, endsAt, id }) => {
+      const [assignment] = await database
+        .select()
+        .from(programHeads)
+        .where(eq(programHeads.id, id))
+        .limit(1);
+      if (!assignment || assignment.endsAt) {
+        throw new IdentityDomainError(
+          "PROGRAM_HEAD_NOT_ACTIVE",
+          "Assignment Kaprodi tidak aktif atau tidak ditemukan."
+        );
+      }
+      if (endsAt <= assignment.startsAt) {
+        throw new IdentityDomainError(
+          "INVALID_PROGRAM_HEAD_DATES",
+          "Tanggal akhir assignment harus setelah tanggal mulai."
+        );
+      }
       await database
         .update(programHeads)
         .set({ endsAt })
-        .where(and(eq(programHeads.id, id), isNull(programHeads.endsAt)));
+        .where(eq(programHeads.id, id));
+      await database
+        .update(userScopes)
+        .set({ endsAt })
+        .where(
+          and(
+            eq(userScopes.scopeId, assignment.prodiId),
+            eq(userScopes.scopeType, "PRODI"),
+            eq(userScopes.startsAt, assignment.startsAt),
+            eq(userScopes.userId, assignment.userId)
+          )
+        );
+      await recordSecurityEvent({
+        database,
+        eventType: "PROGRAM_HEAD_ENDED",
+        metadata: { assignedBy, assignmentId: id },
+        now: now(),
+        userId: assignment.userId,
+      });
+      const remainingAssignments = await database
+        .select({
+          endsAt: programHeads.endsAt,
+          startsAt: programHeads.startsAt,
+        })
+        .from(programHeads)
+        .where(eq(programHeads.userId, assignment.userId));
+      const currentTime = now();
+      const hasRemainingAssignment = remainingAssignments.some(
+        (item) =>
+          item.startsAt > currentTime ||
+          item.endsAt === null ||
+          item.endsAt > currentTime
+      );
+      if (!hasRemainingAssignment) {
+        await database
+          .update(userRoles)
+          .set({ isActive: false })
+          .where(
+            and(
+              eq(userRoles.userId, assignment.userId),
+              eq(userRoles.roleKey, "KAPRODI"),
+              eq(userRoles.isActive, true)
+            )
+          );
+        await recordSecurityEvent({
+          database,
+          eventType: "ROLE_REVOKED",
+          metadata: { assignedBy, roleKey: "KAPRODI" },
+          now: currentTime,
+          userId: assignment.userId,
+        });
+      }
     },
+    getContact: async ({ userId }) => {
+      const [record] = await database
+        .select({
+          email: user.email,
+          emailVerified: user.emailVerified,
+          phone: identityAccounts.phone,
+        })
+        .from(user)
+        .innerJoin(identityAccounts, eq(identityAccounts.userId, user.id))
+        .where(eq(user.id, userId))
+        .limit(1);
+      if (!record) {
+        throw new IdentityDomainError(
+          "ACCOUNT_NOT_FOUND",
+          "Akun tidak ditemukan."
+        );
+      }
+      const [pending] = await database
+        .select({
+          expiresAt: emailChangeRequests.expiresAt,
+          newEmail: emailChangeRequests.newEmail,
+        })
+        .from(emailChangeRequests)
+        .where(
+          and(
+            eq(emailChangeRequests.userId, userId),
+            eq(emailChangeRequests.status, "PENDING")
+          )
+        )
+        .orderBy(desc(emailChangeRequests.createdAt))
+        .limit(1);
+      return {
+        email: record.email,
+        emailVerified: record.emailVerified,
+        pendingEmail: pending?.newEmail ?? null,
+        pendingEmailExpiresAt: pending?.expiresAt ?? null,
+        phone: record.phone,
+      };
+    },
+    listProgramHeads: () =>
+      database
+        .select({
+          assignedAt: programHeads.assignedAt,
+          endsAt: programHeads.endsAt,
+          id: programHeads.id,
+          prodiCode: studyPrograms.code,
+          prodiId: programHeads.prodiId,
+          prodiName: studyPrograms.name,
+          startsAt: programHeads.startsAt,
+          userId: programHeads.userId,
+          userIdentifier: identityAccounts.identifier,
+          userName: user.name,
+        })
+        .from(programHeads)
+        .innerJoin(studyPrograms, eq(studyPrograms.id, programHeads.prodiId))
+        .innerJoin(user, eq(user.id, programHeads.userId))
+        .innerJoin(
+          identityAccounts,
+          eq(identityAccounts.userId, programHeads.userId)
+        )
+        .orderBy(desc(programHeads.startsAt)),
     previewBulkAccounts: async ({ identityType, masterRecordIds }) => {
       if (identityType === "MAHASISWA") {
         throw new IdentityDomainError(
@@ -564,9 +865,77 @@ export const createIdentityService = ({
       }
       return results;
     },
-    resetPassword: async ({ accountId, actorUserId }) => {
+    requestEmailChange: async ({ currentPassword, newEmail, userId }) => {
+      await assertCurrentPassword(auth, userId, currentPassword);
+      const normalizedEmail = newEmail.trim().toLowerCase();
+      const currentUser = await auth.$context.then((context) =>
+        context.internalAdapter.findUserById(userId)
+      );
+      if (!currentUser) {
+        throw new IdentityDomainError(
+          "ACCOUNT_NOT_FOUND",
+          "Akun tidak ditemukan."
+        );
+      }
+      if (currentUser.email === normalizedEmail) {
+        throw new IdentityDomainError(
+          "EMAIL_UNCHANGED",
+          "Email baru harus berbeda dari email saat ini."
+        );
+      }
+      const existingUser = await auth.$context.then((context) =>
+        context.internalAdapter.findUserByEmail(normalizedEmail, {
+          includeAccounts: false,
+        })
+      );
+      if (existingUser && existingUser.user.id !== userId) {
+        throw new IdentityDomainError(
+          "EMAIL_ALREADY_USED",
+          "Email tersebut sudah digunakan oleh akun lain."
+        );
+      }
+      const currentTime = now();
+      const expiresAt = new Date(
+        currentTime.getTime() + DEFAULT_EMAIL_CHANGE_TTL_MS
+      );
+      await database
+        .update(emailChangeRequests)
+        .set({ status: "REPLACED" })
+        .where(
+          and(
+            eq(emailChangeRequests.userId, userId),
+            eq(emailChangeRequests.status, "PENDING")
+          )
+        );
+      const verificationToken = `${crypto.randomUUID()}${crypto.randomUUID()}`;
+      await database.insert(emailChangeRequests).values({
+        createdAt: currentTime,
+        expiresAt,
+        id: crypto.randomUUID(),
+        newEmail: normalizedEmail,
+        status: "PENDING",
+        userId,
+        verificationTokenHash: await hashVerificationToken(verificationToken),
+      });
+      await recordSecurityEvent({
+        database,
+        eventType: "EMAIL_CHANGE_REQUESTED",
+        metadata: { userId },
+        now: currentTime,
+        userId,
+      });
+      return {
+        email: normalizedEmail,
+        expiresAt,
+        status: "PENDING_VERIFICATION" as const,
+      };
+    },
+    resetPassword: async ({ accountId, actorIdentityType, actorUserId }) => {
       const [identity] = await database
-        .select({ userId: identityAccounts.userId })
+        .select({
+          identityType: identityAccounts.identityType,
+          userId: identityAccounts.userId,
+        })
         .from(identityAccounts)
         .where(eq(identityAccounts.id, accountId))
         .limit(1);
@@ -576,6 +945,10 @@ export const createIdentityService = ({
           "Akun tidak ditemukan."
         );
       }
+      assertResetPasswordPermission(
+        actorIdentityType,
+        identity.identityType as IdentityType
+      );
       const temporaryPassword = createTemporaryPassword();
       const authContext = await auth.$context;
       const password = await authContext.password.hash(temporaryPassword);
@@ -645,6 +1018,24 @@ export const createIdentityService = ({
       await database
         .delete(userScopes)
         .where(and(eq(userScopes.id, id), eq(userScopes.userId, userId)));
+    },
+    updatePhone: async ({ currentPassword, phone, userId }) => {
+      await assertCurrentPassword(auth, userId, currentPassword);
+      const normalizedPhone =
+        phone === null ? null : normalizePhoneNumber(phone);
+      const currentTime = now();
+      await database
+        .update(identityAccounts)
+        .set({ phone: normalizedPhone, updatedAt: currentTime })
+        .where(eq(identityAccounts.userId, userId));
+      await recordSecurityEvent({
+        database,
+        eventType: "PHONE_CHANGED",
+        metadata: { userId },
+        now: currentTime,
+        userId,
+      });
+      return { phone: normalizedPhone };
     },
   };
 };

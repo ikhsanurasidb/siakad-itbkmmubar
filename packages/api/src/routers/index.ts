@@ -61,6 +61,15 @@ const requireBulkAcademicIdentityType = (
 };
 
 const accountIdInput = z.object({ accountId: z.string().min(1) });
+const currentPasswordSchema = z.string().min(1).max(512);
+const phoneSchema = z
+  .string()
+  .trim()
+  .max(32)
+  .regex(
+    /^(?:\+?[1-9]\d{7,14}|0\d{8,14})$/u,
+    "Nomor telepon harus berisi 9–15 digit dan dapat diawali tanda plus."
+  );
 const masterDataEntitySchema = z.enum(masterDataEntityTypes);
 const masterDataStatusSchema = z.enum(masterDataStatusesList);
 const masterDataDataSchema = z.record(z.string(), z.unknown());
@@ -598,7 +607,9 @@ export const appRouter = {
           const [result] = await context.db
             .select({
               account: identityAccounts,
+              email: user.email,
               name: user.name,
+              phone: identityAccounts.phone,
               username: user.username,
             })
             .from(identityAccounts)
@@ -632,7 +643,9 @@ export const appRouter = {
           return context.db
             .select({
               account: identityAccounts,
+              email: user.email,
               name: user.name,
+              phone: identityAccounts.phone,
               username: user.username,
             })
             .from(identityAccounts)
@@ -647,6 +660,7 @@ export const appRouter = {
           requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
           return requireIdentityService(context).resetPassword({
             ...input,
+            actorIdentityType: context.identity?.identityType ?? null,
             actorUserId: context.session?.user.id as string,
           });
         }),
@@ -681,6 +695,46 @@ export const appRouter = {
       }),
     },
     me: protectedProcedure.handler(({ context }) => context.identity),
+    profile: {
+      confirmEmailChange: authenticatedProcedure
+        .input(
+          z.object({ verificationToken: z.string().trim().min(16).max(256) })
+        )
+        .handler(({ context, input }) =>
+          requireIdentityService(context).confirmEmailChange(input)
+        ),
+      get: authenticatedProcedure.handler(({ context }) =>
+        requireIdentityService(context).getContact({
+          userId: context.session?.user.id as string,
+        })
+      ),
+      requestEmailChange: authenticatedProcedure
+        .input(
+          z.object({
+            currentPassword: currentPasswordSchema,
+            newEmail: z.email(),
+          })
+        )
+        .handler(({ context, input }) =>
+          requireIdentityService(context).requestEmailChange({
+            ...input,
+            userId: context.session?.user.id as string,
+          })
+        ),
+      updatePhone: authenticatedProcedure
+        .input(
+          z.object({
+            currentPassword: currentPasswordSchema,
+            phone: phoneSchema.nullable(),
+          })
+        )
+        .handler(({ context, input }) =>
+          requireIdentityService(context).updatePhone({
+            ...input,
+            userId: context.session?.user.id as string,
+          })
+        ),
+    },
     programHeads: {
       assign: protectedProcedure
         .input(
@@ -708,6 +762,10 @@ export const appRouter = {
           });
           return { status: "ENDED" as const };
         }),
+      list: protectedProcedure.handler(({ context }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        return requireIdentityService(context).listProgramHeads();
+      }),
     },
     roles: {
       assign: protectedProcedure
@@ -1152,6 +1210,7 @@ export const appRouter = {
       .input(
         z.object({
           entityType: masterDataEntitySchema,
+          expectedVersion: z.number().int().min(1),
           id: z.string().min(1),
         })
       )
@@ -1294,6 +1353,7 @@ export const appRouter = {
       .input(
         z.object({
           entityType: masterDataEntitySchema,
+          expectedVersion: z.number().int().min(1),
           id: z.string().min(1),
         })
       )
@@ -1314,6 +1374,7 @@ export const appRouter = {
         z.object({
           data: masterDataDataSchema,
           entityType: masterDataEntitySchema,
+          expectedVersion: z.number().int().min(1),
           id: z.string().min(1),
         })
       )

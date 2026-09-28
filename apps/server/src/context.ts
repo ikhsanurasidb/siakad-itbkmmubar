@@ -18,6 +18,7 @@ import type { IdentityType } from "@siakad-itbkmmubar/api/identity";
 import {
   roleKeys,
   identityAccounts,
+  programHeads,
   userRoles,
 } from "@siakad-itbkmmubar/db/schema/identity";
 import { and, eq } from "drizzle-orm";
@@ -65,10 +66,24 @@ export const createContext = async ({
             eq(userRoles.isActive, true)
           )
         );
+      const programHeadRows = await db
+        .select({
+          endsAt: programHeads.endsAt,
+          startsAt: programHeads.startsAt,
+        })
+        .from(programHeads)
+        .where(eq(programHeads.userId, session.user.id));
+      const currentTime = new Date();
+      const hasActiveProgramHead = programHeadRows.some(
+        (assignment) =>
+          assignment.startsAt <= currentTime &&
+          (assignment.endsAt === null || assignment.endsAt > currentTime)
+      );
       const assignedRoles = roleRows
         .filter((role) =>
           roleKeys.includes(role.roleKey as (typeof roleKeys)[number])
         )
+        .filter((role) => role.roleKey !== "KAPRODI" || hasActiveProgramHead)
         .map((role) => role.roleKey as (typeof roleKeys)[number]);
       const roleAccess = resolveActiveRoles(
         assignedRoles,

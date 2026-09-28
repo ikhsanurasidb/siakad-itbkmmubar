@@ -1,3 +1,4 @@
+import { ApiError } from "@api/errors";
 import { roleKeys as catalogRoleKeys } from "@siakad-itbkmmubar/db/schema/identity";
 
 export const identityTypes = [
@@ -13,6 +14,7 @@ export const scopeTypes = ["PRODI", "KELAS", "OWNERSHIP"] as const;
 
 export const PASSWORD_MINIMUM_LENGTH = 16;
 export const DEFAULT_TEMPORARY_PASSWORD_TTL_MS = 60 * 60 * 24 * 7 * 1000;
+export const DEFAULT_EMAIL_CHANGE_TTL_MS = 60 * 60 * 24 * 1000;
 export const IDENTIFIER_SEQUENCE_MAX = 999;
 export const JAKARTA_TIME_ZONE = "Asia/Jakarta";
 
@@ -25,12 +27,30 @@ export type IdentityType =
 
 export type RoleKey = (typeof roleKeys)[number];
 
-export class IdentityDomainError extends Error {
-  readonly code: string;
+export interface ProgramHeadRecord {
+  assignedAt: Date;
+  endsAt: Date | null;
+  id: string;
+  prodiCode: string;
+  prodiId: string;
+  prodiName: string;
+  startsAt: Date;
+  userId: string;
+  userIdentifier: string;
+  userName: string;
+}
 
+export interface IdentityContactRecord {
+  email: string;
+  emailVerified: boolean;
+  pendingEmail: string | null;
+  pendingEmailExpiresAt: Date | null;
+  phone: string | null;
+}
+
+export class IdentityDomainError extends ApiError {
   constructor(code: string, message: string) {
-    super(message);
-    this.code = code;
+    super(code, message);
     this.name = "IdentityDomainError";
   }
 }
@@ -41,6 +61,17 @@ export const normalizeIdentifier = (value: string): string => {
     throw new IdentityDomainError(
       "INVALID_IDENTIFIER",
       "Identifier hanya boleh berisi huruf dan angka."
+    );
+  }
+  return normalized;
+};
+
+export const normalizePhoneNumber = (value: string): string => {
+  const normalized = value.trim().replaceAll(/[\s().-]/gu, "");
+  if (!/^(?:\+?[1-9]\d{7,14}|0\d{8,14})$/u.test(normalized)) {
+    throw new IdentityDomainError(
+      "INVALID_PHONE",
+      "Nomor telepon harus berisi 9–15 digit dan dapat diawali tanda plus."
     );
   }
   return normalized;
@@ -221,6 +252,24 @@ export const assertProvisioningPermission = (
     throw new IdentityDomainError(
       "FORBIDDEN_PROVISIONING",
       "Role aktif Anda tidak dapat memprovision akun dengan tipe tersebut."
+    );
+  }
+};
+
+export const assertResetPasswordPermission = (
+  actorIdentityType: IdentityType | null | undefined,
+  targetIdentityType: IdentityType
+): void => {
+  const allowed =
+    (actorIdentityType === "ADMIN_AKADEMIK" &&
+      (targetIdentityType === "MAHASISWA" || targetIdentityType === "DOSEN")) ||
+    (actorIdentityType === "SUPERADMIN" &&
+      targetIdentityType === "ADMIN_AKADEMIK");
+
+  if (!allowed) {
+    throw new IdentityDomainError(
+      "FORBIDDEN_RESET_PASSWORD",
+      "Peran aktif Anda tidak dapat mengatur ulang kata sandi akun tersebut."
     );
   }
 };

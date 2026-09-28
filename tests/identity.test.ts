@@ -5,10 +5,12 @@ import {
   IdentityDomainError,
   assertKnownRole,
   assertProvisioningPermission,
+  assertResetPasswordPermission,
   assertRoleConflictFree,
   formatInstitutionalIdentifier,
   getJakartaDate,
   normalizeIdentifier,
+  normalizePhoneNumber,
   previewIdentifierAllocations,
   resolveActiveRoles,
 } from "../packages/api/src/identity";
@@ -94,5 +96,34 @@ describe("SIAKAD-01 identity rules", () => {
       availableRoles: ["DOSEN", "KAPRODI"],
       effectiveRoles: ["DOSEN", "KAPRODI"],
     });
+  });
+
+  test("enforces the reset-password target matrix", () => {
+    expect(() =>
+      assertResetPasswordPermission("ADMIN_AKADEMIK", "MAHASISWA")
+    ).not.toThrow();
+    expect(() =>
+      assertResetPasswordPermission("ADMIN_AKADEMIK", "DOSEN")
+    ).not.toThrow();
+    expect(() =>
+      assertResetPasswordPermission("SUPERADMIN", "ADMIN_AKADEMIK")
+    ).not.toThrow();
+    expect(() =>
+      assertResetPasswordPermission("ADMIN_AKADEMIK", "ADMIN_AKADEMIK")
+    ).toThrow("tidak dapat mengatur ulang");
+    expect(() => assertResetPasswordPermission("SUPERADMIN", "DOSEN")).toThrow(
+      "tidak dapat mengatur ulang"
+    );
+    expect(() => assertResetPasswordPermission(null, "MAHASISWA")).toThrow(
+      "tidak dapat mengatur ulang"
+    );
+  });
+
+  test("normalizes and validates phone numbers for identity accounts", () => {
+    expect(normalizePhoneNumber(" +62 (812) 3456-7890 ")).toBe(
+      "+6281234567890"
+    );
+    expect(normalizePhoneNumber("081234567890")).toBe("081234567890");
+    expect(() => normalizePhoneNumber("123")).toThrow("Nomor telepon");
   });
 });
