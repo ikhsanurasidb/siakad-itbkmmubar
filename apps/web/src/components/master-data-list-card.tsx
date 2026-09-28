@@ -13,12 +13,14 @@ import { Search } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 
 import type { FieldDefinition } from "@/components/master-data-create-form";
+import { masterDataEntitySlugs } from "@/components/master-data-types";
 import type { MasterDataEntityType } from "@/components/master-data-types";
 
 type DisplayRow = Record<string, unknown> & {
   id: string;
   status?: string;
   statusCode?: string;
+  version: number;
 };
 
 const statusLabels: Record<string, string> = {
@@ -29,16 +31,22 @@ const statusLabels: Record<string, string> = {
 };
 
 interface MasterDataListCardProps {
+  detailRootPath: string;
   entityLabel: string;
   entityType: MasterDataEntityType;
   fields: readonly FieldDefinition[];
   isError: boolean;
   isPending: boolean;
   nextCursor: string | null | undefined;
-  onArchive: (input: { entityType: MasterDataEntityType; id: string }) => void;
+  onArchive: (input: {
+    entityType: MasterDataEntityType;
+    expectedVersion: number;
+    id: string;
+  }) => void;
   onNextPage: () => void;
   onReactivate: (input: {
     entityType: MasterDataEntityType;
+    expectedVersion: number;
     id: string;
   }) => void;
   onSearchChange: (value: string) => void;
@@ -50,39 +58,63 @@ interface MasterDataListCardProps {
 }
 
 const MasterDataRowActions = ({
+  detailRootPath,
   entityType,
   onArchive,
   onReactivate,
   row,
 }: {
+  detailRootPath: string;
   entityType: MasterDataEntityType;
-  onArchive: (input: { entityType: MasterDataEntityType; id: string }) => void;
+  onArchive: (input: {
+    entityType: MasterDataEntityType;
+    expectedVersion: number;
+    id: string;
+  }) => void;
   onReactivate: (input: {
     entityType: MasterDataEntityType;
+    expectedVersion: number;
     id: string;
   }) => void;
   row: DisplayRow;
 }) => {
   const isArchived = row.statusCode === "ARCHIVED";
   return (
-    <Button
-      onClick={() => {
-        if (isArchived) {
-          onReactivate({ entityType, id: row.id });
-        } else {
-          onArchive({ entityType, id: row.id });
-        }
-      }}
-      size="sm"
-      type="button"
-      variant="outline"
-    >
-      {isArchived ? "Aktifkan" : "Arsipkan"}
-    </Button>
+    <div className="flex flex-wrap items-center gap-2">
+      <a
+        className="text-primary text-sm font-medium underline-offset-4 hover:underline"
+        href={`${detailRootPath}/${masterDataEntitySlugs[entityType]}/${row.id}`}
+      >
+        Lihat detail
+      </a>
+      <Button
+        onClick={() => {
+          if (isArchived) {
+            onReactivate({
+              entityType,
+              expectedVersion: row.version,
+              id: row.id,
+            });
+          } else {
+            onArchive({
+              entityType,
+              expectedVersion: row.version,
+              id: row.id,
+            });
+          }
+        }}
+        size="sm"
+        type="button"
+        variant="outline"
+      >
+        {isArchived ? "Aktifkan" : "Arsipkan"}
+      </Button>
+    </div>
   );
 };
 
 const MasterDataListCard = ({
+  detailRootPath,
   entityLabel,
   entityType,
   fields,
@@ -104,9 +136,11 @@ const MasterDataListCard = ({
     id: String(row.id),
     status: statusLabels[String(row.status)] ?? "—",
     statusCode: String(row.status ?? ""),
+    version: Number(row.version ?? 1),
   }));
   const renderRowActions = (row: DisplayRow): ReactNode => (
     <MasterDataRowActions
+      detailRootPath={detailRootPath}
       entityType={entityType}
       onArchive={onArchive}
       onReactivate={onReactivate}

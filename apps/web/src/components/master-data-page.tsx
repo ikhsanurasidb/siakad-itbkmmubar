@@ -1,98 +1,23 @@
-import { studyProgramDegreeOptions } from "@siakad-itbkmmubar/api/master-data";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
 
 import MasterDataCreateForm from "@/components/master-data-create-form";
-import type {
-  FieldDefinition,
-  SuggestionOption,
-} from "@/components/master-data-create-form";
+import type { SuggestionOption } from "@/components/master-data-create-form";
+import {
+  masterDataEntityLabels,
+  masterDataFieldDefinitions,
+} from "@/components/master-data-definitions";
 import MasterDataListCard from "@/components/master-data-list-card";
 import type { MasterDataEntityType } from "@/components/master-data-types";
 import { orpc } from "@/utils/orpc";
-
-export type { MasterDataEntityType } from "@/components/master-data-types";
 
 interface MasterDataPageProps {
   description: string;
   entityType: MasterDataEntityType;
   title: string;
 }
-
-const definitions: Record<MasterDataEntityType, readonly FieldDefinition[]> = {
-  ACADEMIC_PERIOD: [
-    { id: "academicYearId", label: "Tahun akademik" },
-    { id: "term", label: "Term", type: "text" },
-    { id: "startDate", label: "Tanggal mulai", type: "date" },
-    { id: "endDate", label: "Tanggal akhir", type: "date" },
-  ],
-  ACADEMIC_YEAR: [
-    { id: "code", label: "Kode" },
-    { id: "startYear", label: "Tahun mulai", type: "number" },
-    { id: "endYear", label: "Tahun akhir", type: "number" },
-  ],
-  COHORT: [
-    { id: "studyProgramId", label: "Prodi" },
-    { id: "entryYear", label: "Tahun masuk", type: "number" },
-  ],
-  COURSE: [
-    { id: "code", label: "Kode" },
-    { id: "name", label: "Nama" },
-    { id: "credits", label: "SKS", type: "number" },
-    {
-      id: "defaultSemester",
-      label: "Semester",
-      optional: true,
-      type: "number",
-    },
-    { id: "studyProgramId", label: "Prodi" },
-  ],
-  LECTURER: [
-    { id: "name", label: "Nama" },
-    { id: "nidn", label: "NIDN", optional: true },
-    { id: "nuptk", label: "NUPTK", optional: true },
-    { id: "email", label: "Email", optional: true, type: "text" },
-    { id: "phone", label: "Telepon", optional: true },
-  ],
-  ROOM: [
-    { id: "code", label: "Kode" },
-    { id: "name", label: "Nama" },
-    { id: "capacity", label: "Kapasitas", type: "number" },
-    { id: "latitude", label: "Latitude", type: "number" },
-    { id: "longitude", label: "Longitude", type: "number" },
-  ],
-  STUDENT: [
-    { id: "nim", label: "NIM" },
-    { id: "name", label: "Nama" },
-    { id: "studyProgramId", label: "Prodi" },
-    { id: "cohortId", label: "Angkatan" },
-    { id: "email", label: "Email", optional: true },
-    { id: "phone", label: "Telepon", optional: true },
-  ],
-  STUDY_PROGRAM: [
-    { id: "code", label: "Kode" },
-    { id: "name", label: "Nama" },
-    {
-      id: "degree",
-      label: "Jenjang",
-      options: studyProgramDegreeOptions,
-      type: "select",
-    },
-  ],
-};
-
-const labels: Record<MasterDataEntityType, string> = {
-  ACADEMIC_PERIOD: "Periode",
-  ACADEMIC_YEAR: "Tahun akademik",
-  COHORT: "Angkatan",
-  COURSE: "Mata kuliah",
-  LECTURER: "Dosen",
-  ROOM: "Ruang",
-  STUDENT: "Mahasiswa",
-  STUDY_PROGRAM: "Prodi",
-};
 
 const recordText = (row: Record<string, unknown>, key: string): string => {
   const value = row[key];
@@ -103,6 +28,14 @@ const recordText = (row: Record<string, unknown>, key: string): string => {
 
 const getErrorMessage = (): string =>
   "Perubahan belum dapat disimpan. Periksa data lalu coba lagi.";
+
+const getMasterDataRootPath = (): string => {
+  if (typeof window === "undefined") {
+    return "/admin-akademik/master-data";
+  }
+  const [rolePath] = window.location.pathname.split("/master-data/");
+  return `${rolePath || "/admin-akademik"}/master-data`;
+};
 
 const MasterDataPage = ({
   description,
@@ -122,7 +55,7 @@ const MasterDataPage = ({
     Record<string, string>
   >({});
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const fields = definitions[entityType];
+  const fields = masterDataFieldDefinitions[entityType];
   const hasStudyProgramReference = ["COHORT", "COURSE", "STUDENT"].includes(
     entityType
   );
@@ -177,7 +110,9 @@ const MasterDataPage = ({
         setReferenceLabels({});
         setReferenceSearch({});
         setHasSubmitted(false);
-        toast.success(`${labels[entityType]} berhasil ditambahkan.`);
+        toast.success(
+          `${masterDataEntityLabels[entityType]} berhasil ditambahkan.`
+        );
         await queryClient.invalidateQueries({
           queryKey: orpc.masterData.list.key(),
         });
@@ -307,7 +242,7 @@ const MasterDataPage = ({
       </div>
       <MasterDataCreateForm
         createPending={createRecord.isPending}
-        entityLabel={labels[entityType]}
+        entityLabel={masterDataEntityLabels[entityType]}
         fields={fields}
         hasSubmitted={hasSubmitted}
         onClearReference={clearReference}
@@ -326,7 +261,8 @@ const MasterDataPage = ({
         values={values}
       />
       <MasterDataListCard
-        entityLabel={labels[entityType]}
+        detailRootPath={getMasterDataRootPath()}
+        entityLabel={masterDataEntityLabels[entityType]}
         entityType={entityType}
         fields={fields}
         isError={records.isError}

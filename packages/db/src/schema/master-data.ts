@@ -69,6 +69,7 @@ export const studyPrograms = sqliteTable(
     name: text("name").notNull(),
     status: text("status").default("ACTIVE").notNull(),
     updatedAt: timestamp("updated_at"),
+    version: integer("version").default(1).notNull(),
   },
   (table) => [
     uniqueIndex("study_programs_code_uq").on(table.code),
@@ -87,6 +88,7 @@ export const cohorts = sqliteTable(
       .notNull()
       .references(() => studyPrograms.id, { onDelete: "restrict" }),
     updatedAt: timestamp("updated_at"),
+    version: integer("version").default(1).notNull(),
   },
   (table) => [
     uniqueIndex("cohorts_program_year_uq").on(
@@ -119,6 +121,7 @@ export const students = sqliteTable(
       .notNull()
       .references(() => studyPrograms.id, { onDelete: "restrict" }),
     updatedAt: timestamp("updated_at"),
+    version: integer("version").default(1).notNull(),
   },
   (table) => [
     uniqueIndex("students_nim_uq").on(table.nim),
@@ -149,6 +152,7 @@ export const lecturers = sqliteTable(
       .notNull(),
     status: text("status").default("ACTIVE").notNull(),
     updatedAt: timestamp("updated_at"),
+    version: integer("version").default(1).notNull(),
   },
   (table) => [
     uniqueIndex("lecturers_dsn_uq").on(table.dsn),
@@ -170,6 +174,7 @@ export const rooms = sqliteTable(
     name: text("name").notNull(),
     status: text("status").default("ACTIVE").notNull(),
     updatedAt: timestamp("updated_at"),
+    version: integer("version").default(1).notNull(),
   },
   (table) => [
     uniqueIndex("rooms_code_uq").on(table.code),
@@ -200,6 +205,7 @@ export const courses = sqliteTable(
       .notNull()
       .references(() => studyPrograms.id, { onDelete: "restrict" }),
     updatedAt: timestamp("updated_at"),
+    version: integer("version").default(1).notNull(),
   },
   (table) => [
     uniqueIndex("courses_code_uq").on(table.code),
@@ -225,6 +231,7 @@ export const academicYears = sqliteTable(
     startYear: integer("start_year").notNull(),
     status: text("status").default("ACTIVE").notNull(),
     updatedAt: timestamp("updated_at"),
+    version: integer("version").default(1).notNull(),
   },
   (table) => [
     uniqueIndex("academic_years_code_uq").on(table.code),
@@ -252,6 +259,7 @@ export const academicPeriods = sqliteTable(
     status: text("status").default("DRAFT").notNull(),
     term: text("term").notNull(),
     updatedAt: timestamp("updated_at"),
+    version: integer("version").default(1).notNull(),
   },
   (table) => [
     uniqueIndex("academic_periods_year_term_uq").on(

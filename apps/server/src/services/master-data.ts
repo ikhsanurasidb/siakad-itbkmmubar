@@ -222,6 +222,38 @@ const createAudit = async (
   });
 };
 
+const assertVersionedUpdate = async (
+  query: PromiseLike<readonly unknown[]>,
+  entityType: MasterDataEntityType,
+  entityId: string,
+  expectedVersion: number
+): Promise<void> => {
+  const changedRows = await query;
+  if (changedRows.length === 0) {
+    throw new MasterDataDomainError(
+      "MASTER_DATA_VERSION_CONFLICT",
+      "Data master sudah berubah. Muat ulang detail sebelum menyimpan perubahan.",
+      undefined,
+      { entityId, entityType, expectedVersion }
+    );
+  }
+};
+
+const getRecordVersion = (record: MasterDataRecord): number => {
+  const { version } = record;
+  if (
+    typeof version !== "number" ||
+    !Number.isSafeInteger(version) ||
+    version < 1
+  ) {
+    throw new MasterDataDomainError(
+      "INVALID_VERSION",
+      "Versi data master tidak valid."
+    );
+  }
+  return version;
+};
+
 const getActiveProgram = async (database: Database, id: string) => {
   const [program] = await database
     .select()
@@ -236,6 +268,22 @@ const getActiveProgram = async (database: Database, id: string) => {
     );
   }
   return program;
+};
+
+const getActiveAcademicYear = async (database: Database, id: string) => {
+  const [academicYear] = await database
+    .select()
+    .from(academicYears)
+    .where(and(eq(academicYears.id, id), eq(academicYears.status, "ACTIVE")))
+    .limit(1);
+  if (!academicYear) {
+    throw new MasterDataDomainError(
+      "REFERENCE_NOT_ACTIVE",
+      "Tahun akademik tidak ditemukan atau tidak aktif.",
+      { academicYearId: ["Pilih tahun akademik yang masih aktif."] }
+    );
+  }
+  return academicYear;
 };
 
 const getActiveCohort = async (
@@ -1069,35 +1117,62 @@ export const createMasterDataService = ({
     actorUserId,
     data,
     entityType,
+    expectedVersion,
     id,
   }) => {
     const before = await get({ entityType, id });
+    const currentVersion = getRecordVersion(before);
+    if (currentVersion !== expectedVersion) {
+      throw new MasterDataDomainError(
+        "MASTER_DATA_VERSION_CONFLICT",
+        "Data master sudah berubah. Muat ulang detail sebelum menyimpan perubahan.",
+        undefined,
+        {
+          actualVersion: currentVersion,
+          entityId: id,
+          entityType,
+          expectedVersion,
+        }
+      );
+    }
     await assertNotLocked(entityType, id);
     const updatedAt = now();
     switch (entityType) {
       case "STUDY_PROGRAM": {
-        await database
-          .update(studyPrograms)
-          .set({
-            code:
-              data.code === undefined
-                ? String(before.code)
-                : normalizeCode(valueAsString(data, "code")),
-            degree:
-              data.degree === undefined
-                ? String(before.degree)
-                : normalizeStudyProgramDegree(valueAsString(data, "degree")),
-            name:
-              data.name === undefined
-                ? String(before.name)
-                : valueAsString(data, "name"),
-            status:
-              data.status === undefined
-                ? (before.status as "ACTIVE" | "ARCHIVED")
-                : normalizeStatus(data.status),
-            updatedAt,
-          })
-          .where(eq(studyPrograms.id, id));
+        await assertVersionedUpdate(
+          database
+            .update(studyPrograms)
+            .set({
+              code:
+                data.code === undefined
+                  ? String(before.code)
+                  : normalizeCode(valueAsString(data, "code")),
+              degree:
+                data.degree === undefined
+                  ? String(before.degree)
+                  : normalizeStudyProgramDegree(valueAsString(data, "degree")),
+              name:
+                data.name === undefined
+                  ? String(before.name)
+                  : valueAsString(data, "name"),
+              status:
+                data.status === undefined
+                  ? (before.status as "ACTIVE" | "ARCHIVED")
+                  : normalizeStatus(data.status),
+              updatedAt,
+              version: sql`${studyPrograms.version} + 1`,
+            })
+            .where(
+              and(
+                eq(studyPrograms.id, id),
+                eq(studyPrograms.version, expectedVersion)
+              )
+            )
+            .returning({ id: studyPrograms.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         break;
       }
       case "COHORT": {
@@ -1107,24 +1182,33 @@ export const createMasterDataService = ({
             valueAsString(data, "studyProgramId")
           );
         }
-        await database
-          .update(cohorts)
-          .set({
-            entryYear:
-              data.entryYear === undefined
-                ? Number(before.entryYear)
-                : integerValue(data, "entryYear"),
-            status:
-              data.status === undefined
-                ? (before.status as "ACTIVE" | "ARCHIVED")
-                : normalizeStatus(data.status),
-            studyProgramId:
-              data.studyProgramId === undefined
-                ? String(before.studyProgramId)
-                : valueAsString(data, "studyProgramId"),
-            updatedAt,
-          })
-          .where(eq(cohorts.id, id));
+        await assertVersionedUpdate(
+          database
+            .update(cohorts)
+            .set({
+              entryYear:
+                data.entryYear === undefined
+                  ? Number(before.entryYear)
+                  : integerValue(data, "entryYear"),
+              status:
+                data.status === undefined
+                  ? (before.status as "ACTIVE" | "ARCHIVED")
+                  : normalizeStatus(data.status),
+              studyProgramId:
+                data.studyProgramId === undefined
+                  ? String(before.studyProgramId)
+                  : valueAsString(data, "studyProgramId"),
+              updatedAt,
+              version: sql`${cohorts.version} + 1`,
+            })
+            .where(
+              and(eq(cohorts.id, id), eq(cohorts.version, expectedVersion))
+            )
+            .returning({ id: cohorts.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         break;
       }
       case "STUDENT": {
@@ -1143,35 +1227,44 @@ export const createMasterDataService = ({
             ? String(before.nim)
             : normalizeIdentifierValue(valueAsString(data, "nim"), "NIM");
         await ensureIdentifierAvailable(database, "NIM", nim, id);
-        await database
-          .update(students)
-          .set({
-            academicStatus:
-              data.academicStatus === undefined
-                ? String(before.academicStatus)
-                : normalizeText(String(data.academicStatus)).toUpperCase(),
-            cohortId,
-            email:
-              data.email === undefined
-                ? (before.email as string | null)
-                : (optionalString(data, "email")?.toLowerCase() ?? null),
-            name:
-              data.name === undefined
-                ? String(before.name)
-                : valueAsString(data, "name"),
-            nim,
-            phone:
-              data.phone === undefined
-                ? (before.phone as string | null)
-                : optionalString(data, "phone"),
-            status:
-              data.status === undefined
-                ? (before.status as "ACTIVE" | "ARCHIVED")
-                : normalizeStatus(data.status),
-            studyProgramId,
-            updatedAt,
-          })
-          .where(eq(students.id, id));
+        await assertVersionedUpdate(
+          database
+            .update(students)
+            .set({
+              academicStatus:
+                data.academicStatus === undefined
+                  ? String(before.academicStatus)
+                  : normalizeText(String(data.academicStatus)).toUpperCase(),
+              cohortId,
+              email:
+                data.email === undefined
+                  ? (before.email as string | null)
+                  : (optionalString(data, "email")?.toLowerCase() ?? null),
+              name:
+                data.name === undefined
+                  ? String(before.name)
+                  : valueAsString(data, "name"),
+              nim,
+              phone:
+                data.phone === undefined
+                  ? (before.phone as string | null)
+                  : optionalString(data, "phone"),
+              status:
+                data.status === undefined
+                  ? (before.status as "ACTIVE" | "ARCHIVED")
+                  : normalizeStatus(data.status),
+              studyProgramId,
+              updatedAt,
+              version: sql`${students.version} + 1`,
+            })
+            .where(
+              and(eq(students.id, id), eq(students.version, expectedVersion))
+            )
+            .returning({ id: students.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         await replaceIdentifierUsages(database, "STUDENT", id, [
           { identifier: nim, identifierType: "NIM" },
         ]);
@@ -1208,34 +1301,43 @@ export const createMasterDataService = ({
         if (nuptk) {
           await ensureIdentifierAvailable(database, "NUPTK", nuptk, id);
         }
-        await database
-          .update(lecturers)
-          .set({
-            academicStatus:
-              data.academicStatus === undefined
-                ? String(before.academicStatus)
-                : normalizeText(String(data.academicStatus)).toUpperCase(),
-            email:
-              data.email === undefined
-                ? (before.email as string | null)
-                : (optionalString(data, "email")?.toLowerCase() ?? null),
-            name:
-              data.name === undefined
-                ? String(before.name)
-                : valueAsString(data, "name"),
-            nidn,
-            nuptk,
-            phone:
-              data.phone === undefined
-                ? (before.phone as string | null)
-                : optionalString(data, "phone"),
-            status:
-              data.status === undefined
-                ? (before.status as "ACTIVE" | "ARCHIVED")
-                : normalizeStatus(data.status),
-            updatedAt,
-          })
-          .where(eq(lecturers.id, id));
+        await assertVersionedUpdate(
+          database
+            .update(lecturers)
+            .set({
+              academicStatus:
+                data.academicStatus === undefined
+                  ? String(before.academicStatus)
+                  : normalizeText(String(data.academicStatus)).toUpperCase(),
+              email:
+                data.email === undefined
+                  ? (before.email as string | null)
+                  : (optionalString(data, "email")?.toLowerCase() ?? null),
+              name:
+                data.name === undefined
+                  ? String(before.name)
+                  : valueAsString(data, "name"),
+              nidn,
+              nuptk,
+              phone:
+                data.phone === undefined
+                  ? (before.phone as string | null)
+                  : optionalString(data, "phone"),
+              status:
+                data.status === undefined
+                  ? (before.status as "ACTIVE" | "ARCHIVED")
+                  : normalizeStatus(data.status),
+              updatedAt,
+              version: sql`${lecturers.version} + 1`,
+            })
+            .where(
+              and(eq(lecturers.id, id), eq(lecturers.version, expectedVersion))
+            )
+            .returning({ id: lecturers.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         await replaceIdentifierUsages(database, "LECTURER", id, [
           ...(nidn
             ? [{ identifier: nidn, identifierType: "NIDN" as const }]
@@ -1247,36 +1349,43 @@ export const createMasterDataService = ({
         break;
       }
       case "ROOM": {
-        await database
-          .update(rooms)
-          .set({
-            capacity:
-              data.capacity === undefined
-                ? Number(before.capacity)
-                : integerValue(data, "capacity"),
-            code:
-              data.code === undefined
-                ? String(before.code)
-                : normalizeCode(valueAsString(data, "code")),
-            latitude:
-              data.latitude === undefined
-                ? Number(before.latitude)
-                : coordinateValue(data, "latitude"),
-            longitude:
-              data.longitude === undefined
-                ? Number(before.longitude)
-                : coordinateValue(data, "longitude"),
-            name:
-              data.name === undefined
-                ? String(before.name)
-                : valueAsString(data, "name"),
-            status:
-              data.status === undefined
-                ? (before.status as "ACTIVE" | "ARCHIVED")
-                : normalizeStatus(data.status),
-            updatedAt,
-          })
-          .where(eq(rooms.id, id));
+        await assertVersionedUpdate(
+          database
+            .update(rooms)
+            .set({
+              capacity:
+                data.capacity === undefined
+                  ? Number(before.capacity)
+                  : integerValue(data, "capacity"),
+              code:
+                data.code === undefined
+                  ? String(before.code)
+                  : normalizeCode(valueAsString(data, "code")),
+              latitude:
+                data.latitude === undefined
+                  ? Number(before.latitude)
+                  : coordinateValue(data, "latitude"),
+              longitude:
+                data.longitude === undefined
+                  ? Number(before.longitude)
+                  : coordinateValue(data, "longitude"),
+              name:
+                data.name === undefined
+                  ? String(before.name)
+                  : valueAsString(data, "name"),
+              status:
+                data.status === undefined
+                  ? (before.status as "ACTIVE" | "ARCHIVED")
+                  : normalizeStatus(data.status),
+              updatedAt,
+              version: sql`${rooms.version} + 1`,
+            })
+            .where(and(eq(rooms.id, id), eq(rooms.version, expectedVersion)))
+            .returning({ id: rooms.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         break;
       }
       case "COURSE": {
@@ -1303,30 +1412,39 @@ export const createMasterDataService = ({
             "Semester harus berada pada rentang 1 sampai 14."
           );
         }
-        await database
-          .update(courses)
-          .set({
-            code:
-              data.code === undefined
-                ? String(before.code)
-                : normalizeCode(valueAsString(data, "code")),
-            credits:
-              data.credits === undefined
-                ? Number(before.credits)
-                : integerValue(data, "credits"),
-            defaultSemester,
-            name:
-              data.name === undefined
-                ? String(before.name)
-                : valueAsString(data, "name"),
-            status:
-              data.status === undefined
-                ? (before.status as "ACTIVE" | "ARCHIVED")
-                : normalizeStatus(data.status),
-            studyProgramId,
-            updatedAt,
-          })
-          .where(eq(courses.id, id));
+        await assertVersionedUpdate(
+          database
+            .update(courses)
+            .set({
+              code:
+                data.code === undefined
+                  ? String(before.code)
+                  : normalizeCode(valueAsString(data, "code")),
+              credits:
+                data.credits === undefined
+                  ? Number(before.credits)
+                  : integerValue(data, "credits"),
+              defaultSemester,
+              name:
+                data.name === undefined
+                  ? String(before.name)
+                  : valueAsString(data, "name"),
+              status:
+                data.status === undefined
+                  ? (before.status as "ACTIVE" | "ARCHIVED")
+                  : normalizeStatus(data.status),
+              studyProgramId,
+              updatedAt,
+              version: sql`${courses.version} + 1`,
+            })
+            .where(
+              and(eq(courses.id, id), eq(courses.version, expectedVersion))
+            )
+            .returning({ id: courses.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         break;
       }
       case "ACADEMIC_YEAR": {
@@ -1344,22 +1462,34 @@ export const createMasterDataService = ({
             "Tahun akhir harus satu tahun setelah tahun mulai."
           );
         }
-        await database
-          .update(academicYears)
-          .set({
-            code:
-              data.code === undefined
-                ? String(before.code)
-                : normalizeText(valueAsString(data, "code")),
-            endYear,
-            startYear,
-            status:
-              data.status === undefined
-                ? (before.status as "ACTIVE" | "ARCHIVED")
-                : normalizeStatus(data.status),
-            updatedAt,
-          })
-          .where(eq(academicYears.id, id));
+        await assertVersionedUpdate(
+          database
+            .update(academicYears)
+            .set({
+              code:
+                data.code === undefined
+                  ? String(before.code)
+                  : normalizeText(valueAsString(data, "code")),
+              endYear,
+              startYear,
+              status:
+                data.status === undefined
+                  ? (before.status as "ACTIVE" | "ARCHIVED")
+                  : normalizeStatus(data.status),
+              updatedAt,
+              version: sql`${academicYears.version} + 1`,
+            })
+            .where(
+              and(
+                eq(academicYears.id, id),
+                eq(academicYears.version, expectedVersion)
+              )
+            )
+            .returning({ id: academicYears.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         break;
       }
       case "ACADEMIC_PERIOD": {
@@ -1377,22 +1507,42 @@ export const createMasterDataService = ({
             "Tanggal akhir tidak boleh sebelum tanggal mulai."
           );
         }
-        await database
-          .update(academicPeriods)
-          .set({
-            endDate,
-            startDate,
-            status:
-              data.status === undefined
-                ? String(before.status)
-                : normalizeText(String(data.status)).toUpperCase(),
-            term:
-              data.term === undefined
-                ? String(before.term)
-                : assertAcademicTerm(valueAsString(data, "term")),
-            updatedAt,
-          })
-          .where(eq(academicPeriods.id, id));
+        const academicYearId =
+          data.academicYearId === undefined
+            ? String(before.academicYearId)
+            : valueAsString(data, "academicYearId");
+        if (data.academicYearId !== undefined) {
+          await getActiveAcademicYear(database, academicYearId);
+        }
+        await assertVersionedUpdate(
+          database
+            .update(academicPeriods)
+            .set({
+              academicYearId,
+              endDate,
+              startDate,
+              status:
+                data.status === undefined
+                  ? String(before.status)
+                  : normalizeText(String(data.status)).toUpperCase(),
+              term:
+                data.term === undefined
+                  ? String(before.term)
+                  : assertAcademicTerm(valueAsString(data, "term")),
+              updatedAt,
+              version: sql`${academicPeriods.version} + 1`,
+            })
+            .where(
+              and(
+                eq(academicPeriods.id, id),
+                eq(academicPeriods.version, expectedVersion)
+              )
+            )
+            .returning({ id: academicPeriods.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         break;
       }
       default: {
@@ -1418,82 +1568,178 @@ export const createMasterDataService = ({
   const setStatus = async ({
     actorUserId,
     entityType,
+    expectedVersion,
     id,
     status,
   }: {
     actorUserId: string;
     entityType: MasterDataEntityType;
     id: string;
+    expectedVersion: number;
     status: "ACTIVE" | "ARCHIVED";
   }): Promise<void> => {
     const before = await get({ entityType, id });
     switch (entityType) {
       case "STUDY_PROGRAM": {
-        await database
-          .update(studyPrograms)
-          .set({
-            archivedAt: status === "ARCHIVED" ? now() : null,
-            status,
-            updatedAt: now(),
-          })
-          .where(eq(studyPrograms.id, id));
+        await assertVersionedUpdate(
+          database
+            .update(studyPrograms)
+            .set({
+              archivedAt: status === "ARCHIVED" ? now() : null,
+              status,
+              updatedAt: now(),
+              version: sql`${studyPrograms.version} + 1`,
+            })
+            .where(
+              and(
+                eq(studyPrograms.id, id),
+                eq(studyPrograms.version, expectedVersion)
+              )
+            )
+            .returning({ id: studyPrograms.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         break;
       }
       case "COHORT": {
-        await database
-          .update(cohorts)
-          .set({ status, updatedAt: now() })
-          .where(eq(cohorts.id, id));
+        await assertVersionedUpdate(
+          database
+            .update(cohorts)
+            .set({
+              status,
+              updatedAt: now(),
+              version: sql`${cohorts.version} + 1`,
+            })
+            .where(
+              and(eq(cohorts.id, id), eq(cohorts.version, expectedVersion))
+            )
+            .returning({ id: cohorts.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         break;
       }
       case "STUDENT": {
-        await database
-          .update(students)
-          .set({
-            archivedAt: status === "ARCHIVED" ? now() : null,
-            status,
-            updatedAt: now(),
-          })
-          .where(eq(students.id, id));
+        await assertVersionedUpdate(
+          database
+            .update(students)
+            .set({
+              archivedAt: status === "ARCHIVED" ? now() : null,
+              status,
+              updatedAt: now(),
+              version: sql`${students.version} + 1`,
+            })
+            .where(
+              and(eq(students.id, id), eq(students.version, expectedVersion))
+            )
+            .returning({ id: students.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         break;
       }
       case "LECTURER": {
-        await database
-          .update(lecturers)
-          .set({
-            archivedAt: status === "ARCHIVED" ? now() : null,
-            status,
-            updatedAt: now(),
-          })
-          .where(eq(lecturers.id, id));
+        await assertVersionedUpdate(
+          database
+            .update(lecturers)
+            .set({
+              archivedAt: status === "ARCHIVED" ? now() : null,
+              status,
+              updatedAt: now(),
+              version: sql`${lecturers.version} + 1`,
+            })
+            .where(
+              and(eq(lecturers.id, id), eq(lecturers.version, expectedVersion))
+            )
+            .returning({ id: lecturers.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         break;
       }
       case "ROOM": {
-        await database
-          .update(rooms)
-          .set({ status, updatedAt: now() })
-          .where(eq(rooms.id, id));
+        await assertVersionedUpdate(
+          database
+            .update(rooms)
+            .set({
+              status,
+              updatedAt: now(),
+              version: sql`${rooms.version} + 1`,
+            })
+            .where(and(eq(rooms.id, id), eq(rooms.version, expectedVersion)))
+            .returning({ id: rooms.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         break;
       }
       case "COURSE": {
-        await database
-          .update(courses)
-          .set({ status, updatedAt: now() })
-          .where(eq(courses.id, id));
+        await assertVersionedUpdate(
+          database
+            .update(courses)
+            .set({
+              status,
+              updatedAt: now(),
+              version: sql`${courses.version} + 1`,
+            })
+            .where(
+              and(eq(courses.id, id), eq(courses.version, expectedVersion))
+            )
+            .returning({ id: courses.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         break;
       }
       case "ACADEMIC_YEAR": {
-        await database
-          .update(academicYears)
-          .set({ status, updatedAt: now() })
-          .where(eq(academicYears.id, id));
+        await assertVersionedUpdate(
+          database
+            .update(academicYears)
+            .set({
+              status,
+              updatedAt: now(),
+              version: sql`${academicYears.version} + 1`,
+            })
+            .where(
+              and(
+                eq(academicYears.id, id),
+                eq(academicYears.version, expectedVersion)
+              )
+            )
+            .returning({ id: academicYears.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         break;
       }
       case "ACADEMIC_PERIOD": {
-        await database
-          .update(academicPeriods)
-          .set({ status, updatedAt: now() })
-          .where(eq(academicPeriods.id, id));
+        await assertVersionedUpdate(
+          database
+            .update(academicPeriods)
+            .set({
+              status,
+              updatedAt: now(),
+              version: sql`${academicPeriods.version} + 1`,
+            })
+            .where(
+              and(
+                eq(academicPeriods.id, id),
+                eq(academicPeriods.version, expectedVersion)
+              )
+            )
+            .returning({ id: academicPeriods.id }),
+          entityType,
+          id,
+          expectedVersion
+        );
         break;
       }
       default: {

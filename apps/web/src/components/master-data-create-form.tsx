@@ -24,7 +24,7 @@ export interface SuggestionOption {
   label: string;
 }
 
-interface ReferenceSearchFieldProps {
+export interface ReferenceSearchFieldProps {
   error?: string;
   id: string;
   label: string;
@@ -42,7 +42,7 @@ const referenceFieldIds = new Set([
   "studyProgramId",
 ]);
 
-const ReferenceSearchField = ({
+export const ReferenceSearchField = ({
   error,
   id,
   label,
@@ -53,7 +53,15 @@ const ReferenceSearchField = ({
   options,
   value,
 }: ReferenceSearchFieldProps) => {
-  const listId = `${id}-suggestions`;
+  const normalizedValue = value.trim().toLowerCase();
+  const filteredOptions = options.filter((option) => {
+    if (!normalizedValue) {
+      return true;
+    }
+    return `${option.label} ${option.description ?? ""}`
+      .toLowerCase()
+      .includes(normalizedValue);
+  });
   return (
     <FormField
       error={error}
@@ -67,30 +75,39 @@ const ReferenceSearchField = ({
           aria-invalid={Boolean(error)}
           autoComplete="off"
           id={id}
-          list={listId}
           onChange={(event) => {
-            const selected = options.find(
-              (option) => option.label === event.target.value
-            );
-            if (selected) {
-              onSelect(selected);
-              return;
-            }
             onClear();
-            onSearch(event.target.value);
+            onSearch(event.target.value.trimStart());
           }}
           value={value}
         />
-        <datalist id={listId}>
-          {options.map((option) => (
-            <option
-              aria-label={option.description ?? option.label}
-              key={option.id}
-              label={option.description ?? option.label}
-              value={option.label}
-            />
-          ))}
-        </datalist>
+        {filteredOptions.length > 0 ? (
+          <div
+            aria-label={`Saran ${label}`}
+            className="bg-background absolute z-10 mt-1 grid max-h-48 w-full gap-1 overflow-auto rounded-xl border p-1 shadow-lg"
+          >
+            {filteredOptions.map((option) => (
+              <button
+                className="hover:bg-muted grid gap-0.5 rounded-lg px-3 py-2 text-left text-sm"
+                key={option.id}
+                onClick={() => onSelect(option)}
+                type="button"
+              >
+                <span className="font-medium">{option.label}</span>
+                {option.description ? (
+                  <span className="text-muted-foreground text-xs">
+                    {option.description}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {value && options.length === 0 && !loading ? (
+          <p className="text-muted-foreground mt-1 text-xs">
+            Data aktif tidak ditemukan.
+          </p>
+        ) : null}
       </div>
     </FormField>
   );

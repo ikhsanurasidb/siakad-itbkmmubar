@@ -1,3 +1,4 @@
+import { ApiError } from "@api/errors";
 import {
   academicPeriodTerms,
   importEntityTypes,
@@ -19,18 +20,14 @@ export type MasterDataStatus = (typeof masterDataStatusesList)[number];
 export type ImportRowStatus = (typeof masterDataImportRowStatuses)[number];
 export type StudyProgramDegree = (typeof studyProgramDegreeOptions)[number];
 
-export class MasterDataDomainError extends Error {
-  readonly code: string;
-  readonly fieldErrors?: Record<string, string[]>;
-
+export class MasterDataDomainError extends ApiError {
   constructor(
     code: string,
     message: string,
-    fieldErrors?: Record<string, string[]>
+    fieldErrors?: Record<string, string[]>,
+    details?: Record<string, unknown>
   ) {
-    super(message);
-    this.code = code;
-    this.fieldErrors = fieldErrors;
+    super(code, message, { details, fieldErrors });
     this.name = "MasterDataDomainError";
   }
 }
