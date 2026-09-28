@@ -270,8 +270,6 @@ app.get("/api/attendance/evidence/:evidenceId", async (c) => {
     return c.json({ message: "Bukti presensi belum dapat ditampilkan." }, 404);
   }
 });
-  }
-});
 
 app.get("/", (c) => c.text("OK"));
 

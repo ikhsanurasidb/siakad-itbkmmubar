@@ -671,6 +671,7 @@ export interface LmsService {
       files?: readonly LmsFileInput[];
     }
   ) => Promise<LmsSubmissionRecord>;
+}
 
 export interface GradeClassRecord {
   academicPeriodId: string;
