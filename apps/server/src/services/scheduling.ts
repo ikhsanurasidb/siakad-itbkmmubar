@@ -19,6 +19,8 @@ import type {
 } from "@api/scheduling";
 import type { SchedulingPolicy } from "@api/settings";
 import type { Database } from "@db/index";
+import { courseAssessmentDefaults } from "@db/schema/curriculum";
+import { classGradeComponents } from "@db/schema/grades";
 import { identityAccounts, programHeads } from "@db/schema/identity";
 import {
   academicPeriods,
@@ -719,6 +721,37 @@ export const createSchedulingService = ({
               "Kelas kuliah belum dapat dibentuk."
             );
           }
+          // Components must be persisted before the mapping checkpoint advances.
+          // eslint-disable-next-line no-await-in-loop
+          const assessmentDefaults = await database
+            .select()
+            .from(courseAssessmentDefaults)
+            .where(eq(courseAssessmentDefaults.courseId, first.courseId))
+            .orderBy(asc(courseAssessmentDefaults.createdAt));
+          const components = assessmentDefaults.length
+            ? assessmentDefaults
+            : [
+                {
+                  componentCode: "NILAI_AKHIR",
+                  label: "Nilai akhir",
+                  weight: 100,
+                },
+              ];
+          // eslint-disable-next-line no-await-in-loop
+          await database
+            .insert(classGradeComponents)
+            .values(
+              components.map((component, sortOrder) => ({
+                classSectionId: section.id,
+                componentCode: component.componentCode,
+                createdAt: now(),
+                id: crypto.randomUUID(),
+                label: component.label,
+                sortOrder,
+                weight: component.weight,
+              }))
+            )
+            .onConflictDoNothing();
           const lecturer =
             activeLecturers[lecturerIndex % activeLecturers.length];
           if (lecturer) {

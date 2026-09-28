@@ -1,6 +1,7 @@
 import {
   createAuth,
   createCurriculumService,
+  createGradesService,
   createIdentityService,
   createLmsService,
   createMasterDataService,
@@ -44,6 +45,7 @@ export const createContext = async ({
   const studyPlanService = await createStudyPlanService(db);
   const schedulingService = await createSchedulingService(db);
   const lmsService = await createLmsService(db);
+  const gradesService = await createGradesService(db);
   let identity: ApiContext["identity"] = null;
   if (session?.user) {
     const [account] = await db
@@ -93,6 +95,7 @@ export const createContext = async ({
     clock: { now: () => new Date() },
     curriculumService,
     db,
+    gradesService,
     identity,
     identityService,
     lmsService,

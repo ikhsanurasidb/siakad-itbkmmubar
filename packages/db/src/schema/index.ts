@@ -119,3 +119,14 @@ export {
   scheduleSlots,
   teachingAssignments,
 } from "@db/schema/scheduling";
+export {
+  classGradeComponents,
+  finalGradeSnapshots,
+  gradeAdjustments,
+  gradePublications,
+  gradeStatuses,
+  gradeSubmissionBatches,
+  studentComponentScores,
+  studyResultSnapshots,
+  transcriptEntries,
+} from "@db/schema/grades";

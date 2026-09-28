@@ -196,6 +196,48 @@ const studentStudyPlanItems: readonly NavigationItem[] = [
   },
 ];
 
+const lecturerGradeItems: readonly NavigationItem[] = [
+  {
+    icon: GraduationCap,
+    label: "Nilai kelas",
+    roles: LECTURER,
+    to: "/dosen/nilai",
+  },
+];
+
+const academicAdminGradeItems: readonly NavigationItem[] = [
+  {
+    icon: GraduationCap,
+    label: "Publikasi nilai",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/nilai/publikasi",
+  },
+];
+
+const programHeadGradeItems: readonly NavigationItem[] = [
+  {
+    icon: GraduationCap,
+    label: "Nilai Prodi",
+    roles: PROGRAM_HEAD,
+    to: "/kaprodi/nilai",
+  },
+];
+
+const studentGradeItems: readonly NavigationItem[] = [
+  {
+    icon: GraduationCap,
+    label: "Nilai dan KHS",
+    roles: STUDENT,
+    to: "/mahasiswa/nilai",
+  },
+  {
+    icon: FileSliders,
+    label: "Transkrip",
+    roles: STUDENT,
+    to: "/mahasiswa/transkrip",
+  },
+];
+
 const settingsItems: readonly NavigationItem[] = [
   {
     icon: SlidersHorizontal,
@@ -515,6 +557,35 @@ const navigationSections: readonly NavigationSection[] = [
       },
     ],
     label: "Kelas dan jadwal",
+  },
+  {
+    items: [
+      {
+        children: academicAdminGradeItems,
+        icon: UsersRound,
+        label: "Admin Akademik",
+        roles: ACADEMIC_ADMIN,
+      },
+      {
+        children: programHeadGradeItems,
+        icon: GraduationCap,
+        label: "Kaprodi",
+        roles: PROGRAM_HEAD,
+      },
+      {
+        children: lecturerGradeItems,
+        icon: GraduationCap,
+        label: "Dosen",
+        roles: LECTURER,
+      },
+      {
+        children: studentGradeItems,
+        icon: UserRound,
+        label: "Mahasiswa",
+        roles: STUDENT,
+      },
+    ],
+    label: "Nilai dan hasil studi",
   },
   {
     items: [

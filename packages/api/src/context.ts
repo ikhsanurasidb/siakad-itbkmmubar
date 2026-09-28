@@ -4,6 +4,7 @@ import type {
   CurriculumRecord,
   CurriculumStatus,
 } from "@api/curriculum";
+import type { GradeStatus } from "@api/grades";
 import type { IdentityType, RoleKey } from "@api/identity";
 import type {
   LmsAssignmentRecord,
@@ -610,6 +611,126 @@ export interface LmsService {
       files?: readonly LmsFileInput[];
     }
   ) => Promise<LmsSubmissionRecord>;
+
+export interface GradeClassRecord {
+  academicPeriodId: string;
+  classCode: string;
+  classSectionId: string;
+  courseCode: string;
+  courseId: string;
+  courseName: string;
+  status: GradeStatus;
+  studentCount: number;
+  version: number;
+}
+
+export interface GradeComponentRecord {
+  componentCode: string;
+  id: string;
+  label: string;
+  weight: number;
+}
+
+export interface GradeStudentRecord {
+  name: string;
+  scores: readonly {
+    componentId: string;
+    score: number | null;
+    version: number;
+  }[];
+  studentId: string;
+  nim: string;
+}
+
+export interface GradeClassRecordDetail extends GradeClassRecord {
+  components: readonly GradeComponentRecord[];
+  students: readonly GradeStudentRecord[];
+  version: number;
+}
+
+export interface GradeStudentResult {
+  academicPeriodId: string;
+  academicPeriodLabel: string;
+  entries: readonly {
+    courseCode: string;
+    courseName: string;
+    credits: number;
+    gradeCode: string;
+    gradePoint: number;
+    roundedScore: number;
+  }[];
+  ipk: number;
+  ips: number;
+  periodId: string;
+}
+
+export interface GradesService {
+  classDetail: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    classSectionId: string;
+  }) => Promise<GradeClassRecordDetail>;
+  listClasses: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    academicPeriodId?: string;
+  }) => Promise<readonly GradeClassRecord[]>;
+  lock: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    classSectionId: string;
+    expectedVersion: number;
+  }) => Promise<{ status: "LOCKED" }>;
+  publish: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    classSectionId: string;
+    expectedVersion: number;
+  }) => Promise<{ status: "PUBLISHED" }>;
+  publishPeriod: (input: {
+    academicPeriodId: string;
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    idempotencyKey?: string;
+  }) => Promise<{ completedCount: number; jobId: string; status: string }>;
+  reopen: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    classSectionId: string;
+    expectedVersion: number;
+    reason: string;
+  }) => Promise<{ status: "DRAFT" }>;
+  saveScores: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    classSectionId: string;
+    scores: readonly {
+      componentId: string;
+      expectedVersion: number;
+      score: number;
+      studentId: string;
+    }[];
+  }) => Promise<{ savedCount: number }>;
+  studentKhs: (input: {
+    academicPeriodId?: string;
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    studentId?: string;
+  }) => Promise<GradeStudentResult>;
+  studentTranscript: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    studentId?: string;
+  }) => Promise<{
+    entries: readonly GradeStudentResult["entries"][number][];
+    ipk: number;
+  }>;
+  submit: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    classSectionId: string;
+    expectedVersion: number;
+  }) => Promise<{ status: "SUBMITTED" }>;
 }
 
 export interface ServerLogger {
@@ -633,6 +754,7 @@ export interface Context {
   request: RequestMetadata;
   identity: IdentityAccess | null;
   identityService: IdentityService;
+  gradesService: GradesService;
   masterDataService: MasterDataService;
   settingsService: SettingsService;
   schedulingService: SchedulingService;

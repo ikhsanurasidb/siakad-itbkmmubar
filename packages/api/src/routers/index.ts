@@ -227,6 +227,177 @@ export const appRouter = {
         }),
     },
   },
+  grades: {
+    classes: {
+      detail: protectedProcedure
+        .input(z.object({ classSectionId: z.string().min(1) }))
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+          ]);
+          return context.gradesService.classDetail({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      list: protectedProcedure
+        .input(z.object({ academicPeriodId: z.string().min(1).optional() }))
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+          ]);
+          return context.gradesService.listClasses({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
+    lock: protectedProcedure
+      .input(
+        z.object({
+          classSectionId: z.string().min(1),
+          expectedVersion: z.number().int().min(0),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["DOSEN"]);
+        return context.gradesService.lock({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    publish: protectedProcedure
+      .input(
+        z.object({
+          classSectionId: z.string().min(1),
+          expectedVersion: z.number().int().min(0),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        return context.gradesService.publish({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    publishPeriod: protectedProcedure
+      .input(
+        z.object({
+          academicPeriodId: z.string().min(1),
+          idempotencyKey: z.string().trim().min(1).max(160).optional(),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        return context.gradesService.publishPeriod({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    reopen: protectedProcedure
+      .input(
+        z.object({
+          classSectionId: z.string().min(1),
+          expectedVersion: z.number().int().min(0),
+          reason: z.string().trim().min(10).max(500),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        return context.gradesService.reopen({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    saveScores: protectedProcedure
+      .input(
+        z.object({
+          classSectionId: z.string().min(1),
+          scores: z
+            .array(
+              z.object({
+                componentId: z.string().min(1),
+                expectedVersion: z.number().int().min(0),
+                score: z.number().finite().min(0).max(100),
+                studentId: z.string().min(1),
+              })
+            )
+            .max(1000),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["DOSEN"]);
+        return context.gradesService.saveScores({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    student: {
+      khs: protectedProcedure
+        .input(
+          z.object({
+            academicPeriodId: z.string().min(1).optional(),
+            studentId: z.string().min(1).optional(),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "MAHASISWA",
+          ]);
+          return context.gradesService.studentKhs({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      transcript: protectedProcedure
+        .input(z.object({ studentId: z.string().min(1).optional() }))
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "MAHASISWA",
+          ]);
+          return context.gradesService.studentTranscript({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
+    submit: protectedProcedure
+      .input(
+        z.object({
+          classSectionId: z.string().min(1),
+          expectedVersion: z.number().int().min(0),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["DOSEN"]);
+        return context.gradesService.submit({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+  },
   healthCheck: publicProcedure.handler(() => "OK"),
   identity: {
     accounts: {
