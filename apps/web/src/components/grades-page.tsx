@@ -8,6 +8,7 @@ import {
 } from "@siakad-itbkmmubar/ui/components/card";
 import { Input } from "@siakad-itbkmmubar/ui/components/input";
 import { PageHeader } from "@siakad-itbkmmubar/ui/components/page-header";
+import { SearchableSelect } from "@siakad-itbkmmubar/ui/components/searchable-select";
 import { State } from "@siakad-itbkmmubar/ui/components/state";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LockKeyhole, RefreshCw, Save, Send } from "lucide-react";
@@ -16,6 +17,33 @@ import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { orpc } from "@/utils/orpc";
+
+interface SearchableSelectOption {
+  description?: string;
+  label: string;
+  value: string;
+}
+type SearchableSelectStatus = "error" | "loading" | "ready";
+
+const recordText = (record: Record<string, unknown>, key: string): string => {
+  const value = record[key];
+  return typeof value === "string" || typeof value === "number"
+    ? String(value)
+    : "";
+};
+
+const getSelectStatus = (
+  isPending: boolean,
+  isError: boolean
+): SearchableSelectStatus => {
+  if (isPending) {
+    return "loading";
+  }
+  if (isError) {
+    return "error";
+  }
+  return "ready";
+};
 
 const statusLabels = {
   DRAFT: "Draf",
@@ -329,17 +357,212 @@ interface GradePublicationPageProps {
   view?: "classes" | "period";
 }
 
-export const GradePublicationPage = ({
-  roleName,
-  view = "classes",
-}: GradePublicationPageProps) => {
-  const queryClient = useQueryClient();
-  const [academicPeriodId, setAcademicPeriodId] = useState("");
-  const isPeriodView = view === "period";
-  const classes = useQuery({
-    ...orpc.grades.classes.list.queryOptions({ input: {} }),
-    enabled: !isPeriodView,
+interface GradeClassRecord {
+  classCode: string;
+  classSectionId: string;
+  courseCode: string;
+  courseName: string;
+  status: keyof typeof statusLabels;
+  studentCount: number;
+  version: number;
+}
+
+const buildAcademicPeriodOptions = (
+  rows: readonly Record<string, unknown>[]
+): SearchableSelectOption[] =>
+  rows.flatMap((period) => {
+    const id = recordText(period, "id");
+    if (!id) {
+      return [];
+    }
+    const term = recordText(period, "term");
+    const startDate = recordText(period, "startDate").slice(0, 10);
+    const endDate = recordText(period, "endDate").slice(0, 10);
+    return [
+      {
+        description: [startDate, endDate].filter(Boolean).join(" – "),
+        label: `Periode ${term || "akademik"}`,
+        value: id,
+      },
+    ];
   });
+
+const GradePeriodPublication = ({
+  canPublish,
+  isPending,
+  onPublish,
+  options,
+  status,
+  value,
+  onValueChange,
+}: {
+  canPublish: boolean;
+  isPending: boolean;
+  onPublish: () => void;
+  onValueChange: (value: string) => void;
+  options: readonly SearchableSelectOption[];
+  status: SearchableSelectStatus;
+  value: string;
+}) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>Publikasi satu periode</CardTitle>
+      <CardDescription>
+        Job publikasi menyimpan progress agar dapat dilanjutkan.
+      </CardDescription>
+    </CardHeader>
+    <CardContent className="flex flex-wrap items-start gap-3">
+      <div className="min-w-64 flex-1">
+        <SearchableSelect
+          id="grade-publication-academic-period"
+          label="Periode akademik"
+          onValueChange={onValueChange}
+          options={options}
+          placeholder="Cari periode akademik"
+          status={status}
+          value={value}
+        />
+      </div>
+      <Button
+        disabled={
+          !canPublish ||
+          !options.some((option) => option.value === value) ||
+          isPending
+        }
+        onClick={onPublish}
+      >
+        Terbitkan periode
+      </Button>
+    </CardContent>
+  </Card>
+);
+
+const GradeClassPublicationList = ({
+  classes,
+  canPublish,
+  isPending,
+  onPublish,
+  roleName,
+}: {
+  canPublish: boolean;
+  classes: readonly GradeClassRecord[];
+  isPending: boolean;
+  onPublish: (classSectionId: string, expectedVersion: number) => void;
+  roleName: string;
+}) => (
+  <section
+    aria-label="Daftar kelas nilai"
+    className="grid gap-4 md:grid-cols-2"
+  >
+    {classes.map((gradeClass) => (
+      <Card key={gradeClass.classSectionId}>
+        <CardHeader>
+          <CardTitle>
+            {gradeClass.courseCode} · {gradeClass.classCode}
+          </CardTitle>
+          <CardDescription>
+            {gradeClass.courseName} · {gradeClass.studentCount} mahasiswa
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between gap-3">
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClassNames[gradeClass.status]}`}
+          >
+            {statusLabels[gradeClass.status]}
+          </span>
+          {roleName === "Dosen" ? (
+            <a
+              className="text-primary text-sm font-semibold"
+              href={`/dosen/kelas/${gradeClass.classSectionId}/nilai`}
+            >
+              Buka daftar nilai
+            </a>
+          ) : (
+            <Button
+              disabled={
+                !canPublish || gradeClass.status !== "LOCKED" || isPending
+              }
+              onClick={() =>
+                onPublish(gradeClass.classSectionId, gradeClass.version)
+              }
+            >
+              Terbitkan nilai
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    ))}
+  </section>
+);
+
+const GradePeriodPublicationPage = ({ roleName }: { roleName: string }) => {
+  const [academicPeriodId, setAcademicPeriodId] = useState("");
+  const academicPeriods = useQuery(
+    orpc.masterData.list.queryOptions({
+      input: { entityType: "ACADEMIC_PERIOD", limit: 100, status: "ACTIVE" },
+    })
+  );
+  const publishPeriod = useMutation(
+    orpc.grades.publishPeriod.mutationOptions({
+      onError: () => toast.error("Publikasi periode belum dapat dimulai."),
+      onSuccess: () => toast.success("Publikasi periode selesai diproses."),
+    })
+  );
+  const canPublish = roleName === "Admin Akademik" || roleName === "Superadmin";
+  const periodOptions = buildAcademicPeriodOptions(
+    academicPeriods.data?.data ?? []
+  );
+
+  if (academicPeriods.isPending) {
+    return (
+      <GradeState
+        description="Daftar periode akademik sedang dimuat."
+        title="Memuat periode"
+      />
+    );
+  }
+  if (academicPeriods.isError || !academicPeriods.data) {
+    return (
+      <GradeState
+        action={
+          <Button onClick={() => academicPeriods.refetch()} variant="outline">
+            <RefreshCw aria-hidden="true" /> Coba lagi
+          </Button>
+        }
+        description="Daftar periode akademik belum dapat dimuat."
+        title="Periode tidak tersedia"
+      />
+    );
+  }
+
+  return (
+    <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
+      <PageHeader
+        description="Terbitkan hasil nilai untuk satu periode akademik secara terkontrol."
+        eyebrow={`Periode nilai · ${roleName}`}
+        title="Periode nilai"
+      />
+      <GradePeriodPublication
+        canPublish={canPublish}
+        isPending={publishPeriod.isPending}
+        onPublish={() => publishPeriod.mutate({ academicPeriodId })}
+        onValueChange={setAcademicPeriodId}
+        options={periodOptions}
+        status={getSelectStatus(
+          academicPeriods.isPending,
+          academicPeriods.isError
+        )}
+        value={academicPeriodId}
+      />
+    </div>
+  );
+};
+
+const GradeClassesPublicationPage = ({ roleName }: { roleName: string }) => {
+  const queryClient = useQueryClient();
+  const classes = useQuery(
+    orpc.grades.classes.list.queryOptions({ input: {} })
+  );
   const publish = useMutation(
     orpc.grades.publish.mutationOptions({
       onError: () => toast.error("Nilai belum dapat diterbitkan."),
@@ -351,15 +574,9 @@ export const GradePublicationPage = ({
       },
     })
   );
-  const publishPeriod = useMutation(
-    orpc.grades.publishPeriod.mutationOptions({
-      onError: () => toast.error("Publikasi periode belum dapat dimulai."),
-      onSuccess: () => toast.success("Publikasi periode selesai diproses."),
-    })
-  );
   const canPublish = roleName === "Admin Akademik" || roleName === "Superadmin";
 
-  if (!isPeriodView && classes.isPending) {
+  if (classes.isPending) {
     return (
       <GradeState
         title="Memuat publikasi"
@@ -367,7 +584,7 @@ export const GradePublicationPage = ({
       />
     );
   }
-  if (!isPeriodView && (classes.isError || !classes.data)) {
+  if (classes.isError || !classes.data) {
     return (
       <GradeState
         title="Publikasi tidak tersedia"
@@ -380,97 +597,36 @@ export const GradePublicationPage = ({
       />
     );
   }
-  const classData = classes.data ?? [];
 
   return (
     <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
       <PageHeader
-        description={
-          isPeriodView
-            ? "Terbitkan hasil nilai untuk satu periode akademik secara terkontrol."
-            : "Tinjau nilai yang sudah dikunci dan terbitkan hasil resmi sesuai lingkup akses."
-        }
-        eyebrow={`${isPeriodView ? "Periode nilai" : "Publikasi nilai"} · ${roleName}`}
-        title={isPeriodView ? "Periode nilai" : "Publikasi nilai"}
+        description="Tinjau nilai yang sudah dikunci dan terbitkan hasil resmi sesuai lingkup akses."
+        eyebrow={`Publikasi nilai · ${roleName}`}
+        title="Publikasi nilai"
       />
-      {isPeriodView ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Publikasi satu periode</CardTitle>
-            <CardDescription>
-              Job publikasi menyimpan progress agar dapat dilanjutkan.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
-            <Input
-              aria-label="ID periode akademik"
-              onChange={(event) => setAcademicPeriodId(event.target.value)}
-              placeholder="ID periode akademik"
-              value={academicPeriodId}
-            />
-            <Button
-              disabled={
-                !canPublish || !academicPeriodId || publishPeriod.isPending
-              }
-              onClick={() => publishPeriod.mutate({ academicPeriodId })}
-            >
-              Terbitkan periode
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <section
-          aria-label="Daftar kelas nilai"
-          className="grid gap-4 md:grid-cols-2"
-        >
-          {classData.map((gradeClass) => (
-            <Card key={gradeClass.classSectionId}>
-              <CardHeader>
-                <CardTitle>
-                  {gradeClass.courseCode} · {gradeClass.classCode}
-                </CardTitle>
-                <CardDescription>
-                  {gradeClass.courseName} · {gradeClass.studentCount} mahasiswa
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex items-center justify-between gap-3">
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClassNames[gradeClass.status]}`}
-                >
-                  {statusLabels[gradeClass.status]}
-                </span>
-                {roleName === "Dosen" ? (
-                  <a
-                    className="text-primary text-sm font-semibold"
-                    href={`/dosen/kelas/${gradeClass.classSectionId}/nilai`}
-                  >
-                    Buka daftar nilai
-                  </a>
-                ) : (
-                  <Button
-                    disabled={
-                      !canPublish ||
-                      gradeClass.status !== "LOCKED" ||
-                      publish.isPending
-                    }
-                    onClick={() =>
-                      publish.mutate({
-                        classSectionId: gradeClass.classSectionId,
-                        expectedVersion: gradeClass.version,
-                      })
-                    }
-                  >
-                    Terbitkan nilai
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </section>
-      )}
+      <GradeClassPublicationList
+        canPublish={canPublish}
+        classes={classes.data}
+        isPending={publish.isPending}
+        onPublish={(classSectionId, expectedVersion) =>
+          publish.mutate({ classSectionId, expectedVersion })
+        }
+        roleName={roleName}
+      />
     </div>
   );
 };
+
+export const GradePublicationPage = ({
+  roleName,
+  view = "classes",
+}: GradePublicationPageProps) =>
+  view === "period" ? (
+    <GradePeriodPublicationPage roleName={roleName} />
+  ) : (
+    <GradeClassesPublicationPage roleName={roleName} />
+  );
 
 interface StudentGradesPageProps {
   periodId?: string;

@@ -8,6 +8,7 @@ import {
 } from "@siakad-itbkmmubar/ui/components/card";
 import { Input } from "@siakad-itbkmmubar/ui/components/input";
 import { PageHeader } from "@siakad-itbkmmubar/ui/components/page-header";
+import { SearchableSelect } from "@siakad-itbkmmubar/ui/components/searchable-select";
 import { State } from "@siakad-itbkmmubar/ui/components/state";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, CheckCircle2, RefreshCw, Video } from "lucide-react";
@@ -15,6 +16,33 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { orpc } from "@/utils/orpc";
+
+interface SearchableSelectOption {
+  description?: string;
+  label: string;
+  value: string;
+}
+type SearchableSelectStatus = "error" | "loading" | "ready";
+
+const recordText = (record: Record<string, unknown>, key: string): string => {
+  const value = record[key];
+  return typeof value === "string" || typeof value === "number"
+    ? String(value)
+    : "";
+};
+
+const getSelectStatus = (
+  isPending: boolean,
+  isError: boolean
+): SearchableSelectStatus => {
+  if (isPending) {
+    return "loading";
+  }
+  if (isError) {
+    return "error";
+  }
+  return "ready";
+};
 
 interface SchedulingPageProps {
   mode: "ADMIN" | "APPROVAL" | "LECTURER" | "STUDENT";
@@ -68,19 +96,37 @@ const SchedulingPage = ({
   const [meetingId, setMeetingId] = useState("");
   const [onlineUrl, setOnlineUrl] = useState("");
   const [instructions, setInstructions] = useState("");
+  const masterDataEnabled = mode === "ADMIN" && view !== "changes";
+  const draftsEnabled =
+    mode === "APPROVAL" || (mode === "ADMIN" && view !== "mapping");
+  const changeRequestsEnabled = mode === "ADMIN" && view !== "mapping";
 
   const sections = useQuery(
     orpc.scheduling.sections.list.queryOptions({ input: {} })
   );
-  const drafts = useQuery(
-    orpc.scheduling.drafts.list.queryOptions({ input: {} })
-  );
+  const drafts = useQuery({
+    ...orpc.scheduling.drafts.list.queryOptions({ input: {} }),
+    enabled: draftsEnabled,
+  });
   const meetings = useQuery(orpc.scheduling.meetings.list.queryOptions());
-  const changeRequests = useQuery(
-    orpc.scheduling.changeRequests.list.queryOptions({
+  const changeRequests = useQuery({
+    ...orpc.scheduling.changeRequests.list.queryOptions({
       input: { status: "PENDING" },
-    })
-  );
+    }),
+    enabled: changeRequestsEnabled,
+  });
+  const academicPeriods = useQuery({
+    ...orpc.masterData.list.queryOptions({
+      input: { entityType: "ACADEMIC_PERIOD", limit: 100, status: "ACTIVE" },
+    }),
+    enabled: masterDataEnabled,
+  });
+  const studyPrograms = useQuery({
+    ...orpc.masterData.list.queryOptions({
+      input: { entityType: "STUDY_PROGRAM", limit: 100, status: "ACTIVE" },
+    }),
+    enabled: masterDataEnabled,
+  });
   const mapping = useMutation(
     orpc.scheduling.mapping.generate.mutationOptions({
       onError: (error) => toast.error(error.message),
@@ -135,17 +181,62 @@ const SchedulingPage = ({
 
   const isPending =
     sections.isPending ||
-    drafts.isPending ||
     meetings.isPending ||
-    changeRequests.isPending;
+    (draftsEnabled && drafts.isPending) ||
+    (changeRequestsEnabled && changeRequests.isPending) ||
+    (masterDataEnabled &&
+      (academicPeriods.isPending || studyPrograms.isPending));
   const hasError =
     sections.isError ||
-    drafts.isError ||
     meetings.isError ||
-    changeRequests.isError;
+    (draftsEnabled && drafts.isError) ||
+    (changeRequestsEnabled && changeRequests.isError) ||
+    (masterDataEnabled && (academicPeriods.isError || studyPrograms.isError));
   const viewCopy = schedulingViewCopy[view];
   const showMappingPanel = mode === "ADMIN" && view !== "changes";
   const showChangesPanel = mode === "ADMIN" && view !== "mapping";
+  const academicPeriodOptions: SearchableSelectOption[] = (
+    academicPeriods.data?.data ?? []
+  ).flatMap((period) => {
+    const id = recordText(period, "id");
+    if (!id) {
+      return [];
+    }
+    const term = recordText(period, "term");
+    const startDate = recordText(period, "startDate").slice(0, 10);
+    const endDate = recordText(period, "endDate").slice(0, 10);
+    return [
+      {
+        description: [startDate, endDate].filter(Boolean).join(" – "),
+        label: `Periode ${term || "akademik"}`,
+        value: id,
+      },
+    ];
+  });
+  const studyProgramOptions: SearchableSelectOption[] = (
+    studyPrograms.data?.data ?? []
+  ).flatMap((program) => {
+    const id = recordText(program, "id");
+    const code = recordText(program, "code");
+    const name = recordText(program, "name");
+    return id && (code || name)
+      ? [{ label: [code, name].filter(Boolean).join(" · "), value: id }]
+      : [];
+  });
+  const meetingOptions: SearchableSelectOption[] = (meetings.data ?? []).map(
+    (meeting) => ({
+      description: `${meeting.courseName} · ${formatDate.format(new Date(meeting.startAt))}`,
+      label: `${meeting.classCode} · Pertemuan ${meeting.sequence}`,
+      value: meeting.id,
+    })
+  );
+  const draftOptions: SearchableSelectOption[] = (drafts.data ?? []).map(
+    (draft) => ({
+      description: `${statusLabels[draft.status]} · versi ${draft.version}`,
+      label: `Draf ${draft.id.slice(0, 8)}`,
+      value: draft.id,
+    })
+  );
 
   if (isPending) {
     return (
@@ -180,6 +271,8 @@ const SchedulingPage = ({
                 drafts.refetch();
                 meetings.refetch();
                 changeRequests.refetch();
+                academicPeriods.refetch();
+                studyPrograms.refetch();
               }}
               variant="outline"
             >
@@ -211,16 +304,29 @@ const SchedulingPage = ({
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
-            <Input
-              aria-label="ID periode akademik"
-              onChange={(event) => setAcademicPeriodId(event.target.value)}
-              placeholder="ID periode akademik"
+            <SearchableSelect
+              id="scheduling-academic-period"
+              label="Periode akademik"
+              onValueChange={setAcademicPeriodId}
+              options={academicPeriodOptions}
+              placeholder="Cari periode akademik"
+              status={getSelectStatus(
+                academicPeriods.isPending,
+                academicPeriods.isError
+              )}
               value={academicPeriodId}
             />
-            <Input
-              aria-label="ID program studi"
-              onChange={(event) => setStudyProgramId(event.target.value)}
-              placeholder="ID program studi (opsional)"
+            <SearchableSelect
+              id="scheduling-study-program"
+              label="Program studi"
+              onValueChange={setStudyProgramId}
+              options={studyProgramOptions}
+              optional
+              placeholder="Cari Prodi (opsional)"
+              status={getSelectStatus(
+                studyPrograms.isPending,
+                studyPrograms.isError
+              )}
               value={studyProgramId}
             />
             <Input
@@ -231,7 +337,11 @@ const SchedulingPage = ({
               value={classCapacity}
             />
             <Button
-              disabled={!academicPeriodId || mapping.isPending}
+              disabled={
+                !academicPeriodOptions.some(
+                  (option) => option.value === academicPeriodId
+                ) || mapping.isPending
+              }
               onClick={() =>
                 mapping.mutate({
                   academicPeriodId,
@@ -256,10 +366,13 @@ const SchedulingPage = ({
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
-            <Input
-              aria-label="ID pertemuan"
-              onChange={(event) => setMeetingId(event.target.value)}
-              placeholder="ID pertemuan"
+            <SearchableSelect
+              id="scheduling-meeting"
+              label="Pertemuan"
+              onValueChange={setMeetingId}
+              options={meetingOptions}
+              placeholder="Cari pertemuan"
+              status={getSelectStatus(meetings.isPending, meetings.isError)}
               value={meetingId}
             />
             <Input
@@ -276,7 +389,10 @@ const SchedulingPage = ({
               value={instructions}
             />
             <Button
-              disabled={!meetingId || setOnline.isPending}
+              disabled={
+                !meetingOptions.some((option) => option.value === meetingId) ||
+                setOnline.isPending
+              }
               onClick={() =>
                 setOnline.mutate({
                   instructions: instructions || undefined,
@@ -455,10 +571,13 @@ const SchedulingPage = ({
           </CardHeader>
           <CardContent className="grid gap-3">
             <div className="grid gap-3 md:grid-cols-3">
-              <Input
-                aria-label="ID draft jadwal"
-                onChange={(event) => setDraftId(event.target.value)}
-                placeholder="ID draft jadwal"
+              <SearchableSelect
+                id="scheduling-draft"
+                label="Draft jadwal"
+                onValueChange={setDraftId}
+                options={draftOptions}
+                placeholder="Cari draft jadwal"
+                status={getSelectStatus(drafts.isPending, drafts.isError)}
                 value={draftId}
               />
               <Input
@@ -469,7 +588,10 @@ const SchedulingPage = ({
                 value={expectedVersion}
               />
               <Button
-                disabled={!draftId || publish.isPending}
+                disabled={
+                  !draftOptions.some((option) => option.value === draftId) ||
+                  publish.isPending
+                }
                 onClick={() =>
                   publish.mutate({
                     draftId,

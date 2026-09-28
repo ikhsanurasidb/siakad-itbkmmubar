@@ -7,8 +7,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@siakad-itbkmmubar/ui/components/card";
-import { Input } from "@siakad-itbkmmubar/ui/components/input";
 import { PageHeader } from "@siakad-itbkmmubar/ui/components/page-header";
+import { SearchableSelect } from "@siakad-itbkmmubar/ui/components/searchable-select";
+import type { SearchableSelectOption } from "@siakad-itbkmmubar/ui/components/searchable-select";
 import { State } from "@siakad-itbkmmubar/ui/components/state";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -24,6 +25,169 @@ interface StudyPlanGeneratePageProps {
   roleName: "Admin Akademik" | "Superadmin";
 }
 
+const buildPeriodOptions = (
+  rows: readonly Record<string, unknown>[]
+): SearchableSelectOption[] =>
+  rows.flatMap((period) => {
+    const id = recordText(period, "id");
+    if (!id) {
+      return [];
+    }
+    const term = recordText(period, "term");
+    const startDate = recordText(period, "startDate").slice(0, 10);
+    const endDate = recordText(period, "endDate").slice(0, 10);
+    return [
+      {
+        description: [startDate, endDate].filter(Boolean).join(" – "),
+        label: `Periode ${term || "akademik"}`,
+        value: id,
+      },
+    ];
+  });
+
+const buildProgramOptions = (
+  rows: readonly Record<string, unknown>[]
+): SearchableSelectOption[] =>
+  rows.flatMap((program) => {
+    const id = recordText(program, "id");
+    const code = recordText(program, "code");
+    const name = recordText(program, "name");
+    return id && (code || name)
+      ? [{ label: [code, name].filter(Boolean).join(" · "), value: id }]
+      : [];
+  });
+
+const buildCohortOptions = (
+  rows: readonly Record<string, unknown>[],
+  prodiId: string
+): SearchableSelectOption[] =>
+  rows
+    .filter(
+      (cohort) => !prodiId || recordText(cohort, "studyProgramId") === prodiId
+    )
+    .flatMap((cohort) => {
+      const id = recordText(cohort, "id");
+      const entryYear = recordText(cohort, "entryYear");
+      return id && entryYear
+        ? [{ label: `Angkatan ${entryYear}`, value: id }]
+        : [];
+    });
+
+const StudyPlanGenerationForm = ({
+  academicPeriodId,
+  canSubmit,
+  cohortId,
+  cohortOptions,
+  isPending,
+  onCohortChange,
+  onPeriodChange,
+  onProdiChange,
+  onSubmit,
+  periodOptions,
+  prodiId,
+  prodiOptions,
+}: {
+  academicPeriodId: string;
+  canSubmit: boolean;
+  cohortId: string;
+  cohortOptions: readonly SearchableSelectOption[];
+  isPending: boolean;
+  onCohortChange: (value: string) => void;
+  onPeriodChange: (value: string) => void;
+  onProdiChange: (value: string) => void;
+  onSubmit: () => void;
+  periodOptions: readonly SearchableSelectOption[];
+  prodiId: string;
+  prodiOptions: readonly SearchableSelectOption[];
+}) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>Parameter pembuatan</CardTitle>
+      <CardDescription>
+        Mahasiswa aktif akan diproses per kelompok kecil. Mahasiswa tanpa
+        kurikulum aktif dicatat sebagai kendala.
+      </CardDescription>
+    </CardHeader>
+    <CardContent className="grid gap-4 md:grid-cols-3">
+      <SearchableSelect
+        id="study-plan-period"
+        label="Periode akademik"
+        onValueChange={onPeriodChange}
+        options={periodOptions}
+        placeholder="Cari periode akademik"
+        status="ready"
+        value={academicPeriodId}
+      />
+      <SearchableSelect
+        id="study-plan-prodi"
+        label="Prodi"
+        onValueChange={onProdiChange}
+        options={prodiOptions}
+        optional
+        placeholder="Cari Prodi (opsional)"
+        status="ready"
+        value={prodiId}
+      />
+      <SearchableSelect
+        id="study-plan-cohort"
+        label="Angkatan"
+        onValueChange={onCohortChange}
+        options={cohortOptions}
+        optional
+        placeholder="Cari angkatan (opsional)"
+        status="ready"
+        value={cohortId}
+      />
+      <div className="md:col-span-3">
+        <Button disabled={!canSubmit || isPending} onClick={onSubmit}>
+          {isPending ? "Membuat..." : "Buat KRS Paket"}
+        </Button>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+const StudyPlanGenerationResultCard = ({
+  result,
+}: {
+  result: StudyPlanGenerationResult;
+}) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>Hasil pembuatan KRS</CardTitle>
+      <CardDescription>
+        {result.processedCount} dari {result.totalCount} mahasiswa diproses ·{" "}
+        {result.completedCount} KRS dibuat.
+      </CardDescription>
+    </CardHeader>
+    <CardContent className="grid gap-3">
+      {result.failures.length === 0 ? (
+        <p className="text-sm text-[#137a4b]">
+          Semua mahasiswa aktif memiliki KRS draft.
+        </p>
+      ) : (
+        <>
+          <p className="text-sm text-[#9a5a00]">
+            {result.failures.length} mahasiswa belum dapat dibuatkan KRS.
+          </p>
+          <ul className="grid gap-2 text-sm text-[#5c6f82]">
+            {result.failures.slice(0, 10).map((failure) => (
+              <li key={failure.studentId}>
+                {failure.nim}: {failure.message}
+              </li>
+            ))}
+          </ul>
+          {result.failures.length > 10 ? (
+            <p className="text-xs text-[#71859c]">
+              Hanya 10 kendala pertama yang ditampilkan.
+            </p>
+          ) : null}
+        </>
+      )}
+    </CardContent>
+  </Card>
+);
+
 const StudyPlanGeneratePage = ({
   basePath,
   roleName,
@@ -32,12 +196,21 @@ const StudyPlanGeneratePage = ({
   const [academicPeriodId, setAcademicPeriodId] = useState("");
   const [prodiId, setProdiId] = useState("");
   const [cohortId, setCohortId] = useState("");
-  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [generationResult, setGenerationResult] =
     useState<StudyPlanGenerationResult | null>(null);
   const periods = useQuery(
     orpc.masterData.list.queryOptions({
       input: { entityType: "ACADEMIC_PERIOD", limit: 100, status: "ACTIVE" },
+    })
+  );
+  const studyPrograms = useQuery(
+    orpc.masterData.list.queryOptions({
+      input: { entityType: "STUDY_PROGRAM", limit: 100, status: "ACTIVE" },
+    })
+  );
+  const cohorts = useQuery(
+    orpc.masterData.list.queryOptions({
+      input: { entityType: "COHORT", limit: 100, status: "ACTIVE" },
     })
   );
   const generate = useMutation(
@@ -60,19 +233,36 @@ const StudyPlanGeneratePage = ({
     })
   );
 
+  const periodOptions = buildPeriodOptions(periods.data?.data ?? []);
+  const prodiOptions = buildProgramOptions(studyPrograms.data?.data ?? []);
+  const cohortOptions = buildCohortOptions(cohorts.data?.data ?? [], prodiId);
   const submit = () => {
-    setHasSubmitted(true);
-    if (!academicPeriodId) {
+    const hasValidPeriod = periodOptions.some(
+      (option) => option.value === academicPeriodId
+    );
+    const hasValidProdi =
+      !prodiId || prodiOptions.some((option) => option.value === prodiId);
+    const hasValidCohort =
+      !cohortId || cohortOptions.some((option) => option.value === cohortId);
+    if (!hasValidPeriod || !hasValidProdi || !hasValidCohort) {
       return;
     }
     generate.mutate({
       academicPeriodId,
-      cohortId: cohortId.trim() || undefined,
-      prodiId: prodiId.trim() || undefined,
+      cohortId: cohortId || undefined,
+      prodiId: prodiId || undefined,
     });
   };
+  const canSubmit = periodOptions.some(
+    (option) => option.value === academicPeriodId
+  );
 
-  if (periods.isPending) {
+  const isReferenceLoading =
+    periods.isPending || studyPrograms.isPending || cohorts.isPending;
+  const isReferenceError =
+    periods.isError || studyPrograms.isError || cohorts.isError;
+
+  if (isReferenceLoading) {
     return (
       <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
         <PageHeader
@@ -81,7 +271,7 @@ const StudyPlanGeneratePage = ({
           title="Buat KRS Paket"
         />
         <State
-          description="Daftar periode akademik sedang dimuat."
+          description="Daftar periode, Prodi, dan angkatan sedang dimuat."
           title="Memuat periode"
           variant="loading"
         />
@@ -89,7 +279,12 @@ const StudyPlanGeneratePage = ({
     );
   }
 
-  if (periods.isError || !periods.data) {
+  if (
+    isReferenceError ||
+    !periods.data ||
+    !studyPrograms.data ||
+    !cohorts.data
+  ) {
     return (
       <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
         <PageHeader
@@ -99,22 +294,26 @@ const StudyPlanGeneratePage = ({
         />
         <State
           action={
-            <Button onClick={() => periods.refetch()} variant="outline">
+            <Button
+              onClick={() => {
+                periods.refetch();
+                studyPrograms.refetch();
+                cohorts.refetch();
+              }}
+              variant="outline"
+            >
               <RefreshCw aria-hidden="true" />
               Coba lagi
             </Button>
           }
-          description="Periode akademik belum dapat dimuat. Coba lagi atau periksa koneksi."
-          title="Periode tidak tersedia"
+          description="Referensi pembuatan KRS belum dapat dimuat. Coba lagi atau periksa koneksi."
+          title="Referensi tidak tersedia"
           variant="error"
         />
       </div>
     );
   }
 
-  const periodOptions = periods.data.data.filter((period) =>
-    recordText(period, "id")
-  );
   return (
     <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
       <PageHeader
@@ -130,107 +329,25 @@ const StudyPlanGeneratePage = ({
         eyebrow={`KRS Paket · ${roleName}`}
         title="Buat KRS Paket"
       />
-      <Card>
-        <CardHeader>
-          <CardTitle>Parameter pembuatan</CardTitle>
-          <CardDescription>
-            Mahasiswa aktif akan diproses per kelompok kecil. Mahasiswa tanpa
-            kurikulum aktif dicatat sebagai kendala.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
-          <label
-            className="grid gap-1.5 text-sm font-medium"
-            htmlFor="study-plan-period"
-          >
-            Periode akademik
-            <select
-              aria-invalid={hasSubmitted && !academicPeriodId}
-              className="border-input bg-background h-9 rounded-md border px-3 text-sm"
-              id="study-plan-period"
-              onChange={(event) => setAcademicPeriodId(event.target.value)}
-              value={academicPeriodId}
-            >
-              <option value="">Pilih periode</option>
-              {periodOptions.map((period) => (
-                <option
-                  key={recordText(period, "id")}
-                  value={recordText(period, "id")}
-                >
-                  {recordText(period, "term")} ·{" "}
-                  {String(period.startDate ?? "").slice(0, 10)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label
-            className="grid gap-1.5 text-sm font-medium"
-            htmlFor="study-plan-prodi"
-          >
-            ID Prodi (opsional)
-            <Input
-              id="study-plan-prodi"
-              onChange={(event) => setProdiId(event.target.value)}
-              placeholder="Kosongkan untuk semua Prodi"
-              value={prodiId}
-            />
-          </label>
-          <label
-            className="grid gap-1.5 text-sm font-medium"
-            htmlFor="study-plan-cohort"
-          >
-            ID angkatan (opsional)
-            <Input
-              id="study-plan-cohort"
-              onChange={(event) => setCohortId(event.target.value)}
-              placeholder="Kosongkan untuk semua angkatan"
-              value={cohortId}
-            />
-          </label>
-          <div className="md:col-span-3">
-            <Button disabled={generate.isPending} onClick={submit}>
-              {generate.isPending ? "Membuat..." : "Buat KRS Paket"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <StudyPlanGenerationForm
+        academicPeriodId={academicPeriodId}
+        canSubmit={canSubmit}
+        cohortId={cohortId}
+        cohortOptions={cohortOptions}
+        isPending={generate.isPending}
+        onCohortChange={setCohortId}
+        onPeriodChange={setAcademicPeriodId}
+        onProdiChange={(value) => {
+          setProdiId(value);
+          setCohortId("");
+        }}
+        onSubmit={submit}
+        periodOptions={periodOptions}
+        prodiId={prodiId}
+        prodiOptions={prodiOptions}
+      />
       {generationResult ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Hasil pembuatan KRS</CardTitle>
-            <CardDescription>
-              {generationResult.processedCount} dari{" "}
-              {generationResult.totalCount} mahasiswa diproses ·{" "}
-              {generationResult.completedCount} KRS dibuat.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            {generationResult.failures.length === 0 ? (
-              <p className="text-sm text-[#137a4b]">
-                Semua mahasiswa aktif memiliki KRS draft.
-              </p>
-            ) : (
-              <>
-                <p className="text-sm text-[#9a5a00]">
-                  {generationResult.failures.length} mahasiswa belum dapat
-                  dibuatkan KRS.
-                </p>
-                <ul className="grid gap-2 text-sm text-[#5c6f82]">
-                  {generationResult.failures.slice(0, 10).map((failure) => (
-                    <li key={failure.studentId}>
-                      {failure.nim}: {failure.message}
-                    </li>
-                  ))}
-                </ul>
-                {generationResult.failures.length > 10 ? (
-                  <p className="text-xs text-[#71859c]">
-                    Hanya 10 kendala pertama yang ditampilkan.
-                  </p>
-                ) : null}
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <StudyPlanGenerationResultCard result={generationResult} />
       ) : null}
     </div>
   );
