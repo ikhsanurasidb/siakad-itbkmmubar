@@ -13,110 +13,156 @@ import {
 } from "@siakad-itbkmmubar/ui/components/sidebar";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  BookOpenText,
-  ClipboardCheck,
+  Bell,
+  BookOpen,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardList,
+  FileText,
+  GraduationCap,
+  History,
+  Home,
+  Laptop,
   LayoutDashboard,
-  ShieldCheck,
-  UserRound,
+  Menu,
+  PanelLeftClose,
+  Settings,
+  UsersRound,
 } from "lucide-react";
 
-const navigation = [
-  { icon: LayoutDashboard, label: "Beranda", to: "/dashboard" },
+const primaryNavigation = [
+  { active: true, icon: Home, label: "Beranda", to: "/dashboard" },
   {
-    icon: BookOpenText,
-    label: "Akun identitas",
+    active: false,
+    icon: LayoutDashboard,
+    label: "Dashboard",
+    to: "/dashboard",
+  },
+] as const;
+
+const academicNavigation = [
+  {
+    icon: UsersRound,
+    label: "Identitas & Akses",
     to: "/superadmin/identitas/akun",
   },
-  {
-    icon: ClipboardCheck,
-    label: "Role sistem",
-    to: "/superadmin/identitas/roles",
-  },
-  { icon: ShieldCheck, label: "Keamanan akun", to: "/akun/keamanan" },
+  { icon: ClipboardList, label: "Master Data", to: "/dashboard" },
+  { icon: BookOpen, label: "Kurikulum", to: "/dashboard" },
+  { icon: FileText, label: "KRS Paket", to: "/dashboard" },
+  { icon: UsersRound, label: "Kelas Kuliah", to: "/dashboard" },
+  { icon: CalendarDays, label: "Jadwal", to: "/dashboard" },
+  { icon: Laptop, label: "LMS", to: "/dashboard" },
+  { icon: CheckCircle2, label: "Presensi", to: "/dashboard" },
+  { icon: FileText, label: "Nilai", to: "/dashboard" },
+  { icon: GraduationCap, label: "KHS & Transkrip", to: "/dashboard" },
+] as const;
+
+const systemNavigation = [
+  { icon: Settings, label: "Pengaturan", to: "/dashboard" },
+  { icon: History, label: "Audit Log", to: "/dashboard" },
+  { icon: Bell, label: "Notifikasi", to: "/dashboard" },
 ] as const;
 
 const Sidebar = () => {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile, state, toggleSidebar } = useSidebar();
+
+  const renderNavigation = (
+    items: readonly {
+      active?: boolean;
+      icon: typeof Home;
+      label: string;
+      to: "/dashboard" | "/superadmin/identitas/akun";
+    }[]
+  ) => (
+    <SidebarMenu>
+      {items.map(({ active = true, icon: Icon, label, to }) => {
+        const isActive =
+          active && (pathname === to || pathname.startsWith(`${to}/`));
+
+        return (
+          <SidebarMenuItem key={label}>
+            <SidebarMenuButton
+              isActive={isActive}
+              render={
+                <Link
+                  aria-current={isActive ? "page" : undefined}
+                  onClick={() => setOpenMobile(false)}
+                  to={to}
+                />
+              }
+              title={label}
+            >
+              <Icon aria-hidden="true" />
+              <span>{label}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      })}
+    </SidebarMenu>
+  );
 
   return (
-    <SidebarPrimitive collapsible="offcanvas" variant="sidebar">
-      <SidebarHeader>
-        <Link className="flex items-center gap-3" to="/dashboard">
-          <span className="bg-sidebar-primary text-sidebar-primary-foreground grid size-10 place-items-center rounded-xl text-lg font-bold shadow-lg shadow-slate-950/10">
+    <SidebarPrimitive collapsible="icon" variant="sidebar">
+      <SidebarHeader className="border-sidebar-border/60 h-20 justify-center border-b px-5 py-0">
+        <Link
+          aria-label="SIAKAD ITB KMMU BAR"
+          className="flex min-w-0 items-center gap-3 group-data-[collapsible=icon]:justify-center"
+          to="/dashboard"
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-sm bg-white text-lg font-bold text-[#12395c] shadow-sm">
             S
           </span>
-          <span className="grid gap-0.5">
-            <span className="text-sidebar-foreground text-sm font-bold tracking-wide">
-              SIAKAD ITB KMMU BAR
-            </span>
-            <span className="text-sidebar-foreground/55 text-xs tracking-[0.18em] uppercase">
-              Portal akademik
-            </span>
+          <span className="truncate text-sm font-bold tracking-wide text-white group-data-[collapsible=icon]:hidden">
+            SIAKAD ITB KMMU BAR
           </span>
         </Link>
       </SidebarHeader>
-      <SidebarContent>
+
+      <SidebarContent className="gap-5 px-3 py-4">
         <SidebarGroup>
-          <SidebarGroupLabel>Menu utama</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {navigation.map(({ icon: Icon, label, to }) => {
-                const isActive =
-                  pathname === to || pathname.startsWith(`${to}/`);
-                return (
-                  <SidebarMenuItem key={to}>
-                    <SidebarMenuButton
-                      isActive={isActive}
-                      render={
-                        <Link
-                          aria-current={isActive ? "page" : undefined}
-                          onClick={() => setOpenMobile(false)}
-                          to={to}
-                        />
-                      }
-                    >
-                      <Icon aria-hidden="true" />
-                      <span>{label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
+            {renderNavigation(primaryNavigation)}
           </SidebarGroupContent>
         </SidebarGroup>
-        <SidebarGroup className="mt-auto">
-          <SidebarGroupLabel>Akses cepat</SidebarGroupLabel>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Akademik</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={
-                    <Link
-                      onClick={() => setOpenMobile(false)}
-                      to="/admin-akademik/identitas/akun"
-                    />
-                  }
-                >
-                  <UserRound aria-hidden="true" />
-                  <span>Kelola akun akademik</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
+            {renderNavigation(academicNavigation)}
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Sistem</SidebarGroupLabel>
+          <SidebarGroupContent>
+            {renderNavigation(systemNavigation)}
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <div className="border-sidebar-border/70 bg-sidebar-accent/60 rounded-2xl border p-3">
-          <p className="text-sidebar-foreground text-xs font-semibold">
-            Butuh bantuan?
-          </p>
-          <p className="text-sidebar-foreground/60 mt-1 text-xs leading-5">
-            Hubungi Admin Akademik untuk kendala akses akun.
-          </p>
-        </div>
+
+      <SidebarFooter className="border-sidebar-border/60 border-t p-4">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={toggleSidebar}
+              title={
+                state === "expanded" ? "Sembunyikan Menu" : "Tampilkan Menu"
+              }
+            >
+              {state === "expanded" ? (
+                <PanelLeftClose aria-hidden="true" />
+              ) : (
+                <Menu aria-hidden="true" />
+              )}
+              <span>
+                {state === "expanded" ? "Sembunyikan Menu" : "Tampilkan Menu"}
+              </span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </SidebarPrimitive>
   );

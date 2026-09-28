@@ -98,8 +98,8 @@ const SidebarProvider = ({
         data-slot="sidebar-wrapper"
         style={
           {
-            "--sidebar-width": "17rem",
-            "--sidebar-width-icon": "3rem",
+            "--sidebar-width": "18.75rem",
+            "--sidebar-width-icon": "4rem",
             ...style,
           } as React.CSSProperties
         }
@@ -117,6 +117,21 @@ const useSidebar = () => {
     throw new Error("useSidebar must be used within a SidebarProvider.");
   }
   return context;
+};
+
+const getSidebarWidth = (
+  state: SidebarContextValue["state"],
+  collapsible: "offcanvas" | "icon" | "none"
+) => {
+  if (state === "expanded") {
+    return "w-(--sidebar-width)";
+  }
+
+  if (collapsible === "icon") {
+    return "w-(--sidebar-width-icon)";
+  }
+
+  return "w-0";
 };
 
 const Sidebar = ({
@@ -171,8 +186,8 @@ const Sidebar = ({
   return (
     <div
       className={cn(
-        "group peer text-sidebar-foreground hidden h-[calc(100svh-4.5rem)] shrink-0 md:flex",
-        state === "collapsed" ? "w-0" : "w-(--sidebar-width)"
+        "group peer text-sidebar-foreground hidden h-[calc(100svh-5rem)] shrink-0 md:flex",
+        getSidebarWidth(state, collapsible)
       )}
       data-collapsible={state === "collapsed" ? collapsible : ""}
       data-side={side}
@@ -232,7 +247,10 @@ const SidebarHeader = ({
   ...props
 }: React.ComponentProps<"div">) => (
   <div
-    className={cn("flex flex-col gap-2 p-5", className)}
+    className={cn(
+      "flex flex-col gap-2 p-5 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-1.5",
+      className
+    )}
     data-slot="sidebar-header"
     {...props}
   />
@@ -244,7 +262,7 @@ const SidebarContent = ({
 }: React.ComponentProps<"div">) => (
   <div
     className={cn(
-      "flex min-h-0 flex-1 flex-col gap-6 overflow-auto p-3",
+      "flex min-h-0 flex-1 flex-col gap-6 overflow-auto p-3 group-data-[collapsible=icon]:px-1.5",
       className
     )}
     data-slot="sidebar-content"
@@ -257,7 +275,10 @@ const SidebarFooter = ({
   ...props
 }: React.ComponentProps<"div">) => (
   <div
-    className={cn("flex flex-col gap-2 p-4", className)}
+    className={cn(
+      "flex flex-col gap-2 p-4 group-data-[collapsible=icon]:px-1.5",
+      className
+    )}
     data-slot="sidebar-footer"
     {...props}
   />
@@ -277,7 +298,7 @@ const SidebarGroupLabel = ({
 }: React.ComponentProps<"div">) => (
   <div
     className={cn(
-      "text-sidebar-foreground/55 flex h-8 shrink-0 items-center px-3 text-[10px] font-semibold tracking-[0.18em] uppercase",
+      "text-sidebar-foreground/55 flex h-8 shrink-0 items-center px-3 text-[10px] font-semibold tracking-[0.18em] uppercase group-data-[collapsible=icon]:hidden",
       className
     )}
     data-slot="sidebar-group-label"
@@ -316,7 +337,7 @@ const SidebarMenuItem = ({
 );
 
 const sidebarMenuButtonVariants = cva(
-  "group/menu-button text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-sidebar-ring data-active:bg-sidebar-primary data-active:text-sidebar-primary-foreground flex h-11 w-full items-center gap-3 overflow-hidden rounded-xl px-3 text-left text-sm transition-colors outline-none focus-visible:ring-2 data-active:font-semibold [&_svg]:size-[18px] [&_svg]:shrink-0",
+  "group/menu-button text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-sidebar-ring data-active:bg-sidebar-primary data-active:text-sidebar-primary-foreground flex h-11 w-full items-center gap-3 overflow-hidden rounded-xl px-3 text-left text-sm transition-colors outline-none group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 focus-visible:ring-2 data-active:font-semibold [&_svg]:size-[18px] [&_svg]:shrink-0 group-data-[collapsible=icon]:[&>span]:hidden",
   {
     defaultVariants: { size: "default" },
     variants: {
