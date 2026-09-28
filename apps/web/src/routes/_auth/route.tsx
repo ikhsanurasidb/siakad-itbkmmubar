@@ -16,6 +16,7 @@ import Header from "@/components/header";
 import Sidebar from "@/components/sidebar";
 import { storeActiveRole } from "@/lib/active-role";
 import { authClient } from "@/lib/auth-client";
+import { getDashboardRoleSlug } from "@/lib/dashboard";
 import { client } from "@/utils/orpc";
 
 const AuthLayout = () => {
@@ -33,7 +34,10 @@ const AuthLayout = () => {
     storeActiveRole(role);
     setActiveRole(role);
     queryClient.removeQueries();
-    await navigate({ to: "/dashboard" });
+    await navigate({
+      params: { role: getDashboardRoleSlug(role) },
+      to: "/dashboard/$role",
+    });
   };
 
   return (
@@ -77,7 +81,13 @@ export const Route = createFileRoute("/_auth")({
       !access.mustChangePassword &&
       location.pathname === "/first-login/change-password"
     ) {
-      throw redirect({ to: "/dashboard" });
+      if (!access.activeRole) {
+        throw redirect({ to: "/login" });
+      }
+      throw redirect({
+        params: { role: getDashboardRoleSlug(access.activeRole) },
+        to: "/dashboard/$role",
+      });
     }
     return { access, session };
   },
