@@ -21,7 +21,8 @@ export const user = sqliteTable("user", {
 
 export const rateLimit = sqliteTable("rate_limit", {
   count: integer("count").notNull(),
-  key: text("key").primaryKey(),
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
   lastRequest: integer("last_request").notNull(),
 });
 
