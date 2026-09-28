@@ -79,6 +79,8 @@ const ChangePasswordComponent = () => {
             <changePasswordForm.Field
               name="currentPassword"
               validators={{
+                onChange: ({ value }) =>
+                  value ? undefined : "Kata sandi sementara wajib diisi.",
                 onBlur: ({ value }) =>
                   value ? undefined : "Kata sandi sementara wajib diisi.",
               }}
@@ -107,6 +109,10 @@ const ChangePasswordComponent = () => {
             <changePasswordForm.Field
               name="newPassword"
               validators={{
+                onChange: ({ value }) =>
+                  value.length < MINIMUM_PASSWORD_LENGTH
+                    ? `Minimal ${MINIMUM_PASSWORD_LENGTH} karakter.`
+                    : undefined,
                 onBlur: ({ value }) =>
                   value.length < MINIMUM_PASSWORD_LENGTH
                     ? `Minimal ${MINIMUM_PASSWORD_LENGTH} karakter.`
@@ -138,6 +144,14 @@ const ChangePasswordComponent = () => {
             <changePasswordForm.Field
               name="confirmation"
               validators={{
+                onChange: ({ value }) => {
+                  if (
+                    value === changePasswordForm.getFieldValue("newPassword")
+                  ) {
+                    return;
+                  }
+                  return "Konfirmasi kata sandi belum sesuai.";
+                },
                 onBlur: ({ value }) => {
                   if (
                     value === changePasswordForm.getFieldValue("newPassword")

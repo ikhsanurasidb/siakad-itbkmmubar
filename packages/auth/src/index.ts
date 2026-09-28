@@ -75,6 +75,9 @@ export const createAuth = (
       }),
     ],
     rateLimit: {
+      customRules: {
+        "/get-session": false,
+      },
       enabled: true,
       max: 5,
       storage: "database",

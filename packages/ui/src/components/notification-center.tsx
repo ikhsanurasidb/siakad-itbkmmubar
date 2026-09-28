@@ -15,6 +15,7 @@ export const NotificationCenter = ({
     <summary className="list-none">
       <Button
         aria-label={`Notifikasi, ${unreadCount} belum dibaca`}
+        className="text-slate-600 hover:bg-slate-100 hover:text-[#12395c]"
         size="icon"
         variant="ghost"
       >

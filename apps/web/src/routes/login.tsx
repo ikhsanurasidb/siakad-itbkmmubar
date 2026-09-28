@@ -77,6 +77,8 @@ const RouteComponent = () => {
             <loginForm.Field
               name="identifier"
               validators={{
+                onChange: ({ value }) =>
+                  value.trim() ? undefined : "Identifier wajib diisi.",
                 onBlur: ({ value }) =>
                   value.trim() ? undefined : "Identifier wajib diisi.",
               }}
@@ -127,6 +129,8 @@ const RouteComponent = () => {
             <loginForm.Field
               name="password"
               validators={{
+                onChange: ({ value }) =>
+                  value ? undefined : "Kata sandi wajib diisi.",
                 onBlur: ({ value }) =>
                   value ? undefined : "Kata sandi wajib diisi.",
               }}

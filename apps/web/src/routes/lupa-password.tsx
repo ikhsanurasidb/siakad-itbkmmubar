@@ -83,6 +83,8 @@ const ForgotPasswordPage = () => {
               <recoveryForm.Field
                 name="identifier"
                 validators={{
+                  onChange: ({ value }) =>
+                    value.trim() ? undefined : "Identifier wajib diisi.",
                   onBlur: ({ value }) =>
                     value.trim() ? undefined : "Identifier wajib diisi.",
                 }}

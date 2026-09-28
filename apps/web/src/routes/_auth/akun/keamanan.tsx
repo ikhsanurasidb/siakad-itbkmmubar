@@ -13,11 +13,12 @@ import { toast } from "sonner";
 
 import { client, orpc, queryClient } from "@/utils/orpc";
 
-const formatDate = (date: Date) =>
-  new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(date));
+const dateFormatter = new Intl.DateTimeFormat("id-ID", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+const formatDate = (date: Date) => dateFormatter.format(new Date(date));
 
 const revokeOtherSessions = async () => {
   await client.identity.sessions.revokeOthers();

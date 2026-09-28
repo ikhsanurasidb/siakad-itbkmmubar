@@ -1,14 +1,8 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@siakad-itbkmmubar/ui/components/card";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
+import IdentityCatalogPage from "@/components/identity-catalog-page";
 import { orpc } from "@/utils/orpc";
 
 const RolesPage = () => {
@@ -41,26 +35,14 @@ const RolesPage = () => {
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
-      <div className="grid gap-2">
-        <p className="text-muted-foreground text-xs font-medium tracking-widest uppercase">
-          Identitas dan akses
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Role sistem</h1>
-        <p className="text-muted-foreground text-sm">
-          Katalog role konkret tanpa fallback Staff.
-        </p>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Role yang tersedia</CardTitle>
-          <CardDescription>
-            Assignment role mengikuti policy dan conflict rules server.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>{roleContent}</CardContent>
-      </Card>
-    </div>
+    <IdentityCatalogPage
+      cardDescription="Assignment role mengikuti policy dan conflict rules server."
+      cardTitle="Role yang tersedia"
+      description="Katalog role konkret tanpa fallback Staff."
+      title="Role sistem"
+    >
+      {roleContent}
+    </IdentityCatalogPage>
   );
 };
 

@@ -170,7 +170,10 @@ const Sidebar = ({
 
   return (
     <div
-      className="group peer text-sidebar-foreground hidden md:block"
+      className={cn(
+        "group peer text-sidebar-foreground hidden h-[calc(100svh-4.5rem)] shrink-0 md:flex",
+        state === "collapsed" ? "w-0" : "w-(--sidebar-width)"
+      )}
       data-collapsible={state === "collapsed" ? collapsible : ""}
       data-side={side}
       data-slot="sidebar"
@@ -179,20 +182,7 @@ const Sidebar = ({
     >
       <div
         className={cn(
-          "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear",
-          "group-data-[collapsible=offcanvas]:w-0",
-          state === "collapsed" && collapsible === "icon"
-            ? "w-(--sidebar-width-icon)"
-            : ""
-        )}
-        data-slot="sidebar-gap"
-      />
-      <div
-        className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
-          side === "left"
-            ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
-            : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
+          "flex h-full w-full flex-col overflow-hidden transition-[width] duration-200 ease-linear",
           variant === "floating" && "p-2",
           className
         )}

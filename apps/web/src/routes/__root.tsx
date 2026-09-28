@@ -25,6 +25,7 @@ const RootComponent = () => (
       attribute="class"
       defaultTheme="light"
       disableTransitionOnChange
+      forcedTheme="light"
       storageKey="vite-ui-theme"
     >
       <div className="min-h-svh">
