@@ -53,6 +53,12 @@ import {
   settingValues,
   settingVersions,
 } from "@db/schema/settings";
+import {
+  studyPlanGenerationJobs,
+  studyPlanHistories,
+  studyPlanItems,
+  studyPlans,
+} from "@db/schema/study-plan";
 import { defineRelations } from "drizzle-orm";
 
 const schema = {
@@ -93,6 +99,10 @@ const schema = {
   settingValues,
   settingVersions,
   students,
+  studyPlanGenerationJobs,
+  studyPlanHistories,
+  studyPlanItems,
+  studyPlans,
   studyPrograms,
   user,
   userRoles,

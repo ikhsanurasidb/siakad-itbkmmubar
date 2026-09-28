@@ -17,3 +17,15 @@
 - Pencegahan: pecah halaman berdasarkan tanggung jawab (dashboard, form, daftar, dan tipe bersama), lalu jalankan React Doctor dengan scope `changed` sebelum commit.
 - Kesalahan: validasi penuh dapat ikut gagal karena perubahan lokal lain yang belum terkait, khususnya modul settings yang belum selesai.
 - Pencegahan: periksa `git status` sebelum validasi dan commit; jalankan lint/type-check terarah bila ada perubahan pengguna lain, lalu stage file secara eksplisit agar perubahan yang tidak terkait tidak ikut ter-commit.
+
+## 2026-09-28 — SIAKAD-05 KRS Paket dan pembelajaran agent
+
+- Kesalahan saya: pada implementasi awal saya menganggap seluruh schema tersedia dari package root `@db/index`, padahal package database hanya mengekspor factory database. Akibatnya type-check server gagal sampai import diarahkan ke alias schema yang eksplisit.
+- Pencegahan: sebelum menambah modul, periksa `package.json` exports dan pola import modul yang sudah ada; gunakan `@db/schema/<modul>` untuk schema dan jangan mengasumsikan re-export baru.
+- Kesalahan saya: generator pertama belum menyimpan checkpoint student secara durable dan cabang mahasiswa tanpa kurikulum melewati update progress. Retry dapat mengulang halaman atau menggandakan failure detail.
+- Pencegahan: simpan checkpoint setelah setiap row yang diproses, termasuk row gagal, dan mulai retry dengan predicate cursor `id > checkpoint`; pertahankan urutan write agar checkpoint tidak melompati row.
+- Kesalahan saya: saya menjalankan script root generate migration yang memicu task Turbo interaktif tanpa TTY. Ini bukan kegagalan kode, tetapi memperlambat validasi dan sempat membuat status migration belum jelas.
+- Pencegahan: untuk perubahan schema, jalankan generator Drizzle langsung dari workspace database setelah schema stabil, lalu jalankan `drizzle-kit check` dan verifikasi file migration masuk ke diff.
+- Catatan implementasi: React Doctor `--scope changed` untuk SIAKAD-05 tetap 91/100; dua warning yang tampil berasal dari `curriculum-detail-page.tsx` dan `master-data-dashboard-page.tsx` lama, bukan file perubahan KRS.
+- Kesalahan validasi saya: saya berhenti pada `drizzle-kit check` dan belum menjalankan apply D1 lokal setelah menambah migration, sehingga migration pending sebelumnya yang memakai `PRAGMA foreign_keys=OFF` untuk mengganti parent table dengan child rows belum terdeteksi.
+- Pencegahan: setiap perubahan migration harus diuji dengan apply batch pada D1 lokal yang memiliki data FK nyata; untuk rebuild parent table di batch/transaksi gunakan `PRAGMA defer_foreign_keys=ON` lalu matikan setelah tabel pengganti selesai dibuat.

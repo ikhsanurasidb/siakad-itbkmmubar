@@ -1,0 +1,1 @@
+ALTER TABLE `study_plan_generation_jobs` ADD `checkpoint_student_id` text;

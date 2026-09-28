@@ -18,6 +18,12 @@ import type {
   SettingKey,
   SettingScopeType,
 } from "@api/settings";
+import type {
+  StudyPlanGenerationResult,
+  StudyPlanListItem,
+  StudyPlanRecord,
+  StudyPlanStatus,
+} from "@api/study-plan";
 import type { Session } from "@siakad-itbkmmubar/auth";
 import type { Database } from "@siakad-itbkmmubar/db";
 
@@ -283,6 +289,40 @@ export interface CurriculumService {
   }>;
 }
 
+export interface StudyPlanService {
+  detail: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    studyPlanId: string;
+  }) => Promise<StudyPlanRecord>;
+  finalize: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    studyPlanId: string;
+  }) => Promise<{ status: "FINAL" }>;
+  generate: (input: {
+    academicPeriodId: string;
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    cohortId?: string;
+    idempotencyKey?: string;
+    prodiId?: string;
+  }) => Promise<StudyPlanGenerationResult>;
+  list: (input: {
+    academicPeriodId?: string;
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    prodiId?: string;
+    status?: StudyPlanStatus;
+  }) => Promise<readonly StudyPlanListItem[]>;
+  reopen: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    reason: string;
+    studyPlanId: string;
+  }) => Promise<{ status: "DRAFT" }>;
+}
+
 export interface SettingsScope {
   scopeId: string;
   scopeType: SettingScopeType;
@@ -387,4 +427,5 @@ export interface Context {
   masterDataService: MasterDataService;
   settingsService: SettingsService;
   session: Session | null;
+  studyPlanService: StudyPlanService;
 }

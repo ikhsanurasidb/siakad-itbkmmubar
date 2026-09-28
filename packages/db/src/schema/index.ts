@@ -76,3 +76,12 @@ export {
   curricula,
   curriculumStatuses,
 } from "@db/schema/curriculum";
+export {
+  studyPlanGenerationJobs,
+  studyPlanHistories,
+  studyPlanHistoryActions,
+  studyPlanItems,
+  studyPlanModes,
+  studyPlans,
+  studyPlanStatuses,
+} from "@db/schema/study-plan";

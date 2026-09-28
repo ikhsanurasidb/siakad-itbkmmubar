@@ -66,6 +66,7 @@ interface SidebarProps {
 const SUPERADMIN: readonly RoleKey[] = ["SUPERADMIN"];
 const ACADEMIC_ADMIN: readonly RoleKey[] = ["ADMIN_AKADEMIK"];
 const PROGRAM_HEAD: readonly RoleKey[] = ["KAPRODI"];
+const STUDENT: readonly RoleKey[] = ["MAHASISWA"];
 
 const superadminCurriculumItems: readonly NavigationItem[] = [
   {
@@ -91,6 +92,33 @@ const academicAdminCurriculumItems: readonly NavigationItem[] = [
     label: "Kurikulum",
     roles: ACADEMIC_ADMIN,
     to: "/admin-akademik/kurikulum",
+  },
+];
+
+const academicAdminStudyPlanItems: readonly NavigationItem[] = [
+  {
+    icon: ClipboardList,
+    label: "KRS Paket",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/krs",
+  },
+];
+
+const programHeadStudyPlanItems: readonly NavigationItem[] = [
+  {
+    icon: ClipboardList,
+    label: "KRS Paket",
+    roles: PROGRAM_HEAD,
+    to: "/kaprodi/krs",
+  },
+];
+
+const studentStudyPlanItems: readonly NavigationItem[] = [
+  {
+    icon: ClipboardList,
+    label: "KRS semester ini",
+    roles: STUDENT,
+    to: "/mahasiswa/krs",
   },
 ];
 
@@ -343,6 +371,29 @@ const navigationSections: readonly NavigationSection[] = [
       },
     ],
     label: "Kurikulum",
+  },
+  {
+    items: [
+      {
+        children: academicAdminStudyPlanItems,
+        icon: UsersRound,
+        label: "Admin Akademik",
+        roles: ACADEMIC_ADMIN,
+      },
+      {
+        children: programHeadStudyPlanItems,
+        icon: GraduationCap,
+        label: "Kaprodi",
+        roles: PROGRAM_HEAD,
+      },
+      {
+        children: studentStudyPlanItems,
+        icon: UserRound,
+        label: "Mahasiswa",
+        roles: STUDENT,
+      },
+    ],
+    label: "KRS",
   },
   {
     items: [

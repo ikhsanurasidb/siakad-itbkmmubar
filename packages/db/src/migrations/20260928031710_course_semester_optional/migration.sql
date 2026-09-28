@@ -1,4 +1,4 @@
-PRAGMA foreign_keys=OFF;--> statement-breakpoint
+PRAGMA defer_foreign_keys=ON;--> statement-breakpoint
 CREATE TABLE `__new_courses` (
 	`code` text NOT NULL,
 	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
@@ -17,6 +17,6 @@ CREATE TABLE `__new_courses` (
 INSERT INTO `__new_courses`(`code`, `created_at`, `credits`, `default_semester`, `id`, `name`, `status`, `study_program_id`, `updated_at`) SELECT `code`, `created_at`, `credits`, `default_semester`, `id`, `name`, `status`, `study_program_id`, `updated_at` FROM `courses`;--> statement-breakpoint
 DROP TABLE `courses`;--> statement-breakpoint
 ALTER TABLE `__new_courses` RENAME TO `courses`;--> statement-breakpoint
-PRAGMA foreign_keys=ON;--> statement-breakpoint
+PRAGMA defer_foreign_keys=OFF;--> statement-breakpoint
 CREATE UNIQUE INDEX `courses_code_uq` ON `courses` (`code`);--> statement-breakpoint
 CREATE INDEX `courses_program_status_idx` ON `courses` (`study_program_id`,`status`);

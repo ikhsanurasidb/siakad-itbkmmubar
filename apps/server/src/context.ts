@@ -4,6 +4,7 @@ import {
   createIdentityService,
   createMasterDataService,
   createSettingsService,
+  createStudyPlanService,
   getDb,
 } from "@server/services";
 import { createServerLogger } from "@server/services/logger";
@@ -37,6 +38,7 @@ export const createContext = async ({
   const masterDataService = await createMasterDataService(db);
   const settingsService = await createSettingsService(db);
   const curriculumService = await createCurriculumService(db);
+  const studyPlanService = await createStudyPlanService(db);
   let identity: ApiContext["identity"] = null;
   if (session?.user) {
     const [account] = await db
@@ -86,6 +88,7 @@ export const createContext = async ({
     request,
     session,
     settingsService,
+    studyPlanService,
   };
 };
 

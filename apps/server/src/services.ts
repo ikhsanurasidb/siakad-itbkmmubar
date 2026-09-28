@@ -5,6 +5,7 @@ import { createIdentityService as createConfiguredIdentityService } from "@serve
 import { createMasterDataService as createConfiguredMasterDataService } from "@server/services/master-data";
 import { createSettingsService as createConfiguredSettingsService } from "@server/services/settings";
 import { createR2FileStorage } from "@server/services/storage";
+import { createStudyPlanService as createConfiguredStudyPlanService } from "@server/services/study-plan";
 import { createAuth as createConfiguredAuth } from "@siakad-itbkmmubar/auth";
 import { createDb } from "@siakad-itbkmmubar/db";
 import type { Database } from "@siakad-itbkmmubar/db";
@@ -47,6 +48,9 @@ export const createCurriculumService = async (database?: Database) => {
     storage: getStorage(),
   });
 };
+
+export const createStudyPlanService = async (database?: Database) =>
+  createConfiguredStudyPlanService({ database: database ?? (await getDb()) });
 
 export const seedSuperadmin = async (
   input: Parameters<typeof seedConfiguredSuperadmin>[0]["input"]

@@ -19,6 +19,7 @@ import {
 } from "@api/master-data";
 import { settingCategories, settingScopeTypes } from "@api/settings";
 import type { GradeScaleEntry } from "@api/settings";
+import { studyPlanStatuses } from "@api/study-plan";
 import type { RouterClient } from "@orpc/server";
 import { ORPCError } from "@orpc/server";
 import { session, user } from "@siakad-itbkmmubar/db/schema/auth";
@@ -76,6 +77,7 @@ const gradeScaleEntriesSchema = z.array(
     qualityPoints: z.number().finite().min(0).max(4),
   })
 );
+const studyPlanStatusSchema = z.enum(studyPlanStatuses);
 
 export const appRouter = {
   curriculum: {
@@ -771,6 +773,86 @@ export const appRouter = {
     securityPolicy: protectedProcedure.handler(({ context }) =>
       context.settingsService.getSecurityPolicy()
     ),
+  },
+  studyPlan: {
+    detail: protectedProcedure
+      .input(z.object({ studyPlanId: z.string().min(1) }))
+      .handler(({ context, input }) => {
+        requireRole(context, [
+          "SUPERADMIN",
+          "ADMIN_AKADEMIK",
+          "KAPRODI",
+          "MAHASISWA",
+        ]);
+        return context.studyPlanService.detail({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    finalize: protectedProcedure
+      .input(z.object({ studyPlanId: z.string().min(1) }))
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        return context.studyPlanService.finalize({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    generate: protectedProcedure
+      .input(
+        z.object({
+          academicPeriodId: z.string().min(1),
+          cohortId: z.string().min(1).optional(),
+          idempotencyKey: z.string().trim().min(1).max(160).optional(),
+          prodiId: z.string().min(1).optional(),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        return context.studyPlanService.generate({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    list: protectedProcedure
+      .input(
+        z.object({
+          academicPeriodId: z.string().min(1).optional(),
+          prodiId: z.string().min(1).optional(),
+          status: studyPlanStatusSchema.optional(),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, [
+          "SUPERADMIN",
+          "ADMIN_AKADEMIK",
+          "KAPRODI",
+          "MAHASISWA",
+        ]);
+        return context.studyPlanService.list({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    reopen: protectedProcedure
+      .input(
+        z.object({
+          reason: z.string().trim().min(10).max(500),
+          studyPlanId: z.string().min(1),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        return context.studyPlanService.reopen({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
   },
 };
 
