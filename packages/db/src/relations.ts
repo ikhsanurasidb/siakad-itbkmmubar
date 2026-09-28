@@ -38,6 +38,14 @@ import {
   notifications,
   outboxEvents,
 } from "@db/schema/platform";
+import {
+  gradeScaleEntries,
+  gradeScaleSets,
+  policyActivationHistories,
+  settingDefinitions,
+  settingValues,
+  settingVersions,
+} from "@db/schema/settings";
 import { defineRelations } from "drizzle-orm";
 
 const schema = {
@@ -49,6 +57,8 @@ const schema = {
   cohorts,
   courses,
   fileObjects,
+  gradeScaleEntries,
+  gradeScaleSets,
   idempotencyKeys,
   identifierReservations,
   identifierSequences,
@@ -59,6 +69,7 @@ const schema = {
   notifications,
   outboxEvents,
   permissions,
+  policyActivationHistories,
   programHeads,
   rateLimit,
   roleConflicts,
@@ -66,6 +77,9 @@ const schema = {
   roles,
   securityEvents,
   session,
+  settingDefinitions,
+  settingValues,
+  settingVersions,
   students,
   studyPrograms,
   user,

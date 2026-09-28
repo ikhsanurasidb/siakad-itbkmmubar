@@ -1,6 +1,7 @@
 import {
   createIdentityService,
   createMasterDataService,
+  createSettingsService,
   getDb,
   createAuth,
 } from "@server/services";
@@ -33,6 +34,7 @@ export const createContext = async ({
   });
   const identityService = await createIdentityService(db);
   const masterDataService = await createMasterDataService(db);
+  const settingsService = await createSettingsService(db);
   let identity: ApiContext["identity"] = null;
   if (session?.user) {
     const [account] = await db
@@ -80,6 +82,7 @@ export const createContext = async ({
     masterDataService,
     request,
     session,
+    settingsService,
   };
 };
 

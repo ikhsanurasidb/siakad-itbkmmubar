@@ -34,6 +34,17 @@ export {
   outboxEvents,
 } from "@db/schema/platform";
 export {
+  gradeScaleEntries,
+  gradeScaleSets,
+  policyActivationHistories,
+  settingCategories,
+  settingDefinitions,
+  settingScopeTypes,
+  settingValueTypes,
+  settingValues,
+  settingVersions,
+} from "@db/schema/settings";
+export {
   academicPeriodStatuses,
   academicPeriodTerms,
   academicPeriods,

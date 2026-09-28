@@ -38,16 +38,18 @@ export const seedSuperadmin = async ({
   auth,
   database,
   input,
+  minimumPasswordLength = MINIMUM_PASSWORD_LENGTH,
   now = new Date(),
 }: {
   auth: ConfiguredAuth;
   database: Database;
   input: SuperadminSeedInput;
+  minimumPasswordLength?: number;
   now?: Date;
 }): Promise<SuperadminSeedResult> => {
-  if (input.password.length < MINIMUM_PASSWORD_LENGTH) {
+  if (input.password.length < minimumPasswordLength) {
     throw new BootstrapSeedError(
-      `Password seed minimal ${MINIMUM_PASSWORD_LENGTH} karakter.`
+      `Password seed minimal ${minimumPasswordLength} karakter.`
     );
   }
 

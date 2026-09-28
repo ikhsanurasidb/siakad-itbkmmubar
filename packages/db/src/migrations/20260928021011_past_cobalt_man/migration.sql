@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX `grade_scale_sets_scope_effective_uq` ON `grade_scale_sets` (`scope_type`,`scope_id`,`effective_from`);--> statement-breakpoint
+CREATE UNIQUE INDEX `setting_versions_value_effective_uq` ON `setting_versions` (`setting_value_id`,`effective_from`);

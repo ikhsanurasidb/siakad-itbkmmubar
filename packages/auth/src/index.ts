@@ -12,12 +12,28 @@ export interface AuthConfig {
   CORS_ORIGIN: string;
 }
 
+export interface AuthPolicy {
+  idleTimeoutHours: number;
+  lockWindowMinutes: number;
+  loginRateLimitAttempts: number;
+  passwordMinimumLength: number;
+  refreshIntervalMinutes: number;
+}
+
 export const createAuth = (
   env: AuthConfig,
   database: Database,
-  desktopOrigins: readonly string[] = []
-) =>
-  betterAuth({
+  desktopOrigins: readonly string[] = [],
+  policy?: AuthPolicy
+) => {
+  const resolvedPolicy = policy ?? {
+    idleTimeoutHours: 72,
+    lockWindowMinutes: 1,
+    loginRateLimitAttempts: 5,
+    passwordMinimumLength: 16,
+    refreshIntervalMinutes: 60,
+  };
+  return betterAuth({
     advanced: {
       defaultCookieAttributes: {
         httpOnly: true,
@@ -59,7 +75,7 @@ export const createAuth = (
     emailAndPassword: {
       disableSignUp: false,
       enabled: true,
-      minPasswordLength: 16,
+      minPasswordLength: resolvedPolicy.passwordMinimumLength,
     },
     plugins: [
       username({
@@ -79,16 +95,17 @@ export const createAuth = (
         "/get-session": false,
       },
       enabled: true,
-      max: 5,
+      max: resolvedPolicy.loginRateLimitAttempts,
       storage: "database",
-      window: 60,
+      window: resolvedPolicy.lockWindowMinutes * 60,
     },
     secret: env.BETTER_AUTH_SECRET,
     session: {
-      expiresIn: 60 * 60 * 72,
-      updateAge: 60 * 60,
+      expiresIn: 60 * 60 * resolvedPolicy.idleTimeoutHours,
+      updateAge: 60 * resolvedPolicy.refreshIntervalMinutes,
     },
     trustedOrigins: [env.CORS_ORIGIN, ...desktopOrigins],
   });
+};
 
 export type Session = ReturnType<typeof createAuth>["$Infer"]["Session"];

@@ -9,17 +9,19 @@ import {
 import { Input } from "@siakad-itbkmmubar/ui/components/input";
 import { Label } from "@siakad-itbkmmubar/ui/components/label";
 import { useForm } from "@tanstack/react-form";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { LockKeyhole } from "lucide-react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
-import { client } from "@/utils/orpc";
-
-const MINIMUM_PASSWORD_LENGTH = 16;
+import { client, orpc } from "@/utils/orpc";
 
 const ChangePasswordComponent = () => {
   const navigate = useNavigate();
+  const securityPolicy = useQuery(orpc.settings.securityPolicy.queryOptions());
+  const minimumPasswordLength =
+    securityPolicy.data?.passwordMinimumLength ?? 16;
   const changePasswordForm = useForm({
     defaultValues: {
       confirmation: "",
@@ -62,7 +64,7 @@ const ChangePasswordComponent = () => {
             </CardTitle>
             <CardDescription className="text-sm leading-6">
               Perbarui kata sandi sebelum menggunakan layanan akademik lain.
-              Gunakan minimal 16 karakter.
+              Gunakan minimal {minimumPasswordLength} karakter.
             </CardDescription>
           </div>
         </CardHeader>
@@ -110,12 +112,12 @@ const ChangePasswordComponent = () => {
               name="newPassword"
               validators={{
                 onChange: ({ value }) =>
-                  value.length < MINIMUM_PASSWORD_LENGTH
-                    ? `Minimal ${MINIMUM_PASSWORD_LENGTH} karakter.`
+                  value.length < minimumPasswordLength
+                    ? `Minimal ${minimumPasswordLength} karakter.`
                     : undefined,
                 onBlur: ({ value }) =>
-                  value.length < MINIMUM_PASSWORD_LENGTH
-                    ? `Minimal ${MINIMUM_PASSWORD_LENGTH} karakter.`
+                  value.length < minimumPasswordLength
+                    ? `Minimal ${minimumPasswordLength} karakter.`
                     : undefined,
               }}
             >
@@ -127,7 +129,7 @@ const ChangePasswordComponent = () => {
                   <Input
                     autoComplete="new-password"
                     id={field.name}
-                    minLength={MINIMUM_PASSWORD_LENGTH}
+                    minLength={minimumPasswordLength}
                     onBlur={field.handleBlur}
                     onChange={(event) => field.handleChange(event.target.value)}
                     type="password"
@@ -170,7 +172,7 @@ const ChangePasswordComponent = () => {
                   <Input
                     autoComplete="new-password"
                     id={field.name}
-                    minLength={MINIMUM_PASSWORD_LENGTH}
+                    minLength={minimumPasswordLength}
                     onBlur={field.handleBlur}
                     onChange={(event) => field.handleChange(event.target.value)}
                     type="password"

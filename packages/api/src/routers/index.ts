@@ -16,6 +16,8 @@ import {
   masterDataEntityTypes,
   masterDataStatusesList,
 } from "@api/master-data";
+import { settingCategories, settingScopeTypes } from "@api/settings";
+import type { GradeScaleEntry } from "@api/settings";
 import type { RouterClient } from "@orpc/server";
 import { ORPCError } from "@orpc/server";
 import { session, user } from "@siakad-itbkmmubar/db/schema/auth";
@@ -45,6 +47,22 @@ const accountIdInput = z.object({ accountId: z.string().min(1) });
 const masterDataEntitySchema = z.enum(masterDataEntityTypes);
 const masterDataStatusSchema = z.enum(masterDataStatusesList);
 const masterDataDataSchema = z.record(z.string(), z.unknown());
+const settingCategorySchema = z.enum(settingCategories);
+const settingScopeTypeSchema = z.enum(settingScopeTypes);
+const settingsScopeSchema = z.object({
+  scopeId: z.string().trim().default(""),
+  scopeType: settingScopeTypeSchema.default("SYSTEM"),
+});
+const settingValuesSchema = z.record(z.string(), z.unknown());
+const gradeScaleEntriesSchema = z.array(
+  z.object({
+    gradeCode: z.string().trim().min(1).max(10),
+    label: z.string().trim().min(1).max(80),
+    maxScore: z.number().finite().min(0).max(100),
+    minScore: z.number().finite().min(0).max(100),
+    qualityPoints: z.number().finite().min(0).max(4),
+  })
+);
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => "OK"),
@@ -541,6 +559,83 @@ export const appRouter = {
     message: "This is private",
     user: context.session?.user,
   })),
+  settings: {
+    catalog: protectedProcedure
+      .input(
+        z.object({
+          asOf: dateSchema.optional(),
+          category: settingCategorySchema.optional(),
+          scopeId: z.string().trim().optional(),
+          scopeType: settingScopeTypeSchema.optional(),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK", "KAPRODI"]);
+        return context.settingsService.list(input);
+      }),
+    gradeScales: {
+      list: protectedProcedure
+        .input(settingsScopeSchema.optional())
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK", "KAPRODI"]);
+          return context.settingsService.listGradeScales(input);
+        }),
+      publish: protectedProcedure
+        .input(
+          z.object({
+            effectiveFrom: dateSchema,
+            entries: gradeScaleEntriesSchema,
+            name: z.string().trim().min(1).max(100),
+            scope: settingsScopeSchema,
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN"]);
+          return context.settingsService.publishGradeScale({
+            ...input,
+            actorUserId: context.session?.user.id as string,
+            entries: input.entries as GradeScaleEntry[],
+          });
+        }),
+    },
+    publish: protectedProcedure
+      .input(
+        z.object({
+          effectiveFrom: dateSchema,
+          expectedVersions: z
+            .record(z.string(), z.number().int().min(0))
+            .optional(),
+          note: z.string().trim().max(500).optional(),
+          scope: settingsScopeSchema,
+          values: settingValuesSchema,
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN"]);
+        return context.settingsService.publish({
+          ...input,
+          actorUserId: context.session?.user.id as string,
+        });
+      }),
+    rollback: protectedProcedure
+      .input(
+        z.object({
+          effectiveFrom: dateSchema,
+          note: z.string().trim().max(500).optional(),
+          versionId: z.string().min(1),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN"]);
+        return context.settingsService.rollback({
+          ...input,
+          actorUserId: context.session?.user.id as string,
+        });
+      }),
+    securityPolicy: protectedProcedure.handler(({ context }) =>
+      context.settingsService.getSecurityPolicy()
+    ),
+  },
 };
 
 export type AppRouter = typeof appRouter;

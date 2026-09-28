@@ -1,5 +1,17 @@
 import type { IdentityType, RoleKey } from "@api/identity";
 import type { MasterDataEntityType, MasterDataStatus } from "@api/master-data";
+import type {
+  AttendancePolicy,
+  BatchPolicy,
+  FilePolicy,
+  GradeScaleEntry,
+  GradingPolicy,
+  SchedulingPolicy,
+  SecurityPolicy,
+  SettingCategory,
+  SettingKey,
+  SettingScopeType,
+} from "@api/settings";
 import type { Session } from "@siakad-itbkmmubar/auth";
 import type { Database } from "@siakad-itbkmmubar/db";
 
@@ -193,6 +205,87 @@ export interface MasterDataService {
   }) => Promise<Record<string, unknown>>;
 }
 
+export interface SettingsScope {
+  scopeId: string;
+  scopeType: SettingScopeType;
+}
+
+export interface SettingsCatalogItem {
+  category: SettingCategory;
+  defaultValue: unknown;
+  description: string;
+  effectiveFrom: string | null;
+  inherited: boolean;
+  key: SettingKey;
+  label: string;
+  maxValue: number | null;
+  minValue: number | null;
+  value: unknown;
+  valueType: string;
+  version: number;
+  versionId: string | null;
+}
+
+export interface SettingsService {
+  getAttendancePolicy: (scope?: SettingsScope) => Promise<AttendancePolicy>;
+  getBatchPolicy: (scope?: SettingsScope) => Promise<BatchPolicy>;
+  getFilePolicy: (
+    category: string,
+    scope?: SettingsScope
+  ) => Promise<FilePolicy>;
+  getGradingPolicy: (
+    scope?: SettingsScope,
+    asOf?: Date
+  ) => Promise<GradingPolicy>;
+  getSchedulingPolicy: (scope?: SettingsScope) => Promise<SchedulingPolicy>;
+  getSecurityPolicy: (scope?: SettingsScope) => Promise<SecurityPolicy>;
+  list: (input: {
+    asOf?: Date;
+    category?: SettingCategory;
+    scopeId?: string;
+    scopeType?: SettingScopeType;
+  }) => Promise<{
+    asOf: string;
+    items: readonly SettingsCatalogItem[];
+    scope: SettingsScope;
+  }>;
+  listGradeScales: (input?: {
+    scopeId?: string;
+    scopeType?: SettingScopeType;
+  }) => Promise<
+    readonly {
+      effectiveFrom: string;
+      entries: readonly GradeScaleEntry[];
+      id: string;
+      name: string;
+      scopeId: string;
+      scopeType: SettingScopeType;
+      version: number;
+    }[]
+  >;
+  publish: (input: {
+    actorUserId: string;
+    effectiveFrom: Date;
+    expectedVersions?: Readonly<Partial<Record<SettingKey, number>>>;
+    note?: string;
+    scope: SettingsScope;
+    values: Readonly<Partial<Record<SettingKey, unknown>>>;
+  }) => Promise<{ effectiveFrom: string; versionIds: readonly string[] }>;
+  publishGradeScale: (input: {
+    actorUserId: string;
+    effectiveFrom: Date;
+    entries: readonly GradeScaleEntry[];
+    name: string;
+    scope: SettingsScope;
+  }) => Promise<{ id: string; version: number }>;
+  rollback: (input: {
+    actorUserId: string;
+    effectiveFrom: Date;
+    note?: string;
+    versionId: string;
+  }) => Promise<{ effectiveFrom: string; versionIds: readonly string[] }>;
+}
+
 export interface ServerLogger {
   debug: (event: string, context?: Record<string, unknown>) => void;
   info: (event: string, context?: Record<string, unknown>) => void;
@@ -213,5 +306,6 @@ export interface Context {
   identity: IdentityAccess | null;
   identityService: IdentityService;
   masterDataService: MasterDataService;
+  settingsService: SettingsService;
   session: Session | null;
 }

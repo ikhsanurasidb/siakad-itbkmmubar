@@ -22,8 +22,10 @@ import {
   BookOpen,
   Building2,
   CalendarDays,
+  ClipboardList,
   ChevronRight,
   Database,
+  FileSliders,
   GraduationCap,
   Home,
   KeyRound,
@@ -31,6 +33,7 @@ import {
   PanelLeftClose,
   Settings,
   ShieldCheck,
+  SlidersHorizontal,
   Upload,
   UserRound,
   UsersRound,
@@ -62,6 +65,51 @@ interface SidebarProps {
 
 const SUPERADMIN: readonly RoleKey[] = ["SUPERADMIN"];
 const ACADEMIC_ADMIN: readonly RoleKey[] = ["ADMIN_AKADEMIK"];
+
+const settingsItems: readonly NavigationItem[] = [
+  {
+    icon: SlidersHorizontal,
+    label: "Ringkasan",
+    roles: SUPERADMIN,
+    to: "/superadmin/pengaturan",
+  },
+  {
+    icon: ShieldCheck,
+    label: "Keamanan",
+    roles: SUPERADMIN,
+    to: "/superadmin/pengaturan/keamanan",
+  },
+  {
+    icon: CalendarDays,
+    label: "Penjadwalan",
+    roles: SUPERADMIN,
+    to: "/superadmin/pengaturan/penjadwalan",
+  },
+  {
+    icon: ClipboardList,
+    label: "Presensi",
+    roles: SUPERADMIN,
+    to: "/superadmin/pengaturan/presensi",
+  },
+  {
+    icon: GraduationCap,
+    label: "Nilai",
+    roles: SUPERADMIN,
+    to: "/superadmin/pengaturan/nilai",
+  },
+  {
+    icon: FileSliders,
+    label: "Berkas",
+    roles: SUPERADMIN,
+    to: "/superadmin/pengaturan/file",
+  },
+  {
+    icon: Database,
+    label: "Impor dan proses",
+    roles: SUPERADMIN,
+    to: "/superadmin/pengaturan/database-job",
+  },
+];
 
 const superadminMasterDataItems: readonly NavigationItem[] = [
   {
@@ -246,7 +294,15 @@ const navigationSections: readonly NavigationSection[] = [
     label: "Data master",
   },
   {
-    items: [{ icon: Settings, label: "Keamanan akun", to: "/akun/keamanan" }],
+    items: [
+      { icon: Settings, label: "Keamanan akun", to: "/akun/keamanan" },
+      {
+        children: settingsItems,
+        icon: SlidersHorizontal,
+        label: "Pengaturan",
+        roles: SUPERADMIN,
+      },
+    ],
     label: "Sistem",
   },
 ];
