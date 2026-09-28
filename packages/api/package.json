@@ -16,6 +16,7 @@
     "@orpc/zod": "catalog:",
     "@siakad-itbkmmubar/auth": "workspace:*",
     "@siakad-itbkmmubar/db": "workspace:*",
+    "drizzle-orm": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

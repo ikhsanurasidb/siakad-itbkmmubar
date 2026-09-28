@@ -35,6 +35,7 @@
         "@siakad-itbkmmubar/auth": "workspace:*",
         "@siakad-itbkmmubar/db": "workspace:*",
         "better-auth": "catalog:",
+        "drizzle-orm": "catalog:",
         "hono": "^4.13.7",
         "varlock": "catalog:",
         "zod": "catalog:",
@@ -94,6 +95,7 @@
         "@orpc/zod": "catalog:",
         "@siakad-itbkmmubar/auth": "workspace:*",
         "@siakad-itbkmmubar/db": "workspace:*",
+        "drizzle-orm": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {

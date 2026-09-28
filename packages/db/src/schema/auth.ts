@@ -16,6 +16,13 @@ export const user = sqliteTable("user", {
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
+  username: text("username").unique(),
+});
+
+export const rateLimit = sqliteTable("rate_limit", {
+  count: integer("count").notNull(),
+  key: text("key").primaryKey(),
+  lastRequest: integer("last_request").notNull(),
 });
 
 export const session = sqliteTable(
@@ -88,7 +95,7 @@ export const verification = sqliteTable(
 );
 
 export const authRelations = defineRelationsPart(
-  { account, session, user, verification },
+  { account, rateLimit, session, user, verification },
   (r) => ({
     account: {
       user: r.one.user({
@@ -96,6 +103,7 @@ export const authRelations = defineRelationsPart(
         to: r.user.id,
       }),
     },
+    rateLimit: {},
     session: {
       user: r.one.user({
         from: r.session.userId,

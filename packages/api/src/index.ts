@@ -16,6 +16,19 @@ const requireAuth = o.middleware(({ context, next }) => {
   });
 });
 
-export const protectedProcedure = publicProcedure.use(requireAuth);
+const requireFullAccess = o.middleware(({ context, next }) => {
+  if (!context.identity || context.identity.status !== "ACTIVE") {
+    throw new ORPCError("FORBIDDEN");
+  }
+  if (context.identity.mustChangePassword) {
+    throw new ORPCError("FORBIDDEN", {
+      message: "Ganti kata sandi wajib diselesaikan sebelum membuka layanan.",
+    });
+  }
+  return next();
+});
+
+export const authenticatedProcedure = publicProcedure.use(requireAuth);
+export const protectedProcedure = authenticatedProcedure.use(requireFullAccess);
 
 export { ApiError, getApiErrorPayload } from "@api/errors";

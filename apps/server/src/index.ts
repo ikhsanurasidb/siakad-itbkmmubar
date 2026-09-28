@@ -5,7 +5,7 @@ import { RPCHandler } from "@orpc/server/fetch";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { createContext } from "@server/context";
 import { ENV } from "@server/env.server";
-import { createAuth } from "@server/services";
+import { createAuth, getDb, seedSuperadmin } from "@server/services";
 import { createServerLogger } from "@server/services/logger";
 import type { LogFormat, LogLevel } from "@server/services/logger";
 import { getApiErrorPayload } from "@siakad-itbkmmubar/api/errors";
@@ -74,6 +74,39 @@ app.onError((error, c) => {
 
   c.header("x-request-id", requestId);
   return c.json(getApiErrorPayload(error, requestId), 500);
+});
+
+app.on("POST", "/api/auth/sign-up/email", (c) =>
+  c.json(
+    {
+      message: "Pembuatan akun hanya dapat dilakukan melalui provisioning.",
+    },
+    404
+  )
+);
+
+app.post("/api/seed/superadmin", async (c) => {
+  if (ENV.NODE_ENV !== "development") {
+    return c.json({ message: "Seed hanya tersedia pada environment development." }, 404);
+  }
+
+  const body = await c.req.json<{
+    email?: string;
+    identifier?: string;
+    name?: string;
+    password?: string;
+  }>();
+  if (!body.password) {
+    return c.json({ message: "Password seed wajib diisi." }, 400);
+  }
+
+  const result = await seedSuperadmin({
+    email: body.email,
+    identifier: body.identifier,
+    name: body.name,
+    password: body.password,
+  });
+  return c.json(result, 201);
 });
 
 app.on(["POST", "GET"], "/api/auth/*", async (c) => {

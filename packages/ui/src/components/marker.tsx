@@ -66,4 +66,4 @@ const MarkerContent = ({
   />
 );
 
-export { Marker, MarkerIcon, MarkerContent, markerVariants };
+export { Marker, MarkerIcon, MarkerContent };

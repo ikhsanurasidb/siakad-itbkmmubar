@@ -1,9 +1,17 @@
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
 
+import { authClient } from "@/lib/auth-client";
+
 const RouteComponent = () => {
+  const navigate = useNavigate();
   const { session } = Route.useRouteContext();
+
+  const handleLogout = async () => {
+    await authClient.signOut();
+    await navigate({ to: "/login" });
+  };
 
   return (
     <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
@@ -16,7 +24,7 @@ const RouteComponent = () => {
           Selamat datang, {session.data?.user.name}.
         </p>
       </div>
-      <Button className="w-fit" variant="outline">
+      <Button className="w-fit" onClick={handleLogout} variant="outline">
         <LogOut aria-hidden="true" />
         Keluar
       </Button>

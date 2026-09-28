@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 
 interface BreadcrumbItem {
   href?: string;
+  id?: string;
   label: string;
 }
 
@@ -13,7 +14,10 @@ export const Breadcrumbs = ({ items }: BreadcrumbsProps) => (
   <nav aria-label="Jejak navigasi">
     <ol className="text-muted-foreground flex flex-wrap items-center gap-1 text-xs">
       {items.map((item, index) => (
-        <li className="flex items-center gap-1" key={`${item.label}-${index}`}>
+        <li
+          className="flex items-center gap-1"
+          key={item.id ?? item.href ?? item.label}
+        >
           {index > 0 && <ChevronRight aria-hidden="true" className="size-3" />}
           {item.href ? (
             <a

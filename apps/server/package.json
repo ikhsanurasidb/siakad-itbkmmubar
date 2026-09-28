@@ -16,6 +16,7 @@
     "@siakad-itbkmmubar/auth": "workspace:*",
     "@siakad-itbkmmubar/db": "workspace:*",
     "better-auth": "catalog:",
+    "drizzle-orm": "catalog:",
     "hono": "^4.13.7",
     "varlock": "catalog:",
     "zod": "catalog:"

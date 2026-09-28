@@ -20,7 +20,7 @@ export const NotificationCenter = ({
       >
         <Bell aria-hidden="true" />
         {unreadCount > 0 && (
-          <span className="bg-destructive text-destructive-foreground absolute -top-0.5 -right-0.5 grid min-w-4 place-items-center px-1 text-[10px] leading-4">
+          <span className="bg-destructive text-destructive-foreground absolute -top-0.5 -right-0.5 grid min-w-4 place-items-center rounded-full px-1 text-xs leading-4">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}

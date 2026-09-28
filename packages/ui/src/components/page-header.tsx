@@ -21,7 +21,7 @@ export const PageHeader = ({
   >
     <div className="grid gap-1">
       {eyebrow && (
-        <p className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+        <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
           {eyebrow}
         </p>
       )}

@@ -25,6 +25,7 @@ export const server = Cloudflare.Worker("server", {
     DEPLOYMENT_VERSION: Config.String("DEPLOYMENT_VERSION"),
     LOG_FORMAT: Config.String("LOG_FORMAT"),
     LOG_LEVEL: Config.String("LOG_LEVEL"),
+    NODE_ENV: Config.String("NODE_ENV"),
     R2: fileBucket,
   },
   main: "../../apps/server/src/index.ts",

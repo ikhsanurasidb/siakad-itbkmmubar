@@ -41,7 +41,7 @@ export const ConfirmationDialog = ({
   return (
     <dialog
       aria-labelledby="confirmation-dialog-title"
-      className="bg-background text-foreground backdrop:bg-foreground/40 m-auto w-[calc(100%-2rem)] max-w-md border p-0 shadow-xl"
+      className="bg-background text-foreground backdrop:bg-foreground/40 ring-border/70 m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl p-0 shadow-xl ring-1"
       onCancel={onCancel}
       ref={dialogRef}
     >

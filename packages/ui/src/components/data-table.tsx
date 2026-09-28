@@ -10,7 +10,7 @@ export interface DataTableColumn<T> {
 interface DataTableProps<T> {
   columns: readonly DataTableColumn<T>[];
   emptyMessage?: string;
-  getRowKey?: (row: T, index: number) => string;
+  getRowKey: (row: T) => string;
   rows: readonly T[];
 }
 
@@ -46,10 +46,10 @@ export const DataTable = <T,>({
             </td>
           </tr>
         ) : (
-          rows.map((row, index) => (
+          rows.map((row) => (
             <tr
               className={cn("hover:bg-muted/30 transition-colors")}
-              key={getRowKey?.(row, index) ?? index}
+              key={getRowKey(row)}
             >
               {columns.map((column) => (
                 <td className="px-4 py-3 align-top" key={column.id}>

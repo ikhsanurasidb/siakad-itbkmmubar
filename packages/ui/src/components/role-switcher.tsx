@@ -20,11 +20,11 @@ export const RoleSwitcher = ({
 
   return (
     <div className="grid gap-1">
-      <Label className="text-muted-foreground text-[11px]" htmlFor={id}>
+      <Label className="text-muted-foreground text-xs" htmlFor={id}>
         Peran aktif
       </Label>
       <select
-        className="border-input bg-background h-8 border px-2 text-xs outline-none focus-visible:ring-1"
+        className="border-input bg-background h-10 rounded-xl border px-3 text-base outline-none focus-visible:ring-2"
         id={id}
         onChange={(event) => onChange(event.target.value)}
         value={value}

@@ -35,7 +35,7 @@ export const FilePreviewDialog = ({
   return (
     <dialog
       aria-labelledby="file-preview-title"
-      className="bg-background text-foreground backdrop:bg-foreground/40 m-auto w-[calc(100%-2rem)] max-w-4xl border p-0 shadow-xl"
+      className="bg-background text-foreground backdrop:bg-foreground/40 ring-border/70 m-auto w-[calc(100%-2rem)] max-w-4xl rounded-2xl p-0 shadow-xl ring-1"
       onCancel={onClose}
       ref={dialogRef}
     >

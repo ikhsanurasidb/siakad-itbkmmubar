@@ -35,6 +35,7 @@
     "check-types": "turbo run check-types",
     "dev:web": "turbo run dev:bare -F web --",
     "dev:server": "turbo run dev:bare -F hono --",
+    "seed:superadmin": "bun scripts/seed-superadmin.ts",
     "db:generate": "turbo run db:generate -F @siakad-itbkmmubar/db --",
     "deploy": "turbo run deploy -F @siakad-itbkmmubar/infra --",
     "destroy": "turbo run destroy -F @siakad-itbkmmubar/infra --",

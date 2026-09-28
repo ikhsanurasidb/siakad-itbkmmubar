@@ -8,8 +8,6 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
-import Header from "@/components/header";
-import Sidebar from "@/components/sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import type { orpc } from "@/utils/orpc";
 
@@ -25,21 +23,17 @@ const RootComponent = () => (
     <HeadContent />
     <ThemeProvider
       attribute="class"
-      defaultTheme="dark"
+      defaultTheme="light"
       disableTransitionOnChange
       storageKey="vite-ui-theme"
     >
-      <div className="grid min-h-svh grid-rows-[auto_1fr]">
+      <div className="min-h-svh">
         <a className="sr-only focus:not-sr-only" href="#main-content">
           Lewati ke konten utama
         </a>
-        <Header />
-        <div className="flex min-h-0">
-          <Sidebar />
-          <main className="min-w-0 flex-1" id="main-content">
-            <Outlet />
-          </main>
-        </div>
+        <main id="main-content">
+          <Outlet />
+        </main>
       </div>
       <Toaster richColors />
     </ThemeProvider>

@@ -1,10 +1,30 @@
 export {
   account,
   authRelations,
+  rateLimit,
   session,
   user,
   verification,
 } from "@db/schema/auth";
+export {
+  identityAccounts,
+  identityAccountStatuses,
+  identityTypes,
+  identifierReservations,
+  identifierSequences,
+  identityRelations,
+  permissions,
+  programHeads,
+  provisioningStatuses,
+  roleConflicts,
+  roleKeys,
+  rolePermissions,
+  roles,
+  scopeTypes,
+  securityEvents,
+  userRoles,
+  userScopes,
+} from "@db/schema/identity";
 export {
   auditLogs,
   backgroundJobs,
