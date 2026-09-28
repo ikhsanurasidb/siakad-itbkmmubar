@@ -355,6 +355,7 @@ export const appRouter = {
     status: authenticatedProcedure.handler(({ context }) => ({
       identifier: context.identity?.identifier ?? null,
       mustChangePassword: context.identity?.mustChangePassword ?? false,
+      roles: context.identity?.roles ?? [],
       status: context.identity?.status ?? "INACTIVE",
     })),
   },
@@ -516,6 +517,10 @@ export const appRouter = {
         });
         return { status: "ACTIVE" as const };
       }),
+    summary: protectedProcedure.handler(({ context }) => {
+      requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+      return context.masterDataService.summary();
+    }),
     update: protectedProcedure
       .input(
         z.object({

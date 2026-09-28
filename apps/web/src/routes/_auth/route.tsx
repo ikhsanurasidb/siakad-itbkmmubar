@@ -10,11 +10,11 @@ import { authClient } from "@/lib/auth-client";
 import { client } from "@/utils/orpc";
 
 const AuthLayout = () => {
-  const { session } = Route.useRouteContext();
+  const { access, session } = Route.useRouteContext();
 
   return (
     <SidebarProvider>
-      <Sidebar />
+      <Sidebar roles={access.roles} />
       <SidebarInset>
         <Header userName={session.data?.user.name ?? "Pengguna"} />
         <Outlet />
@@ -50,6 +50,6 @@ export const Route = createFileRoute("/_auth")({
     ) {
       throw redirect({ to: "/dashboard" });
     }
-    return { session };
+    return { access, session };
   },
 });

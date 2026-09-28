@@ -1,3 +1,9 @@
+import type { RoleKey } from "@siakad-itbkmmubar/api/identity";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@siakad-itbkmmubar/ui/components/collapsible";
 import {
   Sidebar as SidebarPrimitive,
   SidebarContent,
@@ -13,100 +19,345 @@ import {
 } from "@siakad-itbkmmubar/ui/components/sidebar";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  Bell,
   BookOpen,
+  Building2,
   CalendarDays,
-  CheckCircle2,
-  ClipboardList,
-  FileText,
+  ChevronRight,
+  Database,
   GraduationCap,
-  History,
   Home,
-  Laptop,
-  LayoutDashboard,
+  KeyRound,
   Menu,
   PanelLeftClose,
   Settings,
+  ShieldCheck,
+  Upload,
+  UserRound,
   UsersRound,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-const primaryNavigation = [
-  { active: true, icon: Home, label: "Beranda", to: "/dashboard" },
+interface NavigationItem {
+  children?: readonly NavigationItem[];
+  icon: LucideIcon;
+  label: string;
+  roles?: readonly RoleKey[];
+  to?: string;
+}
+
+interface NavigationSection {
+  items: readonly NavigationItem[];
+  label?: string;
+}
+
+interface NavigationNodeProps {
+  item: NavigationItem;
+  pathname: string;
+  setOpenMobile: (open: boolean) => void;
+}
+
+interface SidebarProps {
+  roles: readonly RoleKey[];
+}
+
+const SUPERADMIN: readonly RoleKey[] = ["SUPERADMIN"];
+const ACADEMIC_ADMIN: readonly RoleKey[] = ["ADMIN_AKADEMIK"];
+
+const superadminMasterDataItems: readonly NavigationItem[] = [
   {
-    active: false,
-    icon: LayoutDashboard,
-    label: "Dashboard",
-    to: "/dashboard",
+    icon: Database,
+    label: "Ringkasan",
+    roles: SUPERADMIN,
+    to: "/superadmin/master-data",
   },
-] as const;
-
-const academicNavigation = [
+  {
+    icon: UserRound,
+    label: "Mahasiswa",
+    roles: SUPERADMIN,
+    to: "/superadmin/master-data/mahasiswa",
+  },
+  {
+    icon: GraduationCap,
+    label: "Dosen",
+    roles: SUPERADMIN,
+    to: "/superadmin/master-data/dosen",
+  },
+  {
+    icon: BookOpen,
+    label: "Program Studi",
+    roles: SUPERADMIN,
+    to: "/superadmin/master-data/prodi",
+  },
   {
     icon: UsersRound,
-    label: "Identitas & Akses",
+    label: "Angkatan",
+    roles: SUPERADMIN,
+    to: "/superadmin/master-data/angkatan",
+  },
+  {
+    icon: BookOpen,
+    label: "Mata Kuliah",
+    roles: SUPERADMIN,
+    to: "/superadmin/master-data/mata-kuliah",
+  },
+  {
+    icon: Building2,
+    label: "Ruang",
+    roles: SUPERADMIN,
+    to: "/superadmin/master-data/ruang",
+  },
+  {
+    icon: CalendarDays,
+    label: "Semester",
+    roles: SUPERADMIN,
+    to: "/superadmin/master-data/semester",
+  },
+  {
+    icon: Upload,
+    label: "Import Master Data",
+    roles: SUPERADMIN,
+    to: "/superadmin/master-data/import",
+  },
+];
+
+const academicAdminMasterDataItems: readonly NavigationItem[] = [
+  {
+    icon: Database,
+    label: "Ringkasan",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/master-data",
+  },
+  {
+    icon: UserRound,
+    label: "Mahasiswa",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/master-data/mahasiswa",
+  },
+  {
+    icon: GraduationCap,
+    label: "Dosen",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/master-data/dosen",
+  },
+  {
+    icon: BookOpen,
+    label: "Program Studi",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/master-data/prodi",
+  },
+  {
+    icon: UsersRound,
+    label: "Angkatan",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/master-data/angkatan",
+  },
+  {
+    icon: BookOpen,
+    label: "Mata Kuliah",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/master-data/mata-kuliah",
+  },
+  {
+    icon: Building2,
+    label: "Ruang",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/master-data/ruang",
+  },
+  {
+    icon: CalendarDays,
+    label: "Semester",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/master-data/semester",
+  },
+  {
+    icon: Upload,
+    label: "Import Master Data",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/master-data/import",
+  },
+];
+
+const superadminIdentityItems: readonly NavigationItem[] = [
+  {
+    icon: UserRound,
+    label: "Akun identitas",
+    roles: SUPERADMIN,
     to: "/superadmin/identitas/akun",
   },
   {
-    icon: ClipboardList,
-    label: "Master Data",
-    to: "/admin-akademik/master-data/mahasiswa",
+    icon: ShieldCheck,
+    label: "Role sistem",
+    roles: SUPERADMIN,
+    to: "/superadmin/identitas/roles",
   },
-  { icon: BookOpen, label: "Kurikulum", to: "/dashboard" },
-  { icon: FileText, label: "KRS Paket", to: "/dashboard" },
-  { icon: UsersRound, label: "Kelas Kuliah", to: "/dashboard" },
-  { icon: CalendarDays, label: "Jadwal", to: "/dashboard" },
-  { icon: Laptop, label: "LMS", to: "/dashboard" },
-  { icon: CheckCircle2, label: "Presensi", to: "/dashboard" },
-  { icon: FileText, label: "Nilai", to: "/dashboard" },
-  { icon: GraduationCap, label: "KHS & Transkrip", to: "/dashboard" },
-] as const;
+  {
+    icon: KeyRound,
+    label: "Scope akses",
+    roles: SUPERADMIN,
+    to: "/superadmin/identitas/scopes",
+  },
+];
 
-const systemNavigation = [
-  { icon: Settings, label: "Pengaturan", to: "/dashboard" },
-  { icon: History, label: "Audit Log", to: "/dashboard" },
-  { icon: Bell, label: "Notifikasi", to: "/dashboard" },
-] as const;
+const academicAdminIdentityItems: readonly NavigationItem[] = [
+  {
+    icon: UserRound,
+    label: "Akun akademik",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/identitas/akun",
+  },
+];
 
-const Sidebar = () => {
+const navigationSections: readonly NavigationSection[] = [
+  {
+    items: [{ icon: Home, label: "Beranda", to: "/dashboard" }],
+  },
+  {
+    items: [
+      {
+        children: superadminIdentityItems,
+        icon: ShieldCheck,
+        label: "Superadmin",
+        roles: SUPERADMIN,
+      },
+      {
+        children: academicAdminIdentityItems,
+        icon: UsersRound,
+        label: "Admin Akademik",
+        roles: ACADEMIC_ADMIN,
+      },
+    ],
+    label: "Identitas & Akses",
+  },
+  {
+    items: [
+      {
+        children: superadminMasterDataItems,
+        icon: ShieldCheck,
+        label: "Superadmin",
+        roles: SUPERADMIN,
+      },
+      {
+        children: academicAdminMasterDataItems,
+        icon: Database,
+        label: "Admin Akademik",
+        roles: ACADEMIC_ADMIN,
+      },
+    ],
+    label: "Master Data",
+  },
+  {
+    items: [{ icon: Settings, label: "Keamanan akun", to: "/akun/keamanan" }],
+    label: "Sistem",
+  },
+];
+
+const isAllowed = (
+  item: NavigationItem,
+  roles: ReadonlySet<RoleKey>
+): boolean => !item.roles || item.roles.some((role) => roles.has(role));
+
+const getVisibleItemsForRoles = (
+  items: readonly NavigationItem[],
+  roles: ReadonlySet<RoleKey>
+): NavigationItem[] =>
+  items.flatMap((item) => {
+    if (!isAllowed(item, roles)) {
+      return [];
+    }
+
+    const visibleChildren = item.children
+      ? getVisibleItemsForRoles(item.children, roles)
+      : undefined;
+
+    if (item.children && !visibleChildren?.length) {
+      return [];
+    }
+
+    return [{ ...item, children: visibleChildren }];
+  });
+
+const getVisibleItems = (
+  items: readonly NavigationItem[],
+  roles: readonly RoleKey[]
+): NavigationItem[] => getVisibleItemsForRoles(items, new Set(roles));
+
+const isPathActive = (pathname: string, item: NavigationItem): boolean => {
+  const itemIsActive = item.to
+    ? pathname === item.to || pathname.startsWith(`${item.to}/`)
+    : false;
+
+  return (
+    itemIsActive ||
+    Boolean(item.children?.some((child) => isPathActive(pathname, child)))
+  );
+};
+
+const NavigationNode = ({
+  item,
+  pathname,
+  setOpenMobile,
+}: NavigationNodeProps) => {
+  const { children, icon: Icon, label, to } = item;
+  const isActive = isPathActive(pathname, item);
+
+  if (!children?.length) {
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          isActive={isActive}
+          render={
+            <Link
+              aria-current={isActive ? "page" : undefined}
+              onClick={() => setOpenMobile(false)}
+              to={to ?? "/dashboard"}
+            />
+          }
+          title={label}
+        >
+          <Icon aria-hidden="true" />
+          <span>{label}</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  }
+
+  return (
+    <SidebarMenuItem>
+      <Collapsible className="group/collapsible" defaultOpen={isActive}>
+        <CollapsibleTrigger
+          render={
+            <SidebarMenuButton isActive={isActive} title={label}>
+              <Icon aria-hidden="true" />
+              <span>{label}</span>
+              <ChevronRight
+                aria-hidden="true"
+                className="ml-auto transition-transform duration-200 group-data-[collapsible=icon]:hidden group-data-[open]/collapsible:rotate-90"
+              />
+            </SidebarMenuButton>
+          }
+        />
+        <CollapsibleContent className="group-data-[collapsible=icon]:hidden">
+          <SidebarMenu className="border-sidebar-border/50 mt-1 ml-3 gap-1 border-l pl-2">
+            {children.map((child) => (
+              <NavigationNode
+                item={child}
+                key={child.label}
+                pathname={pathname}
+                setOpenMobile={setOpenMobile}
+              />
+            ))}
+          </SidebarMenu>
+        </CollapsibleContent>
+      </Collapsible>
+    </SidebarMenuItem>
+  );
+};
+
+const Sidebar = ({ roles }: SidebarProps) => {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
   const { setOpenMobile, state, toggleSidebar } = useSidebar();
-
-  const renderNavigation = (
-    items: readonly {
-      active?: boolean;
-      icon: typeof Home;
-      label: string;
-      to: string;
-    }[]
-  ) => (
-    <SidebarMenu>
-      {items.map(({ active = true, icon: Icon, label, to }) => {
-        const isActive =
-          active && (pathname === to || pathname.startsWith(`${to}/`));
-
-        return (
-          <SidebarMenuItem key={label}>
-            <SidebarMenuButton
-              isActive={isActive}
-              render={
-                <Link
-                  aria-current={isActive ? "page" : undefined}
-                  onClick={() => setOpenMobile(false)}
-                  to={to}
-                />
-              }
-              title={label}
-            >
-              <Icon aria-hidden="true" />
-              <span>{label}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        );
-      })}
-    </SidebarMenu>
-  );
 
   return (
     <SidebarPrimitive collapsible="icon" variant="sidebar">
@@ -126,25 +377,32 @@ const Sidebar = () => {
       </SidebarHeader>
 
       <SidebarContent className="gap-5 px-3 py-4">
-        <SidebarGroup>
-          <SidebarGroupContent>
-            {renderNavigation(primaryNavigation)}
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {navigationSections.map((section) => {
+          const visibleItems = getVisibleItems(section.items, roles);
+          if (!visibleItems.length) {
+            return null;
+          }
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Akademik</SidebarGroupLabel>
-          <SidebarGroupContent>
-            {renderNavigation(academicNavigation)}
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Sistem</SidebarGroupLabel>
-          <SidebarGroupContent>
-            {renderNavigation(systemNavigation)}
-          </SidebarGroupContent>
-        </SidebarGroup>
+          return (
+            <SidebarGroup key={section.label ?? "primary"}>
+              {section.label && (
+                <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
+              )}
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {visibleItems.map((item) => (
+                    <NavigationNode
+                      item={item}
+                      key={item.label}
+                      pathname={pathname}
+                      setOpenMobile={setOpenMobile}
+                    />
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          );
+        })}
       </SidebarContent>
 
       <SidebarFooter className="border-sidebar-border/60 border-t p-4">
