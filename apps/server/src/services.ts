@@ -3,6 +3,7 @@ import { seedSuperadmin as seedConfiguredSuperadmin } from "@server/services/boo
 import { createCurriculumService as createConfiguredCurriculumService } from "@server/services/curriculum";
 import { createIdentityService as createConfiguredIdentityService } from "@server/services/identity";
 import { createMasterDataService as createConfiguredMasterDataService } from "@server/services/master-data";
+import { createSchedulingService as createConfiguredSchedulingService } from "@server/services/scheduling";
 import { createSettingsService as createConfiguredSettingsService } from "@server/services/settings";
 import { createR2FileStorage } from "@server/services/storage";
 import { createStudyPlanService as createConfiguredStudyPlanService } from "@server/services/study-plan";
@@ -51,6 +52,15 @@ export const createCurriculumService = async (database?: Database) => {
 
 export const createStudyPlanService = async (database?: Database) =>
   createConfiguredStudyPlanService({ database: database ?? (await getDb()) });
+
+export const createSchedulingService = async (database?: Database) => {
+  const db = database ?? (await getDb());
+  const settingsService = await createSettingsService(db);
+  return createConfiguredSchedulingService({
+    database: db,
+    getSchedulingPolicy: () => settingsService.getSchedulingPolicy(),
+  });
+};
 
 export const seedSuperadmin = async (
   input: Parameters<typeof seedConfiguredSuperadmin>[0]["input"]

@@ -68,6 +68,58 @@ const SUPERADMIN: readonly RoleKey[] = ["SUPERADMIN"];
 const ACADEMIC_ADMIN: readonly RoleKey[] = ["ADMIN_AKADEMIK"];
 const PROGRAM_HEAD: readonly RoleKey[] = ["KAPRODI"];
 const STUDENT: readonly RoleKey[] = ["MAHASISWA"];
+const LECTURER: readonly RoleKey[] = ["DOSEN"];
+
+const superadminSchedulingItems: readonly NavigationItem[] = [
+  {
+    icon: CalendarDays,
+    label: "Kelas dan jadwal",
+    roles: SUPERADMIN,
+    to: "/superadmin/kelas",
+  },
+];
+
+const academicAdminSchedulingItems: readonly NavigationItem[] = [
+  {
+    icon: CalendarDays,
+    label: "Kelas dan jadwal",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/kelas",
+  },
+  {
+    icon: CalendarDays,
+    label: "Perubahan jadwal",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/jadwal/perubahan",
+  },
+];
+
+const programHeadSchedulingItems: readonly NavigationItem[] = [
+  {
+    icon: CalendarDays,
+    label: "Persetujuan jadwal",
+    roles: PROGRAM_HEAD,
+    to: "/kaprodi/jadwal/persetujuan",
+  },
+];
+
+const lecturerSchedulingItems: readonly NavigationItem[] = [
+  {
+    icon: CalendarDays,
+    label: "Jadwal mengajar",
+    roles: LECTURER,
+    to: "/dosen/jadwal",
+  },
+];
+
+const studentSchedulingItems: readonly NavigationItem[] = [
+  {
+    icon: CalendarDays,
+    label: "Jadwal kuliah",
+    roles: STUDENT,
+    to: "/mahasiswa/jadwal",
+  },
+];
 
 const superadminCurriculumItems: readonly NavigationItem[] = [
   {
@@ -102,6 +154,15 @@ const academicAdminStudyPlanItems: readonly NavigationItem[] = [
     label: "KRS Paket",
     roles: ACADEMIC_ADMIN,
     to: "/admin-akademik/krs",
+  },
+];
+
+const superadminStudyPlanItems: readonly NavigationItem[] = [
+  {
+    icon: ClipboardList,
+    label: "KRS Paket",
+    roles: SUPERADMIN,
+    to: "/superadmin/krs",
   },
 ];
 
@@ -382,6 +443,12 @@ const navigationSections: readonly NavigationSection[] = [
   {
     items: [
       {
+        children: superadminStudyPlanItems,
+        icon: ShieldCheck,
+        label: "Superadmin",
+        roles: SUPERADMIN,
+      },
+      {
         children: academicAdminStudyPlanItems,
         icon: UsersRound,
         label: "Admin Akademik",
@@ -401,6 +468,41 @@ const navigationSections: readonly NavigationSection[] = [
       },
     ],
     label: "KRS",
+  },
+  {
+    items: [
+      {
+        children: superadminSchedulingItems,
+        icon: ShieldCheck,
+        label: "Superadmin",
+        roles: SUPERADMIN,
+      },
+      {
+        children: academicAdminSchedulingItems,
+        icon: UsersRound,
+        label: "Admin Akademik",
+        roles: ACADEMIC_ADMIN,
+      },
+      {
+        children: programHeadSchedulingItems,
+        icon: GraduationCap,
+        label: "Kaprodi",
+        roles: PROGRAM_HEAD,
+      },
+      {
+        children: lecturerSchedulingItems,
+        icon: GraduationCap,
+        label: "Dosen",
+        roles: LECTURER,
+      },
+      {
+        children: studentSchedulingItems,
+        icon: UserRound,
+        label: "Mahasiswa",
+        roles: STUDENT,
+      },
+    ],
+    label: "Kelas dan jadwal",
   },
   {
     items: [

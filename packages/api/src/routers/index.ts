@@ -18,6 +18,11 @@ import {
   masterDataEntityTypes,
   masterDataStatusesList,
 } from "@api/master-data";
+import {
+  scheduleChangeRequestStatuses,
+  scheduleDraftStatuses,
+  scheduleModalities,
+} from "@api/scheduling";
 import { settingCategories, settingScopeTypes } from "@api/settings";
 import type { GradeScaleEntry } from "@api/settings";
 import { studyPlanStatuses } from "@api/study-plan";
@@ -87,6 +92,9 @@ const gradeScaleEntriesSchema = z.array(
   })
 );
 const studyPlanStatusSchema = z.enum(studyPlanStatuses);
+const scheduleDraftStatusSchema = z.enum(scheduleDraftStatuses);
+const scheduleModalitySchema = z.enum(scheduleModalities);
+const scheduleChangeRequestStatusSchema = z.enum(scheduleChangeRequestStatuses);
 
 export const appRouter = {
   curriculum: {
@@ -725,6 +733,239 @@ export const appRouter = {
     message: "This is private",
     user: context.session?.user,
   })),
+  scheduling: {
+    changeRequests: {
+      decide: protectedProcedure
+        .input(
+          z.object({
+            approve: z.boolean(),
+            reason: z.string().trim().max(500).optional(),
+            requestId: z.string().min(1),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+          return context.schedulingService.decideOfflineChange({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      list: protectedProcedure
+        .input(
+          z.object({ status: scheduleChangeRequestStatusSchema.optional() })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+          ]);
+          return context.schedulingService.listChangeRequests({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      request: protectedProcedure
+        .input(
+          z.object({
+            endAt: dateSchema,
+            meetingId: z.string().min(1),
+            reason: z.string().trim().min(10).max(500),
+            roomId: z.string().min(1),
+            startAt: dateSchema,
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["DOSEN"]);
+          return context.schedulingService.requestOfflineChange({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
+    drafts: {
+      create: protectedProcedure
+        .input(
+          z.object({
+            academicPeriodId: z.string().min(1),
+            studyProgramId: z.string().min(1),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+          return context.schedulingService.createDraft({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      decide: protectedProcedure
+        .input(
+          z.object({
+            approve: z.boolean(),
+            draftId: z.string().min(1),
+            expectedVersion: z.number().int().min(0),
+            reason: z.string().trim().max(500).optional(),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["KAPRODI"]);
+          return context.schedulingService.decideDraft({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      detail: protectedProcedure
+        .input(z.object({ draftId: z.string().min(1) }))
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK", "KAPRODI"]);
+          return context.schedulingService.detailDraft({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      list: protectedProcedure
+        .input(z.object({ status: scheduleDraftStatusSchema.optional() }))
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK", "KAPRODI"]);
+          return context.schedulingService.listDrafts({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      publish: protectedProcedure
+        .input(
+          z.object({
+            draftId: z.string().min(1),
+            expectedVersion: z.number().int().min(0),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+          return context.schedulingService.publishDraft({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      submit: protectedProcedure
+        .input(
+          z.object({
+            draftId: z.string().min(1),
+            expectedVersion: z.number().int().min(0),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+          return context.schedulingService.submitDraft({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      upsertSlot: protectedProcedure
+        .input(
+          z.object({
+            classSectionId: z.string().min(1),
+            draftId: z.string().min(1),
+            endAt: dateSchema,
+            instructions: z.string().trim().max(1000).optional(),
+            modality: scheduleModalitySchema,
+            onlineUrl: z.url().max(2000).optional(),
+            roomId: z.string().min(1).optional(),
+            startAt: dateSchema,
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+          return context.schedulingService.upsertSlot({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
+    mapping: {
+      generate: protectedProcedure
+        .input(
+          z.object({
+            academicPeriodId: z.string().min(1),
+            classCapacity: z.number().int().min(1).max(500).default(30),
+            idempotencyKey: z.string().trim().min(1).max(160).optional(),
+            studyProgramId: z.string().min(1).optional(),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+          return context.schedulingService.generateMapping({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
+    meetings: {
+      list: protectedProcedure.handler(({ context }) => {
+        requireRole(context, [
+          "SUPERADMIN",
+          "ADMIN_AKADEMIK",
+          "KAPRODI",
+          "DOSEN",
+          "MAHASISWA",
+        ]);
+        return context.schedulingService.listMeetings({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+        });
+      }),
+      setOnline: protectedProcedure
+        .input(
+          z.object({
+            instructions: z.string().trim().max(1000).optional(),
+            meetingId: z.string().min(1),
+            onlineUrl: z.url().max(2000).optional(),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["DOSEN"]);
+          return context.schedulingService.updateMeetingOnline({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
+    sections: {
+      list: protectedProcedure
+        .input(
+          z.object({
+            academicPeriodId: z.string().min(1).optional(),
+            studyProgramId: z.string().min(1).optional(),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+            "MAHASISWA",
+          ]);
+          return context.schedulingService.listSections({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
+  },
   settings: {
     catalog: protectedProcedure
       .input(

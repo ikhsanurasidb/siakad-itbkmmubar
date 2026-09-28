@@ -29,3 +29,14 @@
 - Catatan implementasi: React Doctor `--scope changed` untuk SIAKAD-05 tetap 91/100; dua warning yang tampil berasal dari `curriculum-detail-page.tsx` dan `master-data-dashboard-page.tsx` lama, bukan file perubahan KRS.
 - Kesalahan validasi saya: saya berhenti pada `drizzle-kit check` dan belum menjalankan apply D1 lokal setelah menambah migration, sehingga migration pending sebelumnya yang memakai `PRAGMA foreign_keys=OFF` untuk mengganti parent table dengan child rows belum terdeteksi.
 - Pencegahan: setiap perubahan migration harus diuji dengan apply batch pada D1 lokal yang memiliki data FK nyata; untuk rebuild parent table di batch/transaksi gunakan `PRAGMA defer_foreign_keys=ON` lalu matikan setelah tabel pengganti selesai dibuat.
+- Kesalahan validasi saya: saat memperluas akses KRS ke Superadmin, saya sempat membuat komponen halaman generator membutuhkan props tanpa memperbarui route Admin Akademik yang sudah ada; type-check langsung menangkap regresi ini.
+- Pencegahan: setiap perubahan props komponen route harus dicari seluruh call site-nya dan diverifikasi dengan type-check sebelum dianggap selesai.
+
+## 2026-09-28 — SIAKAD-06 Kelas Kuliah dan Penjadwalan
+
+- Kesalahan implementasi saya: pada pemeriksaan awal saya hampir menganggap `drizzle-kit check` cukup, padahal database D1 lokal yang dipakai Alchemy masih belum memiliki tabel SIAKAD-06. Migration perlu diterapkan ke database target yang benar dan dicatat pada `__alchemy_migrations` sebelum pengujian runtime.
+- Pencegahan: setiap tiket schema harus memverifikasi tiga hal secara terpisah: generator migration, `drizzle-kit check`, dan keberadaan tabel/riwayat migration pada D1 target yang dipakai server.
+- Kesalahan implementasi saya: kontrak policy penjadwalan yang sudah ada memakai `onlineMeetingLimit`, tetapi service baru sempat merujuk nama properti yang berbeda. Type-check menangkapnya sebelum merge.
+- Pencegahan: sebelum memakai policy configurable, baca interface dan adapter service yang menjadi sumber nilainya; tambahkan test default policy dan jangan mengarang nama properti baru.
+- Kesalahan desain yang saya koreksi: UI awal menampilkan enum status database secara langsung. Semua status yang terlihat pengguna harus dipetakan ke label Bahasa Indonesia dan tidak boleh membocorkan istilah internal seperti `SUBMITTED` atau `PUBLISHED`.
+- Pencegahan: buat map label/status di layer UI sebelum menambahkan kartu/list baru, lalu jalankan pemeriksaan copywriting bersamaan dengan React Doctor.

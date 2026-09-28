@@ -85,3 +85,23 @@ export {
   studyPlans,
   studyPlanStatuses,
 } from "@db/schema/study-plan";
+export {
+  classEnrollments,
+  classMappingJobs,
+  classMeetings,
+  classSections,
+  classSectionStatuses,
+  examSchedules,
+  lecturerAvailabilities,
+  scheduleApprovals,
+  scheduleChangeRequests,
+  scheduleChangeRequestStatuses,
+  scheduleConflicts,
+  scheduleConflictSeverities,
+  scheduleDrafts,
+  scheduleDraftStatuses,
+  scheduleModalities,
+  scheduleRevisions,
+  scheduleSlots,
+  teachingAssignments,
+} from "@db/schema/scheduling";

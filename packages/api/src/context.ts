@@ -7,6 +7,14 @@ import type {
 import type { IdentityType, RoleKey } from "@api/identity";
 import type { MasterDataEntityType, MasterDataStatus } from "@api/master-data";
 import type {
+  ClassMappingResult,
+  ClassMeetingRecord,
+  ScheduleChangeRequestRecord,
+  ScheduleDraftRecord,
+  ScheduleModality,
+  ScheduleSectionRecord,
+} from "@api/scheduling";
+import type {
   AttendancePolicy,
   BatchPolicy,
   FilePolicy,
@@ -325,6 +333,103 @@ export interface StudyPlanService {
   }) => Promise<{ status: "DRAFT" }>;
 }
 
+export interface SchedulingService {
+  createDraft: (input: {
+    academicPeriodId: string;
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    studyProgramId: string;
+  }) => Promise<ScheduleDraftRecord>;
+  decideDraft: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    approve: boolean;
+    draftId: string;
+    expectedVersion: number;
+    reason?: string;
+  }) => Promise<{ status: "APPROVED" | "REJECTED" }>;
+  decideOfflineChange: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    approve: boolean;
+    reason?: string;
+    requestId: string;
+  }) => Promise<{ status: "APPROVED" | "REJECTED" }>;
+  detailDraft: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    draftId: string;
+  }) => Promise<ScheduleDraftRecord>;
+  generateMapping: (input: {
+    academicPeriodId: string;
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    classCapacity: number;
+    idempotencyKey?: string;
+    studyProgramId?: string;
+  }) => Promise<ClassMappingResult>;
+  listChangeRequests: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    status?: "PENDING" | "APPROVED" | "REJECTED";
+  }) => Promise<readonly ScheduleChangeRequestRecord[]>;
+  listDrafts: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    status?: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "PUBLISHED";
+  }) => Promise<readonly ScheduleDraftRecord[]>;
+  listMeetings: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+  }) => Promise<readonly ClassMeetingRecord[]>;
+  listSections: (input: {
+    academicPeriodId?: string;
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    studyProgramId?: string;
+  }) => Promise<readonly ScheduleSectionRecord[]>;
+  publishDraft: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    draftId: string;
+    expectedVersion: number;
+  }) => Promise<{ status: "PUBLISHED" }>;
+  requestOfflineChange: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    endAt: Date;
+    meetingId: string;
+    reason: string;
+    roomId: string;
+    startAt: Date;
+  }) => Promise<{ requestId: string; status: "PENDING" }>;
+  submitDraft: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    draftId: string;
+    expectedVersion: number;
+  }) => Promise<{ status: "SUBMITTED" }>;
+  updateMeetingOnline: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    instructions?: string;
+    meetingId: string;
+    onlineUrl?: string;
+  }) => Promise<{ status: "ONLINE" }>;
+  upsertSlot: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    classSectionId: string;
+    draftId: string;
+    endAt: Date;
+    instructions?: string;
+    modality: ScheduleModality;
+    onlineUrl?: string;
+    roomId?: string;
+    startAt: Date;
+  }) => Promise<{ slotId: string }>;
+}
+
 export interface SettingsScope {
   scopeId: string;
   scopeType: SettingScopeType;
@@ -428,6 +533,7 @@ export interface Context {
   identityService: IdentityService;
   masterDataService: MasterDataService;
   settingsService: SettingsService;
+  schedulingService: SchedulingService;
   session: Session | null;
   studyPlanService: StudyPlanService;
 }
