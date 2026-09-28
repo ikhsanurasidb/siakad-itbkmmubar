@@ -65,9 +65,7 @@ export const seedSuperadmin = async ({
     .trim()
     .toUpperCase();
   const name = input.name?.trim() || DEFAULT_SUPERADMIN_NAME;
-  const email =
-    input.email?.trim().toLowerCase() ??
-    `${identifier.toLowerCase()}@account.siakad.local`;
+  const email = input.email?.trim().toLowerCase() || DEFAULT_SUPERADMIN_EMAIL;
   const authContext = await auth.$context;
   let userId: string | null = null;
 
@@ -123,4 +121,3 @@ export const seedSuperadmin = async ({
 
   return { created: true, identifier };
 };
-

@@ -18,9 +18,14 @@ const response = await fetch(`${serverUrl}/api/seed/superadmin`, {
   method: "POST",
 });
 
-const payload = (await response.json()) as { identifier?: string; message?: string };
+const payload = (await response.json()) as {
+  identifier?: string;
+  message?: string;
+};
 if (!response.ok) {
-  throw new Error(payload.message ?? `Seed gagal dengan status ${response.status}.`);
+  throw new Error(
+    payload.message ?? `Seed gagal dengan status ${response.status}.`
+  );
 }
 
 console.log(`Superadmin seeded: ${payload.identifier}`);
