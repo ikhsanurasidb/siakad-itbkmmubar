@@ -31,6 +31,18 @@ const serverLogger = createServerLogger({
   level: ENV.LOG_LEVEL as LogLevel,
 });
 
+const isLocalDevelopment = (): boolean => {
+  if (ENV.NODE_ENV === "development") {
+    return true;
+  }
+
+  try {
+    return new URL(ENV.CORS_ORIGIN).hostname === "localhost";
+  } catch {
+    return false;
+  }
+};
+
 app.use("/*", async (c, next) => {
   const requestId = c.req.header("x-request-id") ?? crypto.randomUUID();
   const requestLogger = serverLogger.child({
@@ -87,7 +99,11 @@ app.on("POST", "/api/auth/sign-up/email", (c) =>
 );
 
 app.post("/api/seed/superadmin", async (c) => {
-  if (ENV.NODE_ENV !== "development") {
+  const requestLogger = c.get("logger") ?? serverLogger;
+  if (!isLocalDevelopment()) {
+    requestLogger.warn("seed.superadmin_attempted_outside_local_development", {
+      method: c.req.method,
+    });
     return c.json(
       { message: "Seed hanya tersedia pada environment development." },
       404
