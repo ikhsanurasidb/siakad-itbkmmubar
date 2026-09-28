@@ -2,6 +2,7 @@ import {
   createAuth,
   createCurriculumService,
   createIdentityService,
+  createLmsService,
   createMasterDataService,
   createSchedulingService,
   createSettingsService,
@@ -42,6 +43,7 @@ export const createContext = async ({
   const curriculumService = await createCurriculumService(db);
   const studyPlanService = await createStudyPlanService(db);
   const schedulingService = await createSchedulingService(db);
+  const lmsService = await createLmsService(db);
   let identity: ApiContext["identity"] = null;
   if (session?.user) {
     const [account] = await db
@@ -93,6 +95,7 @@ export const createContext = async ({
     db,
     identity,
     identityService,
+    lmsService,
     logger: (logger ?? createServerLogger()).child({
       method: request.method,
       path: request.path,

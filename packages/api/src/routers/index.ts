@@ -95,6 +95,13 @@ const studyPlanStatusSchema = z.enum(studyPlanStatuses);
 const scheduleDraftStatusSchema = z.enum(scheduleDraftStatuses);
 const scheduleModalitySchema = z.enum(scheduleModalities);
 const scheduleChangeRequestStatusSchema = z.enum(scheduleChangeRequestStatuses);
+const lmsFileSchema = z.object({
+  contentBase64: z.string().min(1).max(40_000_000),
+  declaredMime: z.string().trim().max(120).optional(),
+  filename: z.string().trim().min(1).max(180),
+  mimeType: z.string().trim().min(1).max(120),
+});
+const lmsFilesSchema = z.array(lmsFileSchema).max(5).optional();
 
 export const appRouter = {
   curriculum: {
@@ -550,6 +557,313 @@ export const appRouter = {
       roles: context.identity?.roles ?? [],
       status: context.identity?.status ?? "INACTIVE",
     })),
+  },
+  lms: {
+    assignments: {
+      create: protectedProcedure
+        .input(
+          z.object({
+            allowResubmit: z.boolean().optional(),
+            body: z.string().max(20_000).optional(),
+            classMeetingId: z.string().min(1).optional(),
+            classSectionId: z.string().min(1),
+            dueAt: dateSchema,
+            files: lmsFilesSchema,
+            title: z.string().trim().min(1).max(160),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+          ]);
+          return context.lmsService.createAssignment({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      listSubmissions: protectedProcedure
+        .input(z.object({ assignmentId: z.string().min(1) }))
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+          ]);
+          return context.lmsService.listSubmissions({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      publish: protectedProcedure
+        .input(
+          z.object({
+            assignmentId: z.string().min(1),
+            expectedVersion: z.number().int().min(0),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+          ]);
+          return context.lmsService.publishAssignment({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      submit: protectedProcedure
+        .input(
+          z.object({
+            assignmentId: z.string().min(1),
+            body: z.string().max(20_000).optional(),
+            files: lmsFilesSchema,
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["MAHASISWA"]);
+          return context.lmsService.submitAssignment({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      update: protectedProcedure
+        .input(
+          z.object({
+            allowResubmit: z.boolean().optional(),
+            assignmentId: z.string().min(1),
+            body: z.string().max(20_000).optional(),
+            dueAt: dateSchema,
+            expectedVersion: z.number().int().min(0),
+            title: z.string().trim().min(1).max(160),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+          ]);
+          return context.lmsService.updateAssignment({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
+    detail: protectedProcedure
+      .input(
+        z.object({
+          classMeetingId: z.string().min(1).optional(),
+          classSectionId: z.string().min(1),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, [
+          "SUPERADMIN",
+          "ADMIN_AKADEMIK",
+          "KAPRODI",
+          "DOSEN",
+          "MAHASISWA",
+        ]);
+        return context.lmsService.detail({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    files: {
+      download: protectedProcedure
+        .input(z.object({ fileObjectId: z.string().min(1) }))
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+            "MAHASISWA",
+          ]);
+          return context.lmsService.downloadFile({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
+    forum: {
+      close: protectedProcedure
+        .input(z.object({ threadId: z.string().min(1) }))
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+          ]);
+          return context.lmsService.closeThread({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      createPost: protectedProcedure
+        .input(
+          z.object({
+            body: z.string().trim().min(1).max(20_000),
+            threadId: z.string().min(1),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["DOSEN", "MAHASISWA"]);
+          return context.lmsService.createPost({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      createThread: protectedProcedure
+        .input(
+          z.object({
+            body: z.string().trim().min(1).max(20_000),
+            classMeetingId: z.string().min(1).optional(),
+            classSectionId: z.string().min(1),
+            title: z.string().trim().min(1).max(160),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["DOSEN", "MAHASISWA"]);
+          return context.lmsService.createThread({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      deletePost: protectedProcedure
+        .input(z.object({ postId: z.string().min(1) }))
+        .handler(({ context, input }) => {
+          requireRole(context, ["DOSEN", "MAHASISWA"]);
+          return context.lmsService.deletePost({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      editPost: protectedProcedure
+        .input(
+          z.object({
+            body: z.string().trim().min(1).max(20_000),
+            postId: z.string().min(1),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["DOSEN", "MAHASISWA"]);
+          return context.lmsService.editPost({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      list: protectedProcedure
+        .input(
+          z.object({
+            classMeetingId: z.string().min(1).optional(),
+            classSectionId: z.string().min(1),
+            cursor: z.string().optional(),
+            limit: z.number().int().min(1).max(50).default(20),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+            "MAHASISWA",
+          ]);
+          return context.lmsService.listThreads({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
+    materials: {
+      create: protectedProcedure
+        .input(
+          z.object({
+            body: z.string().max(20_000).optional(),
+            classMeetingId: z.string().min(1).optional(),
+            classSectionId: z.string().min(1),
+            files: lmsFilesSchema,
+            title: z.string().trim().min(1).max(160),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+          ]);
+          return context.lmsService.createMaterial({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      publish: protectedProcedure
+        .input(
+          z.object({
+            expectedVersion: z.number().int().min(0),
+            materialId: z.string().min(1),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+          ]);
+          return context.lmsService.publishMaterial({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+      update: protectedProcedure
+        .input(
+          z.object({
+            body: z.string().max(20_000).optional(),
+            expectedVersion: z.number().int().min(0),
+            materialId: z.string().min(1),
+            title: z.string().trim().min(1).max(160),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+          ]);
+          return context.lmsService.updateMaterial({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
   },
   masterData: {
     archive: protectedProcedure

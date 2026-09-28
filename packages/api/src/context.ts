@@ -5,6 +5,15 @@ import type {
   CurriculumStatus,
 } from "@api/curriculum";
 import type { IdentityType, RoleKey } from "@api/identity";
+import type {
+  LmsAssignmentRecord,
+  LmsActor,
+  LmsClassroomRecord,
+  LmsFileInput,
+  LmsForumThreadRecord,
+  LmsMaterialRecord,
+  LmsSubmissionRecord,
+} from "@api/lms";
 import type { MasterDataEntityType, MasterDataStatus } from "@api/master-data";
 import type {
   ClassMappingResult,
@@ -511,6 +520,98 @@ export interface SettingsService {
   }) => Promise<{ effectiveFrom: string; versionIds: readonly string[] }>;
 }
 
+export interface LmsService {
+  closeThread: (input: LmsActor & { threadId: string }) => Promise<void>;
+  createAssignment: (
+    input: LmsActor & {
+      allowResubmit?: boolean;
+      body?: string;
+      classMeetingId?: string;
+      classSectionId: string;
+      dueAt: Date;
+      files?: readonly LmsFileInput[];
+      title: string;
+    }
+  ) => Promise<LmsAssignmentRecord>;
+  createMaterial: (
+    input: LmsActor & {
+      body?: string;
+      classMeetingId?: string;
+      classSectionId: string;
+      files?: readonly LmsFileInput[];
+      title: string;
+    }
+  ) => Promise<LmsMaterialRecord>;
+  createPost: (
+    input: LmsActor & { body: string; threadId: string }
+  ) => Promise<LmsForumThreadRecord>;
+  createThread: (
+    input: LmsActor & {
+      body: string;
+      classMeetingId?: string;
+      classSectionId: string;
+      title: string;
+    }
+  ) => Promise<LmsForumThreadRecord>;
+  deletePost: (input: LmsActor & { postId: string }) => Promise<void>;
+  detail: (
+    input: LmsActor & { classMeetingId?: string; classSectionId: string }
+  ) => Promise<LmsClassroomRecord>;
+  downloadFile: (input: LmsActor & { fileObjectId: string }) => Promise<{
+    body: ReadableStream;
+    contentType: string;
+    filename: string;
+  }>;
+  editPost: (
+    input: LmsActor & { body: string; postId: string }
+  ) => Promise<void>;
+  listThreads: (
+    input: LmsActor & {
+      classMeetingId?: string;
+      classSectionId: string;
+      cursor?: string;
+      limit?: number;
+    }
+  ) => Promise<{
+    data: readonly LmsForumThreadRecord[];
+    nextCursor: string | null;
+  }>;
+  listSubmissions: (
+    input: LmsActor & { assignmentId: string }
+  ) => Promise<readonly LmsSubmissionRecord[]>;
+  updateAssignment: (
+    input: LmsActor & {
+      allowResubmit?: boolean;
+      body?: string;
+      dueAt: Date;
+      expectedVersion: number;
+      title: string;
+      assignmentId: string;
+    }
+  ) => Promise<LmsAssignmentRecord>;
+  updateMaterial: (
+    input: LmsActor & {
+      body?: string;
+      expectedVersion: number;
+      materialId: string;
+      title: string;
+    }
+  ) => Promise<LmsMaterialRecord>;
+  publishAssignment: (
+    input: LmsActor & { assignmentId: string; expectedVersion: number }
+  ) => Promise<void>;
+  publishMaterial: (
+    input: LmsActor & { expectedVersion: number; materialId: string }
+  ) => Promise<void>;
+  submitAssignment: (
+    input: LmsActor & {
+      assignmentId: string;
+      body?: string;
+      files?: readonly LmsFileInput[];
+    }
+  ) => Promise<LmsSubmissionRecord>;
+}
+
 export interface ServerLogger {
   debug: (event: string, context?: Record<string, unknown>) => void;
   info: (event: string, context?: Record<string, unknown>) => void;
@@ -528,6 +629,7 @@ export interface Context {
   clock: Clock;
   curriculumService: CurriculumService;
   logger: ServerLogger;
+  lmsService: LmsService;
   request: RequestMetadata;
   identity: IdentityAccess | null;
   identityService: IdentityService;

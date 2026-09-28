@@ -86,6 +86,20 @@ export {
   studyPlanStatuses,
 } from "@db/schema/study-plan";
 export {
+  assignmentFiles,
+  assignmentSubmissionStatuses,
+  assignmentSubmissions,
+  assignments,
+  forumAttachments,
+  forumPosts,
+  forumThreadStatuses,
+  forumThreads,
+  learningContentStatuses,
+  learningMaterials,
+  materialFiles,
+  submissionFiles,
+} from "@db/schema/lms";
+export {
   classEnrollments,
   classMappingJobs,
   classMeetings,

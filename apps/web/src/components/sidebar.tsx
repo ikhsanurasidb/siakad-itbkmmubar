@@ -110,6 +110,12 @@ const lecturerSchedulingItems: readonly NavigationItem[] = [
     roles: LECTURER,
     to: "/dosen/jadwal",
   },
+  {
+    icon: BookOpen,
+    label: "Ruang pembelajaran",
+    roles: LECTURER,
+    to: "/dosen/lms",
+  },
 ];
 
 const studentSchedulingItems: readonly NavigationItem[] = [
@@ -118,6 +124,12 @@ const studentSchedulingItems: readonly NavigationItem[] = [
     label: "Jadwal kuliah",
     roles: STUDENT,
     to: "/mahasiswa/jadwal",
+  },
+  {
+    icon: BookOpen,
+    label: "Ruang pembelajaran",
+    roles: STUDENT,
+    to: "/mahasiswa/lms",
   },
 ];
 

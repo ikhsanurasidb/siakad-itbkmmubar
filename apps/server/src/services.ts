@@ -2,6 +2,7 @@ import { ENV } from "@server/env.server";
 import { seedSuperadmin as seedConfiguredSuperadmin } from "@server/services/bootstrap";
 import { createCurriculumService as createConfiguredCurriculumService } from "@server/services/curriculum";
 import { createIdentityService as createConfiguredIdentityService } from "@server/services/identity";
+import { createLmsService as createConfiguredLmsService } from "@server/services/lms";
 import { createMasterDataService as createConfiguredMasterDataService } from "@server/services/master-data";
 import { createSchedulingService as createConfiguredSchedulingService } from "@server/services/scheduling";
 import { createSettingsService as createConfiguredSettingsService } from "@server/services/settings";
@@ -22,6 +23,11 @@ export const createAuth = async (database?: Database) => {
 };
 
 export const getStorage = () => createR2FileStorage(ENV.R2);
+
+export const createLmsService = async (database?: Database) => {
+  const db = database ?? (await getDb());
+  return createConfiguredLmsService({ database: db, storage: getStorage() });
+};
 
 export const createIdentityService = async (database?: Database) => {
   const db = database ?? (await getDb());
