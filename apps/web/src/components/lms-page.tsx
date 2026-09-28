@@ -11,7 +11,8 @@ import { PageHeader } from "@siakad-itbkmmubar/ui/components/page-header";
 import { State } from "@siakad-itbkmmubar/ui/components/state";
 import { Textarea } from "@siakad-itbkmmubar/ui/components/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, MessageCircle, RefreshCw, Send } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Camera, FileText, MessageCircle, RefreshCw, Send } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -207,6 +208,24 @@ const LmsPage = ({
   return (
     <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
       <PageHeader
+        action={
+          isLecturer ? (
+            <Link
+              params={{ classId: classSectionId }}
+              to="/dosen/kelas/$classId/presensi"
+            >
+              <Button variant="outline">
+                <Camera aria-hidden="true" /> Buka presensi kelas
+              </Button>
+            </Link>
+          ) : (
+            <Link to="/mahasiswa/presensi">
+              <Button variant="outline">
+                <Camera aria-hidden="true" /> Buka presensi
+              </Button>
+            </Link>
+          )
+        }
         description="Materi, tugas, forum, dan submission kelas."
         eyebrow={`LMS · ${roleName}`}
         title="Ruang pembelajaran"
