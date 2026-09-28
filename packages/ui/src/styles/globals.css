@@ -124,3 +124,34 @@
     font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   }
 }
+
+@layer utilities {
+  .scrollbar-sidebar {
+    scrollbar-color: color-mix(
+        in oklab,
+        var(--sidebar-foreground) 34%,
+        transparent
+      )
+      transparent;
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-sidebar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scrollbar-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-sidebar::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--sidebar-foreground) 34%, transparent);
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+  }
+
+  .scrollbar-sidebar::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--sidebar-foreground) 52%, transparent);
+  }
+}

@@ -14,15 +14,11 @@ const AuthLayout = () => {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-svh w-full flex-col">
+      <Sidebar />
+      <SidebarInset>
         <Header userName={session.data?.user.name ?? "Pengguna"} />
-        <div className="flex min-h-0 flex-1">
-          <Sidebar />
-          <SidebarInset>
-            <Outlet />
-          </SidebarInset>
-        </div>
-      </div>
+        <Outlet />
+      </SidebarInset>
     </SidebarProvider>
   );
 };

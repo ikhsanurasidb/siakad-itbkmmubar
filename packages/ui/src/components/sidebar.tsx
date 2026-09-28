@@ -186,7 +186,7 @@ const Sidebar = ({
   return (
     <div
       className={cn(
-        "group peer text-sidebar-foreground hidden h-[calc(100svh-5rem)] shrink-0 md:flex",
+        "group peer text-sidebar-foreground hidden h-svh shrink-0 md:flex",
         getSidebarWidth(state, collapsible)
       )}
       data-collapsible={state === "collapsed" ? collapsible : ""}
@@ -262,7 +262,7 @@ const SidebarContent = ({
 }: React.ComponentProps<"div">) => (
   <div
     className={cn(
-      "flex min-h-0 flex-1 flex-col gap-6 overflow-auto p-3 group-data-[collapsible=icon]:px-1.5",
+      "scrollbar-sidebar flex min-h-0 flex-1 flex-col gap-6 overflow-auto p-3 group-data-[collapsible=icon]:px-1.5",
       className
     )}
     data-slot="sidebar-content"
@@ -383,7 +383,7 @@ const SidebarInset = ({
 }: React.ComponentProps<"main">) => (
   <main
     className={cn(
-      "bg-background relative flex min-w-0 flex-1 flex-col",
+      "bg-background relative flex min-h-svh min-w-0 flex-1 flex-col",
       className
     )}
     data-slot="sidebar-inset"

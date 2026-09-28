@@ -2,6 +2,7 @@ import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -97,12 +98,14 @@ const Header = ({ userName }: HeaderProps) => {
               align="end"
               className="rounded-xl border-[#dbe5ee] p-1"
             >
-              <DropdownMenuLabel className="px-3 text-[#71859c]">
-                Peran aktif
-              </DropdownMenuLabel>
-              <DropdownMenuItem className="rounded-lg px-3 text-[#102d4d] focus:bg-[#eef4f9]">
-                Admin Akademik
-              </DropdownMenuItem>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="px-3 text-[#71859c]">
+                  Peran aktif
+                </DropdownMenuLabel>
+                <DropdownMenuItem className="rounded-lg px-3 text-[#102d4d] focus:bg-[#eef4f9]">
+                  Admin Akademik
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -123,12 +126,14 @@ const Header = ({ userName }: HeaderProps) => {
               align="end"
               className="w-56 rounded-xl border-[#dbe5ee] p-1"
             >
-              <DropdownMenuLabel className="px-3 text-[#102d4d]">
-                <span className="block truncate">{userName}</span>
-                <span className="mt-1 block text-xs font-normal text-[#71859c]">
-                  Admin Akademik
-                </span>
-              </DropdownMenuLabel>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="px-3 text-[#102d4d]">
+                  <span className="block truncate">{userName}</span>
+                  <span className="mt-1 block text-xs font-normal text-[#71859c]">
+                    Admin Akademik
+                  </span>
+                </DropdownMenuLabel>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator className="bg-[#e7edf3]" />
               <DropdownMenuItem
                 className="rounded-lg px-3 text-[#b42318] focus:bg-[#fff1f0] focus:text-[#b42318]"
