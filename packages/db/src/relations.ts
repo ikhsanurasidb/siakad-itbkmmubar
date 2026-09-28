@@ -7,6 +7,13 @@ import {
   verification,
 } from "@db/schema/auth";
 import {
+  courseAssessmentDefaults,
+  curriculumAssessmentOverrides,
+  curriculumCourses,
+  curriculumDocuments,
+  curricula,
+} from "@db/schema/curriculum";
+import {
   identityAccounts,
   identifierReservations,
   identifierSequences,
@@ -55,7 +62,12 @@ const schema = {
   auditLogs,
   backgroundJobs,
   cohorts,
+  courseAssessmentDefaults,
   courses,
+  curricula,
+  curriculumAssessmentOverrides,
+  curriculumCourses,
+  curriculumDocuments,
   fileObjects,
   gradeScaleEntries,
   gradeScaleSets,

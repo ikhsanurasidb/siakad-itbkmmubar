@@ -65,6 +65,34 @@ interface SidebarProps {
 
 const SUPERADMIN: readonly RoleKey[] = ["SUPERADMIN"];
 const ACADEMIC_ADMIN: readonly RoleKey[] = ["ADMIN_AKADEMIK"];
+const PROGRAM_HEAD: readonly RoleKey[] = ["KAPRODI"];
+
+const superadminCurriculumItems: readonly NavigationItem[] = [
+  {
+    icon: Database,
+    label: "Kurikulum",
+    roles: SUPERADMIN,
+    to: "/superadmin/kurikulum",
+  },
+];
+
+const programHeadCurriculumItems: readonly NavigationItem[] = [
+  {
+    icon: Database,
+    label: "Kurikulum",
+    roles: PROGRAM_HEAD,
+    to: "/kaprodi/kurikulum",
+  },
+];
+
+const academicAdminCurriculumItems: readonly NavigationItem[] = [
+  {
+    icon: Database,
+    label: "Kurikulum",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/kurikulum",
+  },
+];
 
 const settingsItems: readonly NavigationItem[] = [
   {
@@ -292,6 +320,29 @@ const navigationSections: readonly NavigationSection[] = [
       },
     ],
     label: "Data master",
+  },
+  {
+    items: [
+      {
+        children: superadminCurriculumItems,
+        icon: ShieldCheck,
+        label: "Superadmin",
+        roles: SUPERADMIN,
+      },
+      {
+        children: programHeadCurriculumItems,
+        icon: GraduationCap,
+        label: "Kaprodi",
+        roles: PROGRAM_HEAD,
+      },
+      {
+        children: academicAdminCurriculumItems,
+        icon: UsersRound,
+        label: "Admin Akademik",
+        roles: ACADEMIC_ADMIN,
+      },
+    ],
+    label: "Kurikulum",
   },
   {
     items: [

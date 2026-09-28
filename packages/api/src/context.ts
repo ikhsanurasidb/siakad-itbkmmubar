@@ -1,3 +1,9 @@
+import type {
+  CurriculumAssessmentComponent,
+  CurriculumListItem,
+  CurriculumRecord,
+  CurriculumStatus,
+} from "@api/curriculum";
 import type { IdentityType, RoleKey } from "@api/identity";
 import type { MasterDataEntityType, MasterDataStatus } from "@api/master-data";
 import type {
@@ -205,6 +211,78 @@ export interface MasterDataService {
   }) => Promise<Record<string, unknown>>;
 }
 
+export interface CurriculumService {
+  activate: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    curriculumId: string;
+  }) => Promise<{ status: "ACTIVE" }>;
+  archive: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    curriculumId: string;
+  }) => Promise<void>;
+  create: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    cohortId: string;
+    name: string;
+    studyProgramId: string;
+  }) => Promise<{ id: string }>;
+  downloadDocument: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    curriculumId: string;
+  }) => Promise<{
+    body: ReadableStream;
+    contentType: string;
+    filename: string;
+  }>;
+  get: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    curriculumId: string;
+  }) => Promise<CurriculumRecord>;
+  list: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    prodiId?: string;
+    status?: CurriculumStatus;
+  }) => Promise<readonly CurriculumListItem[]>;
+  replaceAssessments: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    curriculumId: string;
+    overrides: readonly {
+      components: readonly CurriculumAssessmentComponent[];
+      curriculumCourseId: string;
+    }[];
+  }) => Promise<void>;
+  replaceStructure: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    courses: readonly {
+      courseId: string;
+      courseType: "ELECTIVE" | "REQUIRED";
+      semester: number;
+    }[];
+    curriculumId: string;
+  }) => Promise<void>;
+  uploadDocument: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    contentBase64: string;
+    curriculumId: string;
+    declaredMime?: string;
+    documentType?: string;
+    filename: string;
+    mimeType: string;
+  }) => Promise<{
+    documentId: string;
+    fileObjectId: string;
+  }>;
+}
+
 export interface SettingsScope {
   scopeId: string;
   scopeType: SettingScopeType;
@@ -301,6 +379,7 @@ export interface ServerLogger {
 export interface Context {
   db: Database;
   clock: Clock;
+  curriculumService: CurriculumService;
   logger: ServerLogger;
   request: RequestMetadata;
   identity: IdentityAccess | null;

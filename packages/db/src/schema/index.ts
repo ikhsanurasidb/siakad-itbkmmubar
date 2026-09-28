@@ -67,3 +67,12 @@ export {
   students,
   studyPrograms,
 } from "@db/schema/master-data";
+export {
+  courseAssessmentDefaults,
+  curriculumAssessmentOverrides,
+  curriculumCourseTypes,
+  curriculumCourses,
+  curriculumDocuments,
+  curricula,
+  curriculumStatuses,
+} from "@db/schema/curriculum";

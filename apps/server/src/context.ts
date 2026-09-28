@@ -1,9 +1,10 @@
 import {
+  createAuth,
+  createCurriculumService,
   createIdentityService,
   createMasterDataService,
   createSettingsService,
   getDb,
-  createAuth,
 } from "@server/services";
 import { createServerLogger } from "@server/services/logger";
 import type { Context as ApiContext } from "@siakad-itbkmmubar/api/context";
@@ -35,6 +36,7 @@ export const createContext = async ({
   const identityService = await createIdentityService(db);
   const masterDataService = await createMasterDataService(db);
   const settingsService = await createSettingsService(db);
+  const curriculumService = await createCurriculumService(db);
   let identity: ApiContext["identity"] = null;
   if (session?.user) {
     const [account] = await db
@@ -71,6 +73,7 @@ export const createContext = async ({
 
   return {
     clock: { now: () => new Date() },
+    curriculumService,
     db,
     identity,
     identityService,

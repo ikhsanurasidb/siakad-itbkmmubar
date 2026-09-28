@@ -1,5 +1,6 @@
 import { ENV } from "@server/env.server";
 import { seedSuperadmin as seedConfiguredSuperadmin } from "@server/services/bootstrap";
+import { createCurriculumService as createConfiguredCurriculumService } from "@server/services/curriculum";
 import { createIdentityService as createConfiguredIdentityService } from "@server/services/identity";
 import { createMasterDataService as createConfiguredMasterDataService } from "@server/services/master-data";
 import { createSettingsService as createConfiguredSettingsService } from "@server/services/settings";
@@ -36,6 +37,16 @@ export const createMasterDataService = async (database?: Database) =>
 
 export const createSettingsService = async (database?: Database) =>
   createConfiguredSettingsService({ database: database ?? (await getDb()) });
+
+export const createCurriculumService = async (database?: Database) => {
+  const db = database ?? (await getDb());
+  const settingsService = await createSettingsService(db);
+  return createConfiguredCurriculumService({
+    database: db,
+    getFilePolicy: () => settingsService.getFilePolicy("CURRICULUM"),
+    storage: getStorage(),
+  });
+};
 
 export const seedSuperadmin = async (
   input: Parameters<typeof seedConfiguredSuperadmin>[0]["input"]

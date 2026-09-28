@@ -94,6 +94,7 @@ const SettingInput = ({ item, onChange, value }: SettingInputProps) => {
   if (item.key === "retake_policy") {
     return (
       <select
+        aria-label={item.label}
         className={selectClassName}
         id={id}
         onChange={(event) => onChange(event.target.value)}
@@ -107,6 +108,7 @@ const SettingInput = ({ item, onChange, value }: SettingInputProps) => {
   if (item.key === "rounding_method") {
     return (
       <select
+        aria-label={item.label}
         className={selectClassName}
         id={id}
         onChange={(event) => onChange(event.target.value)}

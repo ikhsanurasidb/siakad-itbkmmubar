@@ -1,4 +1,5 @@
 import type { Context } from "@api/context";
+import { curriculumCourseTypes, curriculumStatuses } from "@api/curriculum";
 import {
   identityTypes,
   maskIpAddress,
@@ -54,6 +55,18 @@ const settingsScopeSchema = z.object({
   scopeType: settingScopeTypeSchema.default("SYSTEM"),
 });
 const settingValuesSchema = z.record(z.string(), z.unknown());
+const curriculumStatusSchema = z.enum(curriculumStatuses);
+const curriculumCourseTypeSchema = z.enum(curriculumCourseTypes);
+const curriculumCourseInputSchema = z.object({
+  courseId: z.string().trim().min(1),
+  courseType: curriculumCourseTypeSchema,
+  semester: z.number().int().min(1).max(8),
+});
+const curriculumAssessmentComponentSchema = z.object({
+  componentCode: z.string().trim().min(1).max(32),
+  label: z.string().trim().min(1).max(80),
+  weight: z.number().int().min(0).max(100),
+});
 const gradeScaleEntriesSchema = z.array(
   z.object({
     gradeCode: z.string().trim().min(1).max(10),
@@ -65,6 +78,129 @@ const gradeScaleEntriesSchema = z.array(
 );
 
 export const appRouter = {
+  curriculum: {
+    activate: protectedProcedure
+      .input(z.object({ curriculumId: z.string().min(1) }))
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "KAPRODI"]);
+        return context.curriculumService.activate({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    archive: protectedProcedure
+      .input(z.object({ curriculumId: z.string().min(1) }))
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "KAPRODI"]);
+        return context.curriculumService.archive({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    assessments: {
+      replace: protectedProcedure
+        .input(
+          z.object({
+            curriculumId: z.string().min(1),
+            overrides: z.array(
+              z.object({
+                components: z.array(curriculumAssessmentComponentSchema),
+                curriculumCourseId: z.string().min(1),
+              })
+            ),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "KAPRODI"]);
+          return context.curriculumService.replaceAssessments({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
+    create: protectedProcedure
+      .input(
+        z.object({
+          cohortId: z.string().min(1),
+          name: z.string().trim().min(3).max(160),
+          studyProgramId: z.string().min(1),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "KAPRODI"]);
+        return context.curriculumService.create({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    detail: protectedProcedure
+      .input(z.object({ curriculumId: z.string().min(1) }))
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK", "KAPRODI"]);
+        return context.curriculumService.get({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    documents: {
+      upload: protectedProcedure
+        .input(
+          z.object({
+            contentBase64: z.string().min(1).max(20_000_000),
+            curriculumId: z.string().min(1),
+            declaredMime: z.string().trim().max(120).optional(),
+            documentType: z.string().trim().min(1).max(40).optional(),
+            filename: z.string().trim().min(1).max(180),
+            mimeType: z.string().trim().min(1).max(120),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "KAPRODI"]);
+          return context.curriculumService.uploadDocument({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
+    list: protectedProcedure
+      .input(
+        z.object({
+          prodiId: z.string().min(1).optional(),
+          status: curriculumStatusSchema.optional(),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK", "KAPRODI"]);
+        return context.curriculumService.list({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    structure: {
+      replace: protectedProcedure
+        .input(
+          z.object({
+            courses: z.array(curriculumCourseInputSchema).max(200),
+            curriculumId: z.string().min(1),
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "KAPRODI"]);
+          return context.curriculumService.replaceStructure({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
+  },
   healthCheck: publicProcedure.handler(() => "OK"),
   identity: {
     accounts: {

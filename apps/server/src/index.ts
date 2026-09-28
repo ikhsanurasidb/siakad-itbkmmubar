@@ -190,6 +190,31 @@ app.use("/*", async (c, next) => {
   return next();
 });
 
+app.get("/api/curriculum/:curriculumId/document", async (c) => {
+  const context = await createContext({
+    context: c,
+    logger: c.get("logger"),
+    requestId: c.get("requestId"),
+  });
+  if (!context.session?.user || !context.identity) {
+    return c.json({ message: "Masuk diperlukan." }, 401);
+  }
+  try {
+    const document = await context.curriculumService.downloadDocument({
+      actorRoles: context.identity.roles,
+      actorUserId: context.session.user.id,
+      curriculumId: c.req.param("curriculumId"),
+    });
+    return c.body(document.body, 200, {
+      "cache-control": "private, no-store",
+      "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(document.filename)}`,
+      "content-type": document.contentType,
+    });
+  } catch {
+    return c.json({ message: "Dokumen belum dapat diunduh." }, 404);
+  }
+});
+
 app.get("/", (c) => c.text("OK"));
 
 export default app;
