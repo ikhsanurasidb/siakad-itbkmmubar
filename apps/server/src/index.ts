@@ -12,6 +12,7 @@ import type { LogFormat, LogLevel } from "@server/services/logger";
 import { DataSeedError } from "@server/services/seed-data";
 import { getApiErrorPayload } from "@siakad-itbkmmubar/api/errors";
 import { appRouter } from "@siakad-itbkmmubar/api/routers/index";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
@@ -45,7 +46,7 @@ const isLocalDevelopment = (): boolean => {
 };
 
 app.use("/*", async (c, next) => {
-  const requestId = c.req.header("x-request-id") ?? crypto.randomUUID();
+  const requestId = c.req.header("x-request-id") ?? createUuidV7();
   const requestLogger = serverLogger.child({
     method: c.req.method,
     path: c.req.path,
@@ -84,7 +85,7 @@ app.use(
 );
 
 app.onError((error, c) => {
-  const requestId = c.get("requestId") ?? crypto.randomUUID();
+  const requestId = c.get("requestId") ?? createUuidV7();
   const requestLogger = c.get("logger") ?? serverLogger;
   requestLogger.error("request.internal_error", error, {
     method: c.req.method,

@@ -21,6 +21,7 @@ import {
   programHeads,
   userRoles,
 } from "@siakad-itbkmmubar/db/schema/identity";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import { and, eq } from "drizzle-orm";
 import type { Context as HonoContext } from "hono";
 
@@ -33,7 +34,7 @@ export interface CreateContextOptions {
 export const createContext = async ({
   context,
   logger,
-  requestId = crypto.randomUUID(),
+  requestId = createUuidV7(),
 }: CreateContextOptions): Promise<ApiContext> => {
   const db = await getDb();
   const auth = await createAuth(db);

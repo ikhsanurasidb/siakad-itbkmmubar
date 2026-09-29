@@ -29,6 +29,7 @@ import {
   userScopes,
 } from "@siakad-itbkmmubar/db/schema/identity";
 import { studyPrograms } from "@siakad-itbkmmubar/db/schema/master-data";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import { and, desc, eq, sql } from "drizzle-orm";
 
 type ConfiguredAuth = ReturnType<typeof createConfiguredAuth>;
@@ -129,7 +130,7 @@ const reserveGeneratedIdentifier = async ({
     sequenceDate,
     sequenceNumber
   );
-  const reservationId = crypto.randomUUID();
+  const reservationId = createUuidV7();
 
   await database.insert(identifierReservations).values({
     createdAt: now,
@@ -166,7 +167,7 @@ const recordSecurityEvent = async ({
   await database.insert(securityEvents).values({
     createdAt: now,
     eventType,
-    id: crypto.randomUUID(),
+    id: createUuidV7(),
     metadata: JSON.stringify(metadata),
     userId,
   });
@@ -234,7 +235,7 @@ export const createIdentityService = ({
     let reservationId: string | null = null;
 
     if (prefix) {
-      const masterRecordId = input.masterRecordId ?? crypto.randomUUID();
+      const masterRecordId = input.masterRecordId ?? createUuidV7();
       const reservation = await reserveGeneratedIdentifier({
         database,
         idempotencyKey: `provision:${masterRecordId}`,
@@ -279,7 +280,7 @@ export const createIdentityService = ({
         userId,
       });
 
-      const accountId = crypto.randomUUID();
+      const accountId = createUuidV7();
       await database.insert(identityAccounts).values({
         createdAt: currentTime,
         id: accountId,
@@ -295,7 +296,7 @@ export const createIdentityService = ({
       });
       await database.insert(userRoles).values({
         assignedAt: currentTime,
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         isActive: true,
         roleKey: input.roleKey ?? defaultRoleByIdentityType[input.identityType],
         userId,
@@ -470,7 +471,7 @@ export const createIdentityService = ({
         assignedAt: now(),
         assignedBy,
         endsAt,
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         prodiId,
         startsAt,
         userId,
@@ -478,7 +479,7 @@ export const createIdentityService = ({
       await database.insert(userScopes).values({
         createdAt: now(),
         endsAt,
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         scopeId: prodiId,
         scopeType: "PRODI",
         startsAt,
@@ -522,7 +523,7 @@ export const createIdentityService = ({
       await database.insert(userRoles).values({
         assignedAt: now(),
         assignedBy,
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         isActive: true,
         roleKey,
         userId,
@@ -561,7 +562,7 @@ export const createIdentityService = ({
       await database.insert(userScopes).values({
         createdAt: now(),
         endsAt,
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         scopeId,
         scopeType,
         startsAt,
@@ -907,11 +908,11 @@ export const createIdentityService = ({
             eq(emailChangeRequests.status, "PENDING")
           )
         );
-      const verificationToken = `${crypto.randomUUID()}${crypto.randomUUID()}`;
+      const verificationToken = `${createUuidV7()}${createUuidV7()}`;
       await database.insert(emailChangeRequests).values({
         createdAt: currentTime,
         expiresAt,
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         newEmail: normalizedEmail,
         status: "PENDING",
         userId,

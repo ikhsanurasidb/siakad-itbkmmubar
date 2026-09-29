@@ -1,3 +1,5 @@
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
+
 export interface FileValidationOptions {
   allowedMimeTypes?: readonly string[];
   maxBytes: number;
@@ -87,7 +89,7 @@ export const createPrivateObjectKey = (
 ): string => {
   const normalizedNamespace = namespace.replaceAll(/[^a-z0-9/-]/giu, "");
   const normalizedEntityId = entityId.replaceAll(/[^a-z0-9_-]/giu, "");
-  return `${normalizedNamespace}/${normalizedEntityId}/${crypto.randomUUID()}`;
+  return `${normalizedNamespace}/${normalizedEntityId}/${createUuidV7()}`;
 };
 
 export const createR2FileStorage = (bucket: R2Bucket): FileStorage => ({

@@ -17,6 +17,7 @@
     "@orpc/tanstack-query": "^1.15.0",
     "@siakad-itbkmmubar/api": "workspace:*",
     "@siakad-itbkmmubar/ui": "workspace:*",
+    "@siakad-itbkmmubar/uuid": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-form": "^1.33.5",
     "@tanstack/react-query": "^5.102.8",

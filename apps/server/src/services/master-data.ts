@@ -43,6 +43,7 @@ import {
   fileObjects,
   outboxEvents,
 } from "@siakad-itbkmmubar/db/schema/platform";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import {
   and,
   desc,
@@ -220,7 +221,7 @@ const createAudit = async (
     createdAt: new Date(),
     entityId,
     entityType,
-    id: crypto.randomUUID(),
+    id: createUuidV7(),
     requestId: null,
   });
 };
@@ -358,7 +359,7 @@ const replaceIdentifierUsages = async (
         createdAt: new Date(),
         entityId,
         entityType,
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         identifier,
         identifierType,
         lockedAt: null,
@@ -398,7 +399,7 @@ const emitProvisioningOutbox = async (
     availableAt: new Date(),
     createdAt: new Date(),
     eventType,
-    id: crypto.randomUUID(),
+    id: createUuidV7(),
     payload: JSON.stringify({ entityId, identifier }),
     status: "PENDING",
   });
@@ -837,7 +838,7 @@ export const createMasterDataService = ({
     entityType,
     provisionAccount = false,
   }) => {
-    const id = crypto.randomUUID();
+    const id = createUuidV7();
     const currentTime = now();
     let credential:
       | {
@@ -2296,8 +2297,8 @@ export const createMasterDataService = ({
       normalizeText(header).toLowerCase()
     );
     assertHeaders(entityType, headers);
-    const jobId = crypto.randomUUID();
-    const fileObjectId = crypto.randomUUID();
+    const jobId = createUuidV7();
+    const fileObjectId = createUuidV7();
     const objectKey = createPrivateObjectKey("imports", jobId);
     const saveImportMetadata = async (): Promise<void> => {
       if (storage) {
@@ -2367,7 +2368,7 @@ export const createMasterDataService = ({
       stagedRows.push({
         createdAt: now(),
         errors: result.errors.length ? JSON.stringify(result.errors) : null,
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         jobId,
         normalizedData: JSON.stringify(result.data, (_key, value: unknown) =>
           value instanceof Date ? value.toISOString() : value

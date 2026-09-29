@@ -45,6 +45,7 @@ import {
   teachingAssignments,
 } from "@db/schema/scheduling";
 import { studyPlanItems, studyPlans } from "@db/schema/study-plan";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import {
   and,
   asc,
@@ -491,7 +492,7 @@ export const createSchedulingService = ({
           conflictType: conflict.conflictType,
           endAt: conflict.endAt,
           entityIds: JSON.stringify(conflict.entityIds),
-          id: crypto.randomUUID(),
+          id: createUuidV7(),
           message: conflict.message,
           scheduleDraftId: draft.id,
           severity: "BLOCKING",
@@ -543,7 +544,7 @@ export const createSchedulingService = ({
       await database.insert(notifications).values(
         accounts.map((account) => ({
           body,
-          id: crypto.randomUUID(),
+          id: createUuidV7(),
           route,
           title,
           type,
@@ -645,7 +646,7 @@ export const createSchedulingService = ({
     const groupEntries = [...groups.entries()].toSorted(([first], [second]) =>
       first.localeCompare(second)
     );
-    const jobId = existingJob?.id ?? crypto.randomUUID();
+    const jobId = existingJob?.id ?? createUuidV7();
     if (!existingJob) {
       await database.insert(classMappingJobs).values({
         academicPeriodId,
@@ -695,7 +696,7 @@ export const createSchedulingService = ({
               capacity: classCapacity,
               code,
               courseId: first.courseId,
-              id: crypto.randomUUID(),
+              id: createUuidV7(),
               mappingJobId: jobId,
               policyLeadDays: policy.leadDays,
               policyMaxOnlineMeetings: policy.onlineMeetingLimit,
@@ -745,7 +746,7 @@ export const createSchedulingService = ({
                 classSectionId: section.id,
                 componentCode: component.componentCode,
                 createdAt: now(),
-                id: crypto.randomUUID(),
+                id: createUuidV7(),
                 label: component.label,
                 sortOrder,
                 weight: component.weight,
@@ -762,7 +763,7 @@ export const createSchedulingService = ({
               .insert(teachingAssignments)
               .values({
                 classSectionId: section.id,
-                id: crypto.randomUUID(),
+                id: createUuidV7(),
                 isPrimary: true,
                 lecturerId: lecturer.id,
               })
@@ -778,7 +779,7 @@ export const createSchedulingService = ({
                   ? [
                       {
                         classSectionId: section.id,
-                        id: crypto.randomUUID(),
+                        id: createUuidV7(),
                         studentId: row.studentId,
                         studyPlanId: row.planId,
                         studyPlanItemId: row.itemId,
@@ -945,7 +946,7 @@ export const createSchedulingService = ({
     studyProgramId,
   }) => {
     requireAcademicManager(actorRoles);
-    const id = crypto.randomUUID();
+    const id = createUuidV7();
     await database.insert(scheduleDrafts).values({
       academicPeriodId,
       createdBy: actorUserId,
@@ -1060,7 +1061,7 @@ export const createSchedulingService = ({
         )
       )
       .limit(1);
-    const slotId = existing?.id ?? crypto.randomUUID();
+    const slotId = existing?.id ?? createUuidV7();
     // eslint-disable-next-line prefer-ternary -- update and insert use different Drizzle statements.
     if (existing) {
       // eslint-disable-next-line no-await-in-loop
@@ -1193,7 +1194,7 @@ export const createSchedulingService = ({
       actorUserId,
       decision: approve ? "APPROVE" : "REJECT",
       draftVersion: expectedVersion,
-      id: crypto.randomUUID(),
+      id: createUuidV7(),
       reason: normalizedReason,
       scheduleDraftId: draftId,
     });
@@ -1249,7 +1250,7 @@ export const createSchedulingService = ({
         meetingValues.push({
           classSectionId: slot.classSectionId,
           endAt: new Date(slot.endAt.getTime() + offset),
-          id: crypto.randomUUID(),
+          id: createUuidV7(),
           instructions: slot.instructions,
           modality: slot.modality,
           onlineUrl: slot.onlineUrl,
@@ -1270,7 +1271,7 @@ export const createSchedulingService = ({
           changedBy: actorUserId,
           effectiveFrom: publishedAt,
           endAt: meeting.endAt,
-          id: crypto.randomUUID(),
+          id: createUuidV7(),
           instructions: meeting.instructions,
           meetingId: meeting.id,
           modality: meeting.modality,
@@ -1302,7 +1303,7 @@ export const createSchedulingService = ({
       beforeState: JSON.stringify({ status: "APPROVED" }),
       entityId: draftId,
       entityType: "SCHEDULE_DRAFT",
-      id: crypto.randomUUID(),
+      id: createUuidV7(),
       metadata: JSON.stringify({ action: "PUBLISH" }),
     });
     return { status: "PUBLISHED" };
@@ -1481,7 +1482,7 @@ export const createSchedulingService = ({
       changedBy: actorUserId,
       effectiveFrom: changedAt,
       endAt: row.meeting.endAt,
-      id: crypto.randomUUID(),
+      id: createUuidV7(),
       instructions: instructions?.trim() || null,
       meetingId,
       modality: "ONLINE",
@@ -1557,7 +1558,7 @@ export const createSchedulingService = ({
           "Ruang aktif tidak ditemukan."
         );
       }
-      const requestId = crypto.randomUUID();
+      const requestId = createUuidV7();
       await database.insert(scheduleChangeRequests).values({
         id: requestId,
         meetingId,
@@ -1708,7 +1709,7 @@ export const createSchedulingService = ({
       changedBy: actorUserId,
       effectiveFrom: changedAt,
       endAt: row.request.proposedEndAt,
-      id: crypto.randomUUID(),
+      id: createUuidV7(),
       instructions: row.meeting.instructions,
       meetingId: row.meeting.id,
       modality: "OFFLINE",

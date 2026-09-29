@@ -41,6 +41,7 @@ import {
   fileObjects,
   outboxEvents,
 } from "@siakad-itbkmmubar/db/schema/platform";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import { and, desc, eq, gt, inArray, isNull, lte, ne, or } from "drizzle-orm";
 
 interface CurriculumActor {
@@ -418,7 +419,7 @@ export const createCurriculumService = ({
       );
     }
     const normalizedName = normalizeCurriculumName(name);
-    const id = crypto.randomUUID();
+    const id = createUuidV7();
     const currentTime = now();
     await database.batch([
       database.insert(curricula).values({
@@ -443,7 +444,7 @@ export const createCurriculumService = ({
         createdAt: currentTime,
         entityId: id,
         entityType: "CURRICULUM",
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         requestId: null,
       }),
     ] as unknown as Parameters<Database["batch"]>[0]);
@@ -528,7 +529,7 @@ export const createCurriculumService = ({
                 createdAt: currentTime,
                 credits: coursesById.get(course.courseId)?.credits ?? 0,
                 curriculumId,
-                id: crypto.randomUUID(),
+                id: createUuidV7(),
                 semester: course.semester,
                 sortOrder,
                 updatedAt: currentTime,
@@ -548,7 +549,7 @@ export const createCurriculumService = ({
         createdAt: currentTime,
         entityId: curriculumId,
         entityType: "CURRICULUM_STRUCTURE",
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         requestId: null,
       }),
     ];
@@ -610,7 +611,7 @@ export const createCurriculumService = ({
                   componentCode: component.componentCode,
                   createdAt: currentTime,
                   curriculumCourseId: override.curriculumCourseId,
-                  id: crypto.randomUUID(),
+                  id: createUuidV7(),
                   label: component.label,
                   updatedAt: currentTime,
                   weight: component.weight,
@@ -633,7 +634,7 @@ export const createCurriculumService = ({
         createdAt: currentTime,
         entityId: curriculumId,
         entityType: "CURRICULUM_ASSESSMENT",
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         requestId: null,
       }),
     ];
@@ -699,7 +700,7 @@ export const createCurriculumService = ({
         createdAt: currentTime,
         entityId: curriculumId,
         entityType: "CURRICULUM",
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         requestId: null,
       }),
       database.insert(outboxEvents).values({
@@ -709,7 +710,7 @@ export const createCurriculumService = ({
         availableAt: currentTime,
         createdAt: currentTime,
         eventType: "CURRICULUM_ACTIVATED",
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         payload: JSON.stringify({ curriculumId }),
         status: "PENDING",
       }),
@@ -746,7 +747,7 @@ export const createCurriculumService = ({
         createdAt: currentTime,
         entityId: curriculumId,
         entityType: "CURRICULUM",
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         requestId: null,
       }),
     ] as unknown as Parameters<Database["batch"]>[0]);
@@ -787,8 +788,8 @@ export const createCurriculumService = ({
         maxBytes: filePolicy.maxSizeBytes,
       }
     );
-    const fileObjectId = crypto.randomUUID();
-    const documentId = crypto.randomUUID();
+    const fileObjectId = createUuidV7();
+    const documentId = createUuidV7();
     const objectKey = createPrivateObjectKey("curriculum", curriculumId);
     const checksum = await sha256(bytes);
     const currentTime = now();
@@ -844,7 +845,7 @@ export const createCurriculumService = ({
             createdAt: currentTime,
             entityId: curriculumId,
             entityType: "CURRICULUM_DOCUMENT",
-            id: crypto.randomUUID(),
+            id: createUuidV7(),
             requestId: null,
           }),
         ] as unknown as Parameters<Database["batch"]>[0]);

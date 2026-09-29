@@ -1,6 +1,9 @@
 {
   "extends": "@siakad-itbkmmubar/config/tsconfig.base.json",
-  "references": [{ "path": "../../packages/api" }],
+  "references": [
+    { "path": "../../packages/api" },
+    { "path": "../../packages/uuid" }
+  ],
   "compilerOptions": {
     "noEmit": true,
     "baseUrl": ".",

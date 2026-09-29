@@ -6,12 +6,7 @@
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "outDir": "dist",
-    "baseUrl": ".",
-    "paths": {
-      "@auth/*": ["./src/*"]
-    },
     "strictNullChecks": true
   },
-  "include": ["src/**/*.ts"],
-  "references": [{ "path": "../db" }, { "path": "../uuid" }]
+  "include": ["src/**/*.ts"]
 }

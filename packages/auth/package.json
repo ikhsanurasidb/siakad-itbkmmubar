@@ -12,6 +12,7 @@
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.5",
     "@siakad-itbkmmubar/db": "workspace:*",
+    "@siakad-itbkmmubar/uuid": "workspace:*",
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
     "zod": "catalog:"

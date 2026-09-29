@@ -10,6 +10,7 @@ import {
 } from "@siakad-itbkmmubar/ui/components/card";
 import { PageHeader } from "@siakad-itbkmmubar/ui/components/page-header";
 import { State } from "@siakad-itbkmmubar/ui/components/state";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Plus, RefreshCw, Trash2 } from "lucide-react";
@@ -173,7 +174,7 @@ const CurriculumStructurePage = ({
       {
         courseId: course.id,
         courseType,
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         semester: addDialog.semester,
       },
     ]);

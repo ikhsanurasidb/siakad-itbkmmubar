@@ -1,5 +1,8 @@
 {
-  "references": [{ "path": "../../packages/api" }],
+  "references": [
+    { "path": "../../packages/api" },
+    { "path": "../../packages/uuid" }
+  ],
   "compilerOptions": {
     "strict": true,
     "esModuleInterop": true,

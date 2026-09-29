@@ -51,6 +51,7 @@ import {
   scheduleRevisions,
   teachingAssignments,
 } from "@siakad-itbkmmubar/db/schema/scheduling";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import { and, asc, desc, eq, gt, isNull, lte, or } from "drizzle-orm";
 
 /* eslint-disable no-await-in-loop -- participant scope checks and ALPA checkpoints are intentionally ordered. */
@@ -248,7 +249,7 @@ export const createAttendanceService = ({
       closeAt: window.closeAt,
       createdAt,
       endAt: source.endAt,
-      id: crypto.randomUUID(),
+      id: createUuidV7(),
       meetingId: meeting.meeting.id,
       modality: source.modality,
       openAt: window.openAt,
@@ -452,7 +453,7 @@ export const createAttendanceService = ({
         "Presensi untuk pertemuan ini sudah tercatat."
       );
     }
-    const captureAttemptId = crypto.randomUUID();
+    const captureAttemptId = createUuidV7();
     const expiresAt = new Date(now().getTime() + CAPTURE_ATTEMPT_TTL_MS);
     await database.insert(attendanceCaptureAttempts).values({
       createdAt: now(),
@@ -554,7 +555,7 @@ export const createAttendanceService = ({
         );
       }
     } else {
-      idempotencyId = crypto.randomUUID();
+      idempotencyId = createUuidV7();
       try {
         await database.insert(idempotencyKeys).values({
           actorUserId: input.actorUserId,
@@ -701,17 +702,17 @@ export const createAttendanceService = ({
           "Presensi untuk pertemuan ini sudah tercatat."
         );
       }
-      const recordId = crypto.randomUUID();
-      const evidenceId = crypto.randomUUID();
-      const fileObjectId = crypto.randomUUID();
-      objectKey = `attendance/${attempt.session.id}/${participant.type.toLowerCase()}/${recordId}/${crypto.randomUUID()}`;
+      const recordId = createUuidV7();
+      const evidenceId = createUuidV7();
+      const fileObjectId = createUuidV7();
+      objectKey = `attendance/${attempt.session.id}/${participant.type.toLowerCase()}/${recordId}/${createUuidV7()}`;
       await storage.put(objectKey, bytes, {
         httpMetadata: { contentType: image.mimeType },
       });
       const createdAt = now();
       const requestId =
         input.status === "IZIN" || input.status === "SAKIT"
-          ? crypto.randomUUID()
+          ? createUuidV7()
           : null;
       await database.batch([
         database.insert(fileObjects).values({
@@ -789,7 +790,7 @@ export const createAttendanceService = ({
           }),
           entityId: recordId,
           entityType: "ATTENDANCE_RECORD",
-          id: crypto.randomUUID(),
+          id: createUuidV7(),
           metadata: JSON.stringify({ sessionId: attempt.session.id }),
         }),
       ]);
@@ -978,7 +979,7 @@ export const createAttendanceService = ({
         attendanceRequestId: requestId,
         createdAt: decidedAt,
         decision,
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         reason: reason?.trim() || null,
       }),
       database.insert(attendanceAdjustments).values({
@@ -986,7 +987,7 @@ export const createAttendanceService = ({
         attendanceRecordId: row.record.id,
         createdAt: decidedAt,
         fromStatus: row.record.status,
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         reason: reason?.trim() || "Pengajuan presensi disetujui.",
         toStatus: nextStatus,
         version: expectedVersion + 1,
@@ -998,7 +999,7 @@ export const createAttendanceService = ({
         beforeState: JSON.stringify({ status: row.record.status }),
         entityId: row.record.id,
         entityType: "ATTENDANCE_RECORD",
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
       }),
     ]);
     if (!updated) {
@@ -1118,7 +1119,7 @@ export const createAttendanceService = ({
         status: existingJob.status,
       };
     }
-    const jobId = existingJob?.id ?? crypto.randomUUID();
+    const jobId = existingJob?.id ?? createUuidV7();
     const jobStatement = existingJob
       ? database
           .update(attendanceGenerationJobs)
@@ -1173,7 +1174,7 @@ export const createAttendanceService = ({
       const statements = chunk.map((row) =>
         database.insert(attendanceRecords).values({
           createdAt: now(),
-          id: crypto.randomUUID(),
+          id: createUuidV7(),
           note: "Dibuat otomatis setelah window presensi ditutup.",
           participantId: row.participantId,
           participantType: row.participantType,

@@ -9,6 +9,7 @@ import {
 import { PageHeader } from "@siakad-itbkmmubar/ui/components/page-header";
 import { State } from "@siakad-itbkmmubar/ui/components/state";
 import { Textarea } from "@siakad-itbkmmubar/ui/components/textarea";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Camera,
@@ -253,7 +254,7 @@ const CameraCapture = ({
         contentBase64,
         declaredMime: capturedBlob.type || "image/jpeg",
         filename: "presensi.jpg",
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: createUuidV7(),
         latitude: location?.coords.latitude,
         longitude: location?.coords.longitude,
         note: note || undefined,

@@ -2,6 +2,7 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
 import type { Database } from "@siakad-itbkmmubar/db";
 import * as schema from "@siakad-itbkmmubar/db/schema/auth";
 import { identityAccounts } from "@siakad-itbkmmubar/db/schema/identity";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import { betterAuth } from "better-auth";
 import { username } from "better-auth/plugins/username";
 import { eq } from "drizzle-orm";
@@ -35,6 +36,9 @@ export const createAuth = (
   };
   return betterAuth({
     advanced: {
+      database: {
+        generateId: () => createUuidV7(),
+      },
       defaultCookieAttributes: {
         httpOnly: true,
         sameSite: "none",

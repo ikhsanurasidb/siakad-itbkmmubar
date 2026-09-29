@@ -28,6 +28,7 @@ import {
   settingValues,
   settingVersions,
 } from "@siakad-itbkmmubar/db/schema/settings";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 
 const DEFAULT_SCOPE: { scopeId: string; scopeType: SettingScopeType } = {
@@ -466,8 +467,8 @@ export const createSettingsService = ({
           `Setting ${definition.label} sudah diubah oleh pengguna lain.`
         );
       }
-      const settingValueId = currentValue?.id ?? crypto.randomUUID();
-      const versionId = crypto.randomUUID();
+      const settingValueId = currentValue?.id ?? createUuidV7();
+      const versionId = createUuidV7();
       versionIds.push(versionId);
       if (!currentValue) {
         statements.push(
@@ -517,7 +518,7 @@ export const createSettingsService = ({
           action: "PUBLISHED",
           activatedAt: now(),
           activatedBy: actorUserId,
-          id: crypto.randomUUID(),
+          id: createUuidV7(),
           metadata: JSON.stringify({ key, note: note ?? null }),
           policyId: versionId,
           policyType: "SETTING_VERSION",
@@ -555,7 +556,7 @@ export const createSettingsService = ({
       .orderBy(desc(gradeScaleSets.version))
       .limit(1);
     const version = (lastScale?.version ?? 0) + 1;
-    const id = crypto.randomUUID();
+    const id = createUuidV7();
     const statements = [
       database.insert(gradeScaleSets).values({
         createdAt: now(),
@@ -570,7 +571,7 @@ export const createSettingsService = ({
       database.insert(gradeScaleEntries).values(
         normalizedEntries.map((entry, sortOrder) => ({
           ...entry,
-          id: crypto.randomUUID(),
+          id: createUuidV7(),
           scaleSetId: id,
           sortOrder,
         }))
@@ -579,7 +580,7 @@ export const createSettingsService = ({
         action: "PUBLISHED",
         activatedAt: now(),
         activatedBy: actorUserId,
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         metadata: JSON.stringify({ name: name.trim() }),
         policyId: id,
         policyType: "GRADE_SCALE",

@@ -25,6 +25,7 @@ import {
   studyPlanItems,
   studyPlans,
 } from "@db/schema/study-plan";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import {
   and,
   asc,
@@ -210,7 +211,7 @@ const processGenerationStudent = async ({
         })
         .where(eq(studyPlans.id, planId));
     } else {
-      planId = crypto.randomUUID();
+      planId = createUuidV7();
       await database.insert(studyPlans).values({
         academicPeriodId,
         curriculumId: curriculum.id,
@@ -228,7 +229,7 @@ const processGenerationStudent = async ({
           courseId: item.courseId,
           credits: item.credits,
           curriculumCourseId: item.curriculumCourseId,
-          id: crypto.randomUUID(),
+          id: createUuidV7(),
           semester: item.semester,
           sortOrder: item.sortOrder,
           source: item.source,
@@ -240,7 +241,7 @@ const processGenerationStudent = async ({
       action: "GENERATE",
       actorUserId,
       fromStatus: existingPlan?.status ?? null,
-      id: crypto.randomUUID(),
+      id: createUuidV7(),
       metadata: JSON.stringify({ jobId }),
       studyPlanId: planId,
       toStatus: "DRAFT",
@@ -401,7 +402,7 @@ const initializeGenerationJob = async ({
     .from(students)
     .where(and(...conditions));
   const totalCount = countRow?.count ? Number(countRow.count) : 0;
-  const jobId = existingJob?.id ?? crypto.randomUUID();
+  const jobId = existingJob?.id ?? createUuidV7();
   if (!existingJob) {
     await database
       .insert(studyPlanGenerationJobs)
@@ -874,7 +875,7 @@ export const createStudyPlanService = ({
       action: "FINALIZE",
       actorUserId,
       fromStatus: "DRAFT",
-      id: crypto.randomUUID(),
+      id: createUuidV7(),
       studyPlanId,
       toStatus: "FINAL",
     });
@@ -885,7 +886,7 @@ export const createStudyPlanService = ({
       beforeState: JSON.stringify({ status: "DRAFT" }),
       entityId: studyPlanId,
       entityType: "STUDY_PLAN",
-      id: crypto.randomUUID(),
+      id: createUuidV7(),
       metadata: JSON.stringify({ action: "FINALIZE" }),
     });
     return { status: "FINAL" };
@@ -932,7 +933,7 @@ export const createStudyPlanService = ({
       action: "REOPEN",
       actorUserId,
       fromStatus: "FINAL",
-      id: crypto.randomUUID(),
+      id: createUuidV7(),
       reason: normalizedReason,
       studyPlanId,
       toStatus: "DRAFT",
@@ -944,7 +945,7 @@ export const createStudyPlanService = ({
       beforeState: JSON.stringify({ status: "FINAL" }),
       entityId: studyPlanId,
       entityType: "STUDY_PLAN",
-      id: crypto.randomUUID(),
+      id: createUuidV7(),
       metadata: JSON.stringify({ action: "REOPEN", reason: normalizedReason }),
     });
     return { status: "DRAFT" };

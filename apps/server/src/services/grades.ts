@@ -50,6 +50,7 @@ import {
   classSections,
   teachingAssignments,
 } from "@siakad-itbkmmubar/db/schema/scheduling";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import {
   and,
   asc,
@@ -194,7 +195,7 @@ const ensureComponents = async (
         classSectionId,
         componentCode: component.componentCode,
         createdAt: now(),
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         label: component.label,
         sortOrder,
         weight: component.weight,
@@ -284,7 +285,7 @@ export const createGradesService = ({
     await database.insert(gradeSubmissionBatches).values({
       actorUserId,
       classSectionId,
-      id: crypto.randomUUID(),
+      id: createUuidV7(),
       status: "DRAFT",
       version: 0,
     });
@@ -512,7 +513,7 @@ export const createGradesService = ({
         }
         await database.insert(studentComponentScores).values({
           classGradeComponentId: input.componentId,
-          id: crypto.randomUUID(),
+          id: createUuidV7(),
           scoreHundredths: toHundredths(input.score),
           studentId: input.studentId,
           version: 1,
@@ -568,7 +569,7 @@ export const createGradesService = ({
         classSectionId,
         gradeCode: calculated.gradeCode,
         gradePoint: toHundredths(calculated.gradePoint),
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         policyVersion,
         rawScoreHundredths: toHundredths(calculated.rawScore),
         roundedScoreHundredths: toHundredths(calculated.roundedScore),
@@ -637,7 +638,7 @@ export const createGradesService = ({
       beforeState: JSON.stringify({ status: from }),
       entityId: classSectionId,
       entityType: "GRADE_BATCH",
-      id: crypto.randomUUID(),
+      id: createUuidV7(),
       metadata: JSON.stringify({ expectedVersion }),
     });
   };
@@ -688,7 +689,7 @@ export const createGradesService = ({
       .values({
         academicPeriodId: classRow.academicPeriodId,
         classSectionId,
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         publishedAt: now(),
         publishedBy: actorUserId,
         status: "COMPLETED",
@@ -719,7 +720,7 @@ export const createGradesService = ({
       await database.insert(notifications).values(
         recipients.map((recipient) => ({
           body: "Nilai kelas Anda sudah resmi diterbitkan.",
-          id: crypto.randomUUID(),
+          id: createUuidV7(),
           route: "/mahasiswa/nilai",
           title: "Nilai diterbitkan",
           type: "GRADE_PUBLISHED",
@@ -767,7 +768,7 @@ export const createGradesService = ({
         snapshots.map((snapshot) => ({
           actorUserId,
           finalGradeSnapshotId: snapshot.id,
-          id: crypto.randomUUID(),
+          id: createUuidV7(),
           newValue: "REOPENED",
           oldValue: currentStatus,
           reason: reason.trim(),
@@ -936,7 +937,7 @@ export const createGradesService = ({
         .delete(studyResultSnapshots)
         .where(eq(studyResultSnapshots.id, existing.id));
     }
-    const snapshotId = crypto.randomUUID();
+    const snapshotId = createUuidV7();
     const policyVersion = JSON.stringify({
       retakePolicy: policy.retakePolicy,
       roundingMethod: policy.roundingMethod,
@@ -974,7 +975,7 @@ export const createGradesService = ({
               finalGradeSnapshotId: snapshot.snapshotId,
               gradeCode: snapshot.gradeCode ?? "-",
               gradePointHundredths: toHundredths(row.gradePoint),
-              id: crypto.randomUUID(),
+              id: createUuidV7(),
               studentId,
               studyResultSnapshotId: snapshotId,
             },
@@ -1098,7 +1099,7 @@ export const createGradesService = ({
         )
       )
       .limit(1);
-    const jobId = existing?.id ?? crypto.randomUUID();
+    const jobId = existing?.id ?? createUuidV7();
     if (!existing) {
       await database.insert(backgroundJobs).values({
         id: jobId,

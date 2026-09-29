@@ -50,6 +50,7 @@ import {
   classSections,
   teachingAssignments,
 } from "@siakad-itbkmmubar/db/schema/scheduling";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import {
   and,
   asc,
@@ -138,7 +139,7 @@ const prepareFiles = (
     );
     prepared.push({
       file: {
-        fileObjectId: crypto.randomUUID(),
+        fileObjectId: createUuidV7(),
         filename: metadata.filename,
         mimeType: metadata.mimeType,
         sizeBytes: metadata.sizeBytes,
@@ -455,7 +456,7 @@ export const createLmsService = ({
       await database.insert(notifications).values(
         userIds.map((userId) => ({
           body,
-          id: crypto.randomUUID(),
+          id: createUuidV7(),
           route: `/mahasiswa/kelas/${classSectionId}/lms`,
           title,
           type: "LMS",
@@ -469,7 +470,7 @@ export const createLmsService = ({
     await ensureManager(input, input.classSectionId);
     await getMeeting(input.classSectionId, input.classMeetingId);
     const currentTime = now();
-    const id = crypto.randomUUID();
+    const id = createUuidV7();
     const prepared = await prepareFiles(input.files, "lms/materials", id);
     const uploaded = await uploadPrepared(prepared);
     const checksums = new Map(
@@ -512,7 +513,7 @@ export const createLmsService = ({
           database.insert(materialFiles).values({
             createdAt: currentTime,
             fileObjectId: item.file.fileObjectId,
-            id: crypto.randomUUID(),
+            id: createUuidV7(),
             materialId: id,
           }),
         ]),
@@ -541,7 +542,7 @@ export const createLmsService = ({
       );
     }
     const currentTime = now();
-    const id = crypto.randomUUID();
+    const id = createUuidV7();
     const prepared = await prepareFiles(input.files, "lms/assignments", id);
     const uploaded = await uploadPrepared(prepared);
     const checksums = new Map(
@@ -587,7 +588,7 @@ export const createLmsService = ({
             assignmentId: id,
             createdAt: currentTime,
             fileObjectId: item.file.fileObjectId,
-            id: crypto.randomUUID(),
+            id: createUuidV7(),
           }),
         ]),
       ] as Parameters<Database["batch"]>[0]);
@@ -896,7 +897,7 @@ export const createLmsService = ({
     }
     const currentTime = now();
     const status = determineSubmissionStatus(currentTime, assignment.dueAt);
-    const id = crypto.randomUUID();
+    const id = createUuidV7();
     const prepared = await prepareFiles(input.files, "lms/submissions", id);
     const uploaded = await uploadPrepared(prepared);
     const checksums = new Map(
@@ -938,7 +939,7 @@ export const createLmsService = ({
           database.insert(submissionFiles).values({
             createdAt: currentTime,
             fileObjectId: item.file.fileObjectId,
-            id: crypto.randomUUID(),
+            id: createUuidV7(),
             submissionId: id,
           }),
         ]),
@@ -1006,7 +1007,7 @@ export const createLmsService = ({
     await canAccessSection(input, input.classSectionId);
     await getMeeting(input.classSectionId, input.classMeetingId);
     const currentTime = now();
-    const id = crypto.randomUUID();
+    const id = createUuidV7();
     await database.batch([
       database.insert(forumThreads).values({
         classMeetingId: input.classMeetingId ?? null,
@@ -1022,7 +1023,7 @@ export const createLmsService = ({
         authorId: input.actorUserId,
         body: normalizeLmsBody(input.body) ?? "",
         createdAt: currentTime,
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         threadId: id,
       }),
     ] as Parameters<Database["batch"]>[0]);
@@ -1054,7 +1055,7 @@ export const createLmsService = ({
         authorId: input.actorUserId,
         body: normalizeLmsBody(input.body) ?? "",
         createdAt: currentTime,
-        id: crypto.randomUUID(),
+        id: createUuidV7(),
         threadId: input.threadId,
       }),
       database

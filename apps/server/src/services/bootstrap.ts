@@ -6,6 +6,7 @@ import {
   securityEvents,
   userRoles,
 } from "@siakad-itbkmmubar/db/schema/identity";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import { eq } from "drizzle-orm";
 
 const MINIMUM_PASSWORD_LENGTH = 16;
@@ -92,7 +93,7 @@ export const seedSuperadmin = async ({
 
     await database.insert(identityAccounts).values({
       createdAt: now,
-      id: crypto.randomUUID(),
+      id: createUuidV7(),
       identifier,
       identityType: "SUPERADMIN",
       mustChangePassword: false,
@@ -102,7 +103,7 @@ export const seedSuperadmin = async ({
     });
     await database.insert(userRoles).values({
       assignedAt: now,
-      id: crypto.randomUUID(),
+      id: createUuidV7(),
       isActive: true,
       roleKey: "SUPERADMIN",
       userId,
@@ -110,7 +111,7 @@ export const seedSuperadmin = async ({
     await database.insert(securityEvents).values({
       createdAt: now,
       eventType: "IDENTITY_ACCOUNT_SEEDED",
-      id: crypto.randomUUID(),
+      id: createUuidV7(),
       metadata: JSON.stringify({ identifier }),
       userId,
     });
