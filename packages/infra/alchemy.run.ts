@@ -17,6 +17,7 @@ export const server = Cloudflare.Worker("server", {
   dev: {
     port: 3000,
   },
+  domain: "api.siakad.itbkmmubar.ac.id",
   env: {
     BETTER_AUTH_SECRET: Config.Redacted("BETTER_AUTH_SECRET"),
     BETTER_AUTH_URL: Cloudflare.Worker.URL,
@@ -49,6 +50,7 @@ export default Alchemy.Stack(
       dev: {
         port: 3001,
       },
+      domain: "siakad.itbkmmubar.ac.id",
       env: {
         VITE_SERVER_URL: serverWorker.url.as<string>(),
       },
