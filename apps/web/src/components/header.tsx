@@ -12,6 +12,7 @@ import {
 import { Input } from "@siakad-itbkmmubar/ui/components/input";
 import { NotificationCenter } from "@siakad-itbkmmubar/ui/components/notification-center";
 import { SidebarTrigger } from "@siakad-itbkmmubar/ui/components/sidebar";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Check,
@@ -21,9 +22,11 @@ import {
   LogOut,
   Search,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { roleLabels } from "@/lib/active-role";
 import { authClient } from "@/lib/auth-client";
+import { orpc } from "@/utils/orpc";
 
 interface HeaderProps {
   activeRole: RoleKey | null;
@@ -52,12 +55,52 @@ const Header = ({
   userName,
 }: HeaderProps) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const activeRoleLabel = activeRole ? roleLabels[activeRole] : "Tanpa peran";
   const canSwitchRole = availableRoles.includes("SUPERADMIN");
+  const notificationQuery = useQuery({
+    ...orpc.notifications.list.queryOptions({ input: { limit: 8 } }),
+    refetchInterval: 60_000,
+  });
+  const markNotificationRead = useMutation(
+    orpc.notifications.markRead.mutationOptions({
+      onError: () => toast.error("Notifikasi belum dapat ditandai dibaca."),
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({
+          queryKey: orpc.notifications.list.key(),
+        });
+      },
+    })
+  );
+  const markAllNotificationsRead = useMutation(
+    orpc.notifications.markAllRead.mutationOptions({
+      onError: () => toast.error("Notifikasi belum dapat diperbarui."),
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({
+          queryKey: orpc.notifications.list.key(),
+        });
+      },
+    })
+  );
 
   const handleLogout = async () => {
     await authClient.signOut();
     await navigate({ to: "/login" });
+  };
+
+  const handleNotificationClick = async (notification: {
+    id: string;
+    route: string | null;
+    status: "READ" | "UNREAD";
+  }): Promise<void> => {
+    if (notification.status === "UNREAD") {
+      await markNotificationRead.mutateAsync({
+        notificationId: notification.id,
+      });
+    }
+    if (notification.route) {
+      await navigate({ to: notification.route as never });
+    }
   };
 
   return (
@@ -94,7 +137,20 @@ const Header = ({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
-          <NotificationCenter unreadCount={3} />
+          <NotificationCenter
+            hasError={notificationQuery.isError}
+            isLoading={notificationQuery.isLoading}
+            isMarkingAllRead={markAllNotificationsRead.isPending}
+            notifications={notificationQuery.data?.items}
+            onMarkAllRead={async () => {
+              await markAllNotificationsRead.mutateAsync();
+            }}
+            onNotificationClick={handleNotificationClick}
+            onRetry={async () => {
+              await notificationQuery.refetch();
+            }}
+            unreadCount={notificationQuery.data?.unreadCount ?? 0}
+          />
 
           <Button
             aria-label="Bantuan"

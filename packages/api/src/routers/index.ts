@@ -36,7 +36,8 @@ import {
   userScopes,
 } from "@siakad-itbkmmubar/db/schema/identity";
 import { identifierUsages as masterIdentifierUsages } from "@siakad-itbkmmubar/db/schema/master-data";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { notifications as notificationTable } from "@siakad-itbkmmubar/db/schema/platform";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 const identityTypeSchema = z.enum(identityTypes);
@@ -59,6 +60,19 @@ const requireBulkAcademicIdentityType = (
     throw new ORPCError("FORBIDDEN");
   }
 };
+
+const toNotificationRecord = (
+  notification: typeof notificationTable.$inferSelect
+) => ({
+  body: notification.body,
+  createdAt: notification.createdAt.toISOString(),
+  id: notification.id,
+  readAt: notification.readAt?.toISOString() ?? null,
+  route: notification.route,
+  status: notification.status as "READ" | "UNREAD",
+  title: notification.title,
+  type: notification.type,
+});
 
 const accountIdInput = z.object({ accountId: z.string().min(1) });
 const currentPasswordSchema = z.string().min(1).max(512);
@@ -1385,6 +1399,77 @@ export const appRouter = {
           ...input,
           actorUserId: context.session?.user.id as string,
         });
+      }),
+  },
+  notifications: {
+    list: protectedProcedure
+      .input(
+        z.object({
+          limit: z.coerce.number().int().min(1).max(25).default(8),
+        })
+      )
+      .handler(async ({ context, input }) => {
+        const userId = context.session?.user.id as string;
+        const [rows, unreadResult] = await Promise.all([
+          context.db
+            .select()
+            .from(notificationTable)
+            .where(eq(notificationTable.userId, userId))
+            .orderBy(
+              desc(notificationTable.createdAt),
+              desc(notificationTable.id)
+            )
+            .limit(input.limit),
+          context.db
+            .select({ count: sql<number>`count(*)` })
+            .from(notificationTable)
+            .where(
+              and(
+                eq(notificationTable.userId, userId),
+                eq(notificationTable.status, "UNREAD")
+              )
+            ),
+        ]);
+
+        return {
+          items: rows.map(toNotificationRecord),
+          unreadCount: Number(unreadResult[0]?.count ?? 0),
+        };
+      }),
+    markAllRead: protectedProcedure.handler(async ({ context }) => {
+      await context.db
+        .update(notificationTable)
+        .set({
+          readAt: new Date(),
+          status: "READ",
+        })
+        .where(
+          and(
+            eq(notificationTable.userId, context.session?.user.id as string),
+            eq(notificationTable.status, "UNREAD")
+          )
+        );
+
+      return { status: "READ" as const };
+    }),
+    markRead: protectedProcedure
+      .input(z.object({ notificationId: z.string().min(1) }))
+      .handler(async ({ context, input }) => {
+        await context.db
+          .update(notificationTable)
+          .set({
+            readAt: new Date(),
+            status: "READ",
+          })
+          .where(
+            and(
+              eq(notificationTable.id, input.notificationId),
+              eq(notificationTable.userId, context.session?.user.id as string),
+              eq(notificationTable.status, "UNREAD")
+            )
+          );
+
+        return { status: "READ" as const };
       }),
   },
   privateData: protectedProcedure.handler(({ context }) => ({

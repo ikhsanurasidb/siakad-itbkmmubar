@@ -766,6 +766,9 @@ const getVisibleItems = (
   roles: readonly RoleKey[]
 ): NavigationItem[] => getVisibleItemsForRoles(items, new Set(roles));
 
+const getModuleItems = (items: readonly NavigationItem[]): NavigationItem[] =>
+  items.flatMap((item) => (item.children?.length ? item.children : [item]));
+
 const isPathActive = (pathname: string, item: NavigationItem): boolean => {
   const activePaths = item.to
     ? [item.to, ...(item.activePaths ?? [])]
@@ -917,6 +920,9 @@ const Sidebar = ({ roles }: SidebarProps) => {
             return null;
           }
 
+          const moduleItems = section.label
+            ? getModuleItems(visibleItems)
+            : visibleItems;
           const sectionIsActive = visibleItems.some((item) =>
             isPathActive(pathname, item)
           );
@@ -931,7 +937,7 @@ const Sidebar = ({ roles }: SidebarProps) => {
             >
               {section.label ? (
                 <NavigationModule
-                  items={visibleItems}
+                  items={moduleItems}
                   label={section.label}
                   pathname={pathname}
                   setOpenMobile={setOpenMobile}
