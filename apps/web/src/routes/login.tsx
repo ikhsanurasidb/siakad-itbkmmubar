@@ -7,7 +7,7 @@ import {
 import { Input } from "@siakad-itbkmmubar/ui/components/input";
 import { Label } from "@siakad-itbkmmubar/ui/components/label";
 import { useForm } from "@tanstack/react-form";
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { LockKeyhole, ShieldCheck, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
@@ -47,12 +47,14 @@ const RouteComponent = () => {
     <PublicAuthLayout>
       <Card className="border-white/70 bg-white/95 shadow-[0_24px_80px_-32px_rgba(18,57,92,0.38)]">
         <CardHeader className="items-center px-7 pt-9 text-center sm:px-12 sm:pt-12">
-          <span className="grid size-16 place-items-center rounded-2xl bg-[#e8eff6] text-3xl font-bold text-[#12395c] shadow-inner">
-            S
-          </span>
+          <img
+            alt="Logo ITBKM"
+            className="mx-auto size-16 rounded-2xl object-cover shadow-inner"
+            src="/logo-itbkm.webp"
+          />
           <div className="mt-5 grid gap-2">
             <p className="text-sm font-bold tracking-wide text-[#12395c]">
-              SIAKAD ITB KMMU BAR
+              SIAKAD ITBKM MUNA BARAT
             </p>
             <span className="mx-auto mt-3 h-1.5 w-14 rounded-full bg-[#e6bb4d]" />
             <h1 className="mt-3 text-3xl font-bold tracking-tight text-[#102f4d] sm:text-4xl">
@@ -146,12 +148,12 @@ const RouteComponent = () => {
                       >
                         Kata sandi
                       </Label>
-                      <Link
+                      {/* <Link
                         className="text-xs font-semibold text-[#12395c] hover:text-[#e0aa2f]"
                         to="/lupa-password"
                       >
                         Lupa password?
-                      </Link>
+                      </Link> */}
                     </div>
                     <div className="relative">
                       <LockKeyhole

@@ -7,7 +7,7 @@ import {
 import type { ReactNode } from "react";
 
 const highlights = [
-  { icon: GraduationCap, label: "KRS Paket" },
+  { icon: GraduationCap, label: "KRS" },
   { icon: CalendarDays, label: "Jadwal Kuliah" },
   { icon: UsersRound, label: "Presensi" },
   { icon: FileText, label: "Nilai dan Transkrip" },
@@ -19,15 +19,11 @@ interface PublicAuthLayoutProps {
 
 const Brand = ({ dark = false }: { dark?: boolean }) => (
   <div className="flex items-center gap-3">
-    <span
-      className={
-        dark
-          ? "grid size-12 place-items-center rounded-xl bg-white text-xl font-bold text-[#12395c] shadow-lg shadow-slate-950/15"
-          : "grid size-12 place-items-center rounded-xl bg-[#e8eff6] text-xl font-bold text-[#12395c]"
-      }
-    >
-      S
-    </span>
+    <img
+      alt="Logo ITBKM"
+      className={`size-12 shrink-0 rounded-xl object-cover ${dark ? "shadow-lg shadow-slate-950/15" : ""}`}
+      src="/logo-itbkm.webp"
+    />
     <span
       className={
         dark
@@ -35,7 +31,7 @@ const Brand = ({ dark = false }: { dark?: boolean }) => (
           : "text-base font-bold tracking-wide text-[#12395c]"
       }
     >
-      SIAKAD ITB KMMU BAR
+      SIAKAD ITBKM MUNA BARAT
     </span>
   </div>
 );
@@ -52,16 +48,9 @@ const PublicAuthLayout = ({ children }: PublicAuthLayoutProps) => (
       </div>
 
       <div className="relative z-10 mt-24 max-w-xl xl:mt-28">
-        <p className="text-sm font-semibold tracking-[0.24em] text-[#e6bb4d] uppercase">
+        <h1 className="text-sm font-semibold tracking-[0.24em] text-[#e6bb4d] uppercase">
           Portal akademik terpadu
-        </p>
-        <h1 className="mt-5 text-4xl leading-tight font-bold tracking-tight xl:text-5xl">
-          Satu akses untuk perjalanan akademik Anda.
         </h1>
-        <p className="mt-5 max-w-lg text-base leading-7 text-blue-100/75">
-          Kelola layanan akademik dengan pengalaman yang rapi, aman, dan mudah
-          digunakan dalam satu tempat.
-        </p>
         <div className="mt-10 grid gap-4">
           {highlights.map(({ icon: Icon, label }) => (
             <div className="flex items-center gap-4" key={label}>
@@ -78,10 +67,7 @@ const PublicAuthLayout = ({ children }: PublicAuthLayoutProps) => (
         <GraduationCap className="size-[28rem]" strokeWidth={0.7} />
       </div>
       <div className="relative z-10 mt-auto flex items-end justify-between gap-8 text-xs tracking-[0.2em] text-blue-100/55 uppercase">
-        <span>© SIAKAD ITB KMMU BAR</span>
-        <span className="hidden max-w-32 text-right leading-5 sm:block">
-          Ilmu membangun masa depan
-        </span>
+        <span>© SIAKAD ITBKM MUNA BARAT</span>
       </div>
     </section>
 

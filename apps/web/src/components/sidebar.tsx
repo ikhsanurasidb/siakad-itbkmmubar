@@ -900,15 +900,17 @@ const Sidebar = ({ roles }: SidebarProps) => {
     <SidebarPrimitive collapsible="icon" variant="sidebar">
       <SidebarHeader className="border-sidebar-border/60 h-20 justify-center border-b px-5 py-0">
         <Link
-          aria-label="SIAKAD ITB KMMU BAR"
+          aria-label="SIAKAD ITBKM MUNA BARAT"
           className="flex min-w-0 items-center gap-3 group-data-[collapsible=icon]:justify-center"
           to="/dashboard"
         >
-          <span className="grid size-10 shrink-0 place-items-center rounded-sm bg-white text-lg font-bold text-[#12395c] shadow-sm">
-            S
-          </span>
+          <img
+            alt=""
+            className="size-10 shrink-0 rounded-sm object-cover shadow-sm"
+            src="/logo-itbkm.webp"
+          />
           <span className="truncate text-sm font-bold tracking-wide text-white group-data-[collapsible=icon]:hidden">
-            SIAKAD ITB KMMU BAR
+            SIAKAD ITBKM MUNA BARAT
           </span>
         </Link>
       </SidebarHeader>
