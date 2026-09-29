@@ -10,7 +10,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -41,6 +40,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useState } from "react";
 
 interface NavigationItem {
   activePaths?: readonly string[];
@@ -60,6 +60,14 @@ interface NavigationNodeProps {
   item: NavigationItem;
   pathname: string;
   setOpenMobile: (open: boolean) => void;
+}
+
+interface NavigationModuleProps {
+  items: readonly NavigationItem[];
+  label: string;
+  pathname: string;
+  setOpenMobile: (open: boolean) => void;
+  sidebarState: "collapsed" | "expanded";
 }
 
 interface SidebarProps {
@@ -779,6 +787,7 @@ const NavigationNode = ({
 }: NavigationNodeProps) => {
   const { children, icon: Icon, label, to } = item;
   const isActive = isPathActive(pathname, item);
+  const [isOpen, setIsOpen] = useState(isActive);
 
   if (!children?.length) {
     return (
@@ -803,7 +812,11 @@ const NavigationNode = ({
 
   return (
     <SidebarMenuItem>
-      <Collapsible className="group/collapsible" defaultOpen={isActive}>
+      <Collapsible
+        className="group/collapsible"
+        onOpenChange={(open) => setIsOpen(open)}
+        open={isOpen}
+      >
         <CollapsibleTrigger
           render={
             <SidebarMenuButton isActive={isActive} title={label}>
@@ -817,7 +830,7 @@ const NavigationNode = ({
           }
         />
         <CollapsibleContent className="group-data-[collapsible=icon]:hidden">
-          <SidebarMenu className="border-sidebar-border/50 mt-1 ml-3 gap-1 border-l pl-2">
+          <SidebarMenu className="border-sidebar-border/50 mt-1 ml-3 max-w-[calc(100%_-_0.75rem)] gap-1 border-l pl-2">
             {children.map((child) => (
               <NavigationNode
                 item={child}
@@ -830,6 +843,47 @@ const NavigationNode = ({
         </CollapsibleContent>
       </Collapsible>
     </SidebarMenuItem>
+  );
+};
+
+const NavigationModule = ({
+  items,
+  label,
+  pathname,
+  setOpenMobile,
+  sidebarState,
+}: NavigationModuleProps) => {
+  const isActive = items.some((item) => isPathActive(pathname, item));
+  const [isOpen, setIsOpen] = useState(isActive);
+
+  return (
+    <Collapsible
+      className="group/module"
+      onOpenChange={(open) => setIsOpen(open)}
+      open={sidebarState === "collapsed" || isOpen}
+    >
+      <CollapsibleTrigger className="text-sidebar-foreground/55 hover:text-sidebar-foreground focus-visible:ring-sidebar-ring flex h-8 w-full shrink-0 items-center gap-2 rounded-lg px-3 text-left text-[10px] font-semibold tracking-[0.18em] uppercase transition-colors outline-none group-data-[collapsible=icon]:hidden focus-visible:ring-2">
+        <span className="truncate">{label}</span>
+        <ChevronRight
+          aria-hidden="true"
+          className="ml-auto size-3.5 transition-transform duration-200 group-data-[open]/module:rotate-90"
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {items.map((item) => (
+              <NavigationNode
+                item={item}
+                key={`${item.label}-${isPathActive(pathname, item)}`}
+                pathname={pathname}
+                setOpenMobile={setOpenMobile}
+              />
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </CollapsibleContent>
+    </Collapsible>
   );
 };
 
@@ -863,23 +917,40 @@ const Sidebar = ({ roles }: SidebarProps) => {
             return null;
           }
 
+          const sectionIsActive = visibleItems.some((item) =>
+            isPathActive(pathname, item)
+          );
+
           return (
-            <SidebarGroup key={section.label ?? "primary"}>
-              {section.label && (
-                <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
+            <SidebarGroup
+              key={
+                section.label
+                  ? `${section.label}-${sectionIsActive}`
+                  : "primary"
+              }
+            >
+              {section.label ? (
+                <NavigationModule
+                  items={visibleItems}
+                  label={section.label}
+                  pathname={pathname}
+                  setOpenMobile={setOpenMobile}
+                  sidebarState={state}
+                />
+              ) : (
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {visibleItems.map((item) => (
+                      <NavigationNode
+                        item={item}
+                        key={`${item.label}-${isPathActive(pathname, item)}`}
+                        pathname={pathname}
+                        setOpenMobile={setOpenMobile}
+                      />
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
               )}
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {visibleItems.map((item) => (
-                    <NavigationNode
-                      item={item}
-                      key={item.label}
-                      pathname={pathname}
-                      setOpenMobile={setOpenMobile}
-                    />
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
             </SidebarGroup>
           );
         })}
