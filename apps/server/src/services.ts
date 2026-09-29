@@ -49,7 +49,6 @@ export const createMasterDataService = async (
   return createConfiguredMasterDataService({
     database: db,
     identityService,
-    storage: getStorage(),
   });
 };
 

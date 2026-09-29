@@ -1,8 +1,3 @@
-import type { FileStorage } from "@server/services/storage";
-import {
-  createPrivateObjectKey,
-  uploadWithCompensation,
-} from "@server/services/storage";
 import type {
   IdentityService,
   MasterDataService,
@@ -10,7 +5,6 @@ import type {
 import {
   MasterDataDomainError,
   assertAcademicTerm,
-  assertHeaders,
   assertTemplateVersion,
   normalizeCode,
   normalizeIdentifierValue,
@@ -19,10 +13,8 @@ import {
   normalizeText,
   parseAcademicPeriodDate,
   parseCoordinate,
-  parseCsv,
-  parseCsvRow,
-  parseDate,
   parseInteger,
+  templateHeaders,
 } from "@siakad-itbkmmubar/api/master-data";
 import type { MasterDataEntityType } from "@siakad-itbkmmubar/api/master-data";
 import type { Database } from "@siakad-itbkmmubar/db";
@@ -39,11 +31,7 @@ import {
   studyPrograms,
   identifierUsages,
 } from "@siakad-itbkmmubar/db/schema/master-data";
-import {
-  auditLogs,
-  fileObjects,
-  outboxEvents,
-} from "@siakad-itbkmmubar/db/schema/platform";
+import { auditLogs, outboxEvents } from "@siakad-itbkmmubar/db/schema/platform";
 import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import {
   and,
@@ -410,12 +398,10 @@ export const createMasterDataService = ({
   database,
   identityService,
   now = () => new Date(),
-  storage,
 }: {
   database: Database;
   identityService?: Pick<IdentityService, "createAccount">;
   now?: () => Date;
-  storage?: FileStorage;
 }): MasterDataService => {
   // The entity switch is centralized so every master entity shares the same access contract.
   // eslint-disable-next-line complexity
@@ -2276,9 +2262,9 @@ export const createMasterDataService = ({
   const createImport: MasterDataService["createImport"] = async ({
     actorUserId,
     checksum,
-    content,
     entityType,
     filename,
+    rows: inputRows,
     templateVersion,
   }) => {
     assertTemplateVersion(templateVersion);
@@ -2298,65 +2284,28 @@ export const createMasterDataService = ({
         "File yang sama sudah pernah diproses untuk entity ini."
       );
     }
-    const parsed = [...parseCsv(content)];
-    const [headerRow, ...dataRows] = parsed;
-    if (!headerRow) {
-      throw new MasterDataDomainError(
-        "EMPTY_FILE",
-        "File import tidak memiliki baris."
-      );
-    }
-    if (dataRows.length === 0) {
+    if (inputRows.length === 0) {
       throw new MasterDataDomainError(
         "EMPTY_FILE",
         "File import tidak memiliki data untuk diproses."
       );
     }
-    const headers = headerRow.map((header) =>
-      normalizeText(header).toLowerCase()
-    );
-    assertHeaders(entityType, headers);
+    const headers = templateHeaders(entityType);
     const jobId = createUuidV7();
-    const fileObjectId = createUuidV7();
-    const objectKey = createPrivateObjectKey("imports", jobId);
     const saveImportMetadata = async (): Promise<void> => {
-      if (storage) {
-        await database.insert(fileObjects).values({
-          checksum,
-          createdAt: now(),
-          createdBy: actorUserId,
-          declaredMime: "text/csv",
-          id: fileObjectId,
-          mimeType: "text/csv",
-          objectKey,
-          originalFilename: normalizeText(filename),
-          ownerId: jobId,
-          ownerType: "IMPORT_JOB",
-          sizeBytes: new TextEncoder().encode(content).byteLength,
-          status: "ACTIVE",
-        });
-      }
       await database.insert(importJobs).values({
         checksum,
         createdAt: now(),
         createdBy: actorUserId,
         entityType,
-        fileObjectId: storage ? fileObjectId : null,
+        fileObjectId: null,
         filename: normalizeText(filename),
         id: jobId,
         status: "VALIDATING",
         templateVersion,
       });
     };
-    await (storage
-      ? uploadWithCompensation(
-          storage,
-          objectKey,
-          content,
-          saveImportMetadata,
-          { httpMetadata: { contentType: "text/csv" } }
-        )
-      : saveImportMetadata());
+    await saveImportMetadata();
     const seenKeys = new Set<string>();
     let validCount = 0;
     let warningCount = 0;
@@ -2369,12 +2318,18 @@ export const createMasterDataService = ({
       await database.insert(importRows).values(stagedRows.splice(0));
     };
     let rowNumber = 1;
-    for (const values of dataRows) {
+    for (const rawData of inputRows) {
       rowNumber += 1;
-      const rawData = parseCsvRow(headers, values);
+      const filteredData = Object.fromEntries(
+        headers.map((header) => [header, rawData[header] ?? ""])
+      );
       // Keep validation ordered so row numbers and staging checkpoints are deterministic.
       // eslint-disable-next-line no-await-in-loop
-      const result = await validateImportRow(entityType, rawData, seenKeys);
+      const result = await validateImportRow(
+        entityType,
+        filteredData,
+        seenKeys
+      );
       if (result.status === "VALID") {
         validCount += 1;
       }
@@ -2392,7 +2347,7 @@ export const createMasterDataService = ({
         normalizedData: JSON.stringify(result.data, (_key, value: unknown) =>
           value instanceof Date ? value.toISOString() : value
         ),
-        rawData: JSON.stringify(rawData),
+        rawData: JSON.stringify(filteredData),
         rowNumber,
         status: result.status,
       });
@@ -2403,7 +2358,7 @@ export const createMasterDataService = ({
       }
     }
     await flushRows();
-    const totalRows = dataRows.length;
+    const totalRows = inputRows.length;
     await database
       .update(importJobs)
       .set({

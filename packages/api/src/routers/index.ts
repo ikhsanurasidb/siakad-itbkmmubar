@@ -87,6 +87,15 @@ const phoneSchema = z
 const masterDataEntitySchema = z.enum(masterDataEntityTypes);
 const masterDataStatusSchema = z.enum(masterDataStatusesList);
 const masterDataDataSchema = z.record(z.string(), z.unknown());
+const masterDataImportValueSchema = z.union([
+  z.string().max(1000),
+  z.number().finite(),
+  z.null(),
+]);
+const masterDataImportRowsSchema = z
+  .array(z.record(z.string().max(80), masterDataImportValueSchema))
+  .min(1)
+  .max(10_000);
 const settingCategorySchema = z.enum(settingCategories);
 const settingScopeTypeSchema = z.enum(settingScopeTypes);
 const settingsScopeSchema = z.object({
@@ -1315,9 +1324,14 @@ export const appRouter = {
         .input(
           z.object({
             checksum: z.string().trim().min(8).max(128),
-            content: z.string().min(1).max(10_000_000),
             entityType: masterDataEntitySchema,
-            filename: z.string().trim().min(1).max(180),
+            filename: z
+              .string()
+              .trim()
+              .min(1)
+              .max(180)
+              .regex(/\.xlsx$/iu, "File impor harus berformat .xlsx."),
+            rows: masterDataImportRowsSchema,
             templateVersion: z.string().trim().min(1).max(20),
           })
         )

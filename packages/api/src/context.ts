@@ -27,7 +27,11 @@ import type {
   LmsMaterialRecord,
   LmsSubmissionRecord,
 } from "@api/lms";
-import type { MasterDataEntityType, MasterDataStatus } from "@api/master-data";
+import type {
+  MasterDataEntityType,
+  MasterDataImportRow,
+  MasterDataStatus,
+} from "@api/master-data";
 import type {
   ClassMappingResult,
   ClassMeetingRecord,
@@ -195,9 +199,9 @@ export interface MasterDataService {
   createImport: (input: {
     actorUserId: string;
     checksum: string;
-    content: string;
     entityType: MasterDataEntityType;
     filename: string;
+    rows: readonly MasterDataImportRow[];
     templateVersion: string;
   }) => Promise<{
     id: string;

@@ -24,6 +24,10 @@ export const formatAcademicPeriodTerm = (term: string): string =>
 export const studyProgramDegreeOptions = studyProgramDegrees;
 
 export type MasterDataEntityType = (typeof masterDataEntityTypes)[number];
+export type MasterDataImportValue = string | number | null;
+export type MasterDataImportRow = Readonly<
+  Record<string, MasterDataImportValue>
+>;
 export type MasterDataStatus = (typeof masterDataStatusesList)[number];
 export type ImportRowStatus = (typeof masterDataImportRowStatuses)[number];
 export type StudyProgramDegree = (typeof studyProgramDegreeOptions)[number];

@@ -10,10 +10,18 @@ import { DataTable } from "@siakad-itbkmmubar/ui/components/data-table";
 import { FormField } from "@siakad-itbkmmubar/ui/components/form-field";
 import { Input } from "@siakad-itbkmmubar/ui/components/input";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { Download } from "lucide-react";
 import { useState } from "react";
 import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 
+import type { MasterDataEntityType } from "@/components/master-data-types";
+import {
+  calculateMasterDataImportChecksum,
+  downloadMasterDataTemplate,
+  MASTER_DATA_IMPORT_MIME_TYPE,
+  parseMasterDataWorkbook,
+} from "@/lib/master-data-import-xlsx";
 import { orpc } from "@/utils/orpc";
 
 const entityOptions = [
@@ -27,21 +35,15 @@ const entityOptions = [
   ["ACADEMIC_PERIOD", "Periode"],
 ] as const;
 
-const getErrorMessage = (): string =>
-  "Impor belum dapat diproses. Periksa file lalu coba lagi.";
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error
+    ? error.message
+    : "Impor belum dapat diproses. Periksa file lalu coba lagi.";
 
 const importRowStatusLabels: Record<string, string> = {
   INVALID: "Perlu diperbaiki",
   VALID: "Lolos validasi",
   WARNING: "Peringatan",
-};
-
-const calculateChecksum = async (content: string): Promise<string> => {
-  const bytes = new TextEncoder().encode(content);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
 };
 
 interface MasterDataImportPageProps {
@@ -57,6 +59,8 @@ const MasterDataImportPage = ({
     useState<(typeof entityOptions)[number][0]>("STUDENT");
   const [jobId, setJobId] = useState<string>();
   const [fileName, setFileName] = useState("");
+  const [fileInputKey, setFileInputKey] = useState(0);
+  const [rowCount, setRowCount] = useState(0);
   const preview = useQuery(
     orpc.masterData.import.preview.queryOptions({
       enabled: Boolean(jobId),
@@ -65,7 +69,13 @@ const MasterDataImportPage = ({
   );
   const createImport = useMutation(
     orpc.masterData.import.create.mutationOptions({
-      onError: () => toast.error(getErrorMessage()),
+      onError: (error) => {
+        setJobId(undefined);
+        setFileName("");
+        setRowCount(0);
+        setFileInputKey((key) => key + 1);
+        toast.error(getErrorMessage(error));
+      },
       onSuccess: (result) => {
         setJobId(result.id);
         toast.success("File tervalidasi. Periksa pratinjau sebelum menyimpan.");
@@ -74,7 +84,7 @@ const MasterDataImportPage = ({
   );
   const commitImport = useMutation(
     orpc.masterData.import.commit.mutationOptions({
-      onError: () => toast.error(getErrorMessage()),
+      onError: (error) => toast.error(getErrorMessage(error)),
       onSuccess: () => {
         toast.success("Pemrosesan impor dilanjutkan.");
         void preview.refetch();
@@ -87,15 +97,44 @@ const MasterDataImportPage = ({
     if (!file) {
       return;
     }
-    setFileName(file.name);
-    const content = await file.text();
-    createImport.mutate({
-      checksum: await calculateChecksum(content),
-      content,
-      entityType,
-      filename: file.name,
-      templateVersion: "1",
-    });
+    setJobId(undefined);
+    try {
+      const parsed = await parseMasterDataWorkbook(file, entityType);
+      setFileName(file.name);
+      setRowCount(parsed.rowCount);
+      createImport.mutate({
+        checksum: await calculateMasterDataImportChecksum(
+          entityType,
+          parsed.rows
+        ),
+        entityType,
+        filename: file.name,
+        rows: parsed.rows,
+        templateVersion: "1",
+      });
+    } catch (error) {
+      setFileName("");
+      setRowCount(0);
+      setFileInputKey((key) => key + 1);
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  const handleEntityChange = (nextEntityType: MasterDataEntityType) => {
+    setEntityType(nextEntityType);
+    setJobId(undefined);
+    setFileName("");
+    setRowCount(0);
+    setFileInputKey((key) => key + 1);
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      await downloadMasterDataTemplate(entityType);
+      toast.success("Template XLSX berhasil diunduh.");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
   };
 
   const rows = (preview.data?.data ?? []).map((row) => ({
@@ -118,7 +157,10 @@ const MasterDataImportPage = ({
         <CardHeader>
           <CardTitle>Unggah dan validasi</CardTitle>
           <CardDescription>
-            Gunakan templat CSV versi 1. DSN tidak boleh diisi dari file impor.
+            Isi worksheet Data pada template XLSX versi 1. Worksheet Petunjuk
+            berisi contoh dan aturan, tetapi tidak ikut diparsing atau dikirim.
+            Server hanya menerima kolom data yang dibutuhkan. DSN diterbitkan
+            server.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
@@ -127,9 +169,7 @@ const MasterDataImportPage = ({
               className="border-input bg-background h-9 rounded-md border px-3 text-sm"
               id="import-entity"
               onChange={(event) =>
-                setEntityType(
-                  event.target.value as (typeof entityOptions)[number][0]
-                )
+                handleEntityChange(event.target.value as MasterDataEntityType)
               }
               value={entityType}
             >
@@ -139,19 +179,30 @@ const MasterDataImportPage = ({
                 </option>
               ))}
             </select>
+            <Button
+              className="mt-2"
+              onClick={handleDownloadTemplate}
+              type="button"
+              variant="outline"
+            >
+              <Download aria-hidden="true" />
+              Unduh template XLSX
+            </Button>
           </FormField>
           <FormField
             helper={
               fileName
-                ? `File dipilih: ${fileName}`
-                : "Ukuran CSV maksimal 10 MB."
+                ? `File dipilih: ${fileName} (${rowCount.toLocaleString("id-ID")} baris)`
+                : "Format .xlsx, ukuran maksimal 10 MB."
             }
             id="import-file"
-            label="File CSV"
+            label="File XLSX"
           >
             <Input
-              accept=".csv,text/csv"
+              accept={`.xlsx,${MASTER_DATA_IMPORT_MIME_TYPE}`}
+              disabled={createImport.isPending}
               id="import-file"
+              key={fileInputKey}
               onChange={handleFile}
               type="file"
             />

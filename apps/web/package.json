@@ -29,6 +29,7 @@
     "react-dom": "catalog:",
     "sonner": "catalog:",
     "varlock": "catalog:",
+    "xlsx": "^0.18.5",
     "zod": "catalog:"
   },
   "devDependencies": {
