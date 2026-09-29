@@ -17,6 +17,7 @@ import {
   normalizeOptional,
   normalizeStudyProgramDegree,
   normalizeText,
+  parseAcademicPeriodDate,
   parseCoordinate,
   parseCsv,
   parseCsvRow,
@@ -1148,11 +1149,19 @@ export const createMasterDataService = ({
         const startDate =
           data.startDate instanceof Date
             ? data.startDate
-            : parseDate(valueAsString(data, "startDate"), "Tanggal mulai");
+            : parseAcademicPeriodDate(
+                valueAsString(data, "startDate"),
+                "Tanggal mulai",
+                "start"
+              );
         const endDate =
           data.endDate instanceof Date
             ? data.endDate
-            : parseDate(valueAsString(data, "endDate"), "Tanggal akhir");
+            : parseAcademicPeriodDate(
+                valueAsString(data, "endDate"),
+                "Tanggal akhir",
+                "end"
+              );
         if (endDate < startDate) {
           throw new MasterDataDomainError(
             "INVALID_DATE_RANGE",
@@ -1600,11 +1609,19 @@ export const createMasterDataService = ({
         const startDate =
           data.startDate === undefined
             ? new Date(String(before.startDate))
-            : parseDate(valueAsString(data, "startDate"), "Tanggal mulai");
+            : parseAcademicPeriodDate(
+                valueAsString(data, "startDate"),
+                "Tanggal mulai",
+                "start"
+              );
         const endDate =
           data.endDate === undefined
             ? new Date(String(before.endDate))
-            : parseDate(valueAsString(data, "endDate"), "Tanggal akhir");
+            : parseAcademicPeriodDate(
+                valueAsString(data, "endDate"),
+                "Tanggal akhir",
+                "end"
+              );
         if (endDate < startDate) {
           throw new MasterDataDomainError(
             "INVALID_DATE_RANGE",
@@ -2177,13 +2194,15 @@ export const createMasterDataService = ({
             valueAsString(row, "academic_year_code")
           );
           normalized.term = assertAcademicTerm(valueAsString(row, "term"));
-          normalized.startDate = parseDate(
+          normalized.startDate = parseAcademicPeriodDate(
             valueAsString(row, "start_date"),
-            "Tanggal mulai"
+            "Tanggal mulai",
+            "start"
           );
-          normalized.endDate = parseDate(
+          normalized.endDate = parseAcademicPeriodDate(
             valueAsString(row, "end_date"),
-            "Tanggal akhir"
+            "Tanggal akhir",
+            "end"
           );
           if ((normalized.endDate as Date) < (normalized.startDate as Date)) {
             errors.push("Tanggal akhir tidak boleh sebelum tanggal mulai.");

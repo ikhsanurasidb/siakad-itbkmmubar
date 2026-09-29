@@ -1,3 +1,4 @@
+import { formatAcademicPeriodTerm } from "@siakad-itbkmmubar/api/master-data";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
   Card,
@@ -129,7 +130,7 @@ const StudyPlanListPage = ({
                 <CardTitle>{plan.student.name}</CardTitle>
                 <CardDescription>
                   {plan.student.nim} · {studyPlanModeLabels[plan.mode]} ·{" "}
-                  {plan.academicPeriod.term}
+                  {formatAcademicPeriodTerm(plan.academicPeriod.term)}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex items-center justify-between gap-4">

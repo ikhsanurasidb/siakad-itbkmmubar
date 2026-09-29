@@ -17,6 +17,7 @@ import type {
   PublishedGradeRow,
 } from "@siakad-itbkmmubar/api/grades";
 import type { RoleKey } from "@siakad-itbkmmubar/api/identity";
+import { formatAcademicPeriodTerm } from "@siakad-itbkmmubar/api/master-data";
 import type { GradingPolicy } from "@siakad-itbkmmubar/api/settings";
 import type { Database } from "@siakad-itbkmmubar/db";
 import { courseAssessmentDefaults } from "@siakad-itbkmmubar/db/schema/curriculum";
@@ -839,6 +840,7 @@ export const createGradesService = ({
     const rows = await database
       .select({
         academicPeriodId: academicPeriods.id,
+        academicPeriodTerm: academicPeriods.term,
         attempt: finalGradeSnapshots.attempt,
         courseCode: courses.code,
         courseCredits: courses.credits,
@@ -885,7 +887,7 @@ export const createGradesService = ({
     const periodsById = new Map(
       rows.map((row) => [
         row.academicPeriodId,
-        { id: row.academicPeriodId, term: row.academicPeriodId },
+        { id: row.academicPeriodId, term: row.academicPeriodTerm },
       ])
     );
     return {
@@ -1040,7 +1042,9 @@ export const createGradesService = ({
       });
     return {
       academicPeriodId: periodId,
-      academicPeriodLabel: loaded.periodsById.get(periodId)?.term ?? periodId,
+      academicPeriodLabel: formatAcademicPeriodTerm(
+        loaded.periodsById.get(periodId)?.term ?? periodId
+      ),
       entries,
       ipk: result.ipk,
       ips: result.ips,

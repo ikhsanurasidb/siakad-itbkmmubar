@@ -13,6 +13,14 @@ export const masterDataEntityTypes = importEntityTypes;
 export const masterDataStatusesList = masterDataStatuses;
 export const masterDataImportRowStatuses = importRowStatuses;
 export const academicTerms = academicPeriodTerms;
+export const academicPeriodTermLabels = {
+  EVEN: "Genap",
+  ODD: "Ganjil",
+  SHORT: "Pendek",
+} as const;
+export const formatAcademicPeriodTerm = (term: string): string =>
+  academicPeriodTermLabels[term as keyof typeof academicPeriodTermLabels] ??
+  term;
 export const studyProgramDegreeOptions = studyProgramDegrees;
 
 export type MasterDataEntityType = (typeof masterDataEntityTypes)[number];
@@ -115,6 +123,18 @@ export const parseDate = (value: string, fieldName: string): Date => {
       "INVALID_DATE",
       `${fieldName} harus berupa tanggal yang valid.`
     );
+  }
+  return date;
+};
+
+export const parseAcademicPeriodDate = (
+  value: string,
+  fieldName: string,
+  boundary: "end" | "start"
+): Date => {
+  const date = parseDate(value, fieldName);
+  if (boundary === "end" && /^\d{4}-\d{2}-\d{2}$/u.test(value.trim())) {
+    date.setUTCHours(23, 59, 59, 999);
   }
   return date;
 };

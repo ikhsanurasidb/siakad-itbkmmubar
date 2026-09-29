@@ -111,7 +111,7 @@ const MasterDataSelectEditField = ({
       <option value="">Pilih {field.label.toLowerCase()}</option>
       {field.options?.map((option) => (
         <option key={option} value={option}>
-          {option}
+          {field.optionLabels?.[option] ?? option}
         </option>
       ))}
     </select>

@@ -82,7 +82,7 @@ const entityCards = [
     slug: "mata-kuliah",
   },
   {
-    description: "Tahun akademik, term, dan rentang tanggal.",
+    description: "Tahun akademik, semester, dan rentang tanggal.",
     entityType: "ACADEMIC_PERIOD",
     icon: ClipboardList,
     label: "Periode akademik",

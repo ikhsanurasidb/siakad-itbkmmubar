@@ -1,3 +1,4 @@
+import { formatAcademicPeriodTerm } from "@siakad-itbkmmubar/api/master-data";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
   Card,
@@ -28,6 +29,13 @@ const statusLabels: Record<string, string> = {
   ARCHIVED: "Diarsipkan",
   CLOSED: "Ditutup",
   DRAFT: "Draf",
+};
+
+const formatFieldValue = (fieldId: string, value: unknown): string => {
+  if (fieldId === "term" && typeof value === "string") {
+    return formatAcademicPeriodTerm(value);
+  }
+  return String(value ?? "—");
 };
 
 interface MasterDataListCardProps {
@@ -149,6 +157,7 @@ const MasterDataListCard = ({
   );
   const columns = [
     ...fields.slice(0, 4).map((field) => ({
+      cell: (row: DisplayRow) => formatFieldValue(field.id, row[field.id]),
       header: field.label,
       id: field.id,
     })),

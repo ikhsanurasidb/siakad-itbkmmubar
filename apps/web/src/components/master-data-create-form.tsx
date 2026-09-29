@@ -16,6 +16,7 @@ export interface FieldDefinition {
   label: string;
   optional?: boolean;
   options?: readonly string[];
+  optionLabels?: Readonly<Record<string, string>>;
   type?: "date" | "number" | "select" | "text";
 }
 
@@ -212,7 +213,7 @@ const MasterDataCreateForm = ({
                   <option value="">Pilih {field.label.toLowerCase()}</option>
                   {field.options?.map((option) => (
                     <option key={option} value={option}>
-                      {option}
+                      {field.optionLabels?.[option] ?? option}
                     </option>
                   ))}
                 </select>

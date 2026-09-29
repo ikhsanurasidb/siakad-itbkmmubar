@@ -6,9 +6,11 @@ import {
   MasterDataDomainError,
   assertHeaders,
   assertTemplateVersion,
+  formatAcademicPeriodTerm,
   normalizeCode,
   normalizeIdentifierValue,
   normalizeStudyProgramDegree,
+  parseAcademicPeriodDate,
   parseCoordinate,
   parseCsv,
   parseCsvRow,
@@ -193,6 +195,18 @@ describe("SIAKAD-02 master data rules", () => {
     expect(() => normalizeStudyProgramDegree("D3")).toThrow(
       "Jenjang hanya boleh S1, S2, atau S3"
     );
+  });
+
+  test("localizes academic period terms and includes the end date", () => {
+    expect(formatAcademicPeriodTerm("ODD")).toBe("Ganjil");
+    expect(formatAcademicPeriodTerm("EVEN")).toBe("Genap");
+
+    const endDate = parseAcademicPeriodDate(
+      "2026-09-30",
+      "Tanggal akhir",
+      "end"
+    );
+    expect(endDate.toISOString()).toBe("2026-09-30T23:59:59.999Z");
   });
 
   test("accepts coordinate boundaries and rejects values outside them", () => {

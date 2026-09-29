@@ -1,3 +1,4 @@
+import { formatAcademicPeriodTerm } from "@siakad-itbkmmubar/api/master-data";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
   Card,
@@ -10,7 +11,10 @@ import { ArrowLeft, Pencil } from "lucide-react";
 
 import type { FieldDefinition } from "@/components/master-data-create-form";
 
-const formatDetailValue = (value: unknown): string => {
+const formatDetailValue = (value: unknown, fieldId?: string): string => {
+  if (fieldId === "term" && typeof value === "string") {
+    return formatAcademicPeriodTerm(value);
+  }
   if (value instanceof Date) {
     return value.toLocaleDateString("id-ID");
   }
@@ -78,7 +82,9 @@ export const MasterDataDetailSummary = ({
           {fields.map((field) => (
             <div className="grid gap-1" key={field.id}>
               <dt className="text-muted-foreground text-xs">{field.label}</dt>
-              <dd className="text-sm">{formatDetailValue(record[field.id])}</dd>
+              <dd className="text-sm">
+                {formatDetailValue(record[field.id], field.id)}
+              </dd>
             </div>
           ))}
         </dl>

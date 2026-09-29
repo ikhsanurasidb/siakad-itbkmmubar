@@ -1,3 +1,4 @@
+import { formatAcademicPeriodTerm } from "@siakad-itbkmmubar/api/master-data";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
   Card,
@@ -208,7 +209,7 @@ const SchedulingPage = ({
     return [
       {
         description: [startDate, endDate].filter(Boolean).join(" – "),
-        label: `Periode ${term || "akademik"}`,
+        label: `Periode ${formatAcademicPeriodTerm(term || "akademik")}`,
         value: id,
       },
     ];

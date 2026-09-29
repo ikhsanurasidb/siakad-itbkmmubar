@@ -1,3 +1,4 @@
+import { formatAcademicPeriodTerm } from "@siakad-itbkmmubar/api/master-data";
 import type { StudyPlanGenerationResult } from "@siakad-itbkmmubar/api/study-plan";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
@@ -39,7 +40,7 @@ const buildPeriodOptions = (
     return [
       {
         description: [startDate, endDate].filter(Boolean).join(" – "),
-        label: `Periode ${term || "akademik"}`,
+        label: `Periode ${formatAcademicPeriodTerm(term || "akademik")}`,
         value: id,
       },
     ];

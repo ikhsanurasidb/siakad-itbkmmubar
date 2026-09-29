@@ -1,4 +1,8 @@
-import { studyProgramDegreeOptions } from "@siakad-itbkmmubar/api/master-data";
+import {
+  academicPeriodTermLabels,
+  academicTerms,
+  studyProgramDegreeOptions,
+} from "@siakad-itbkmmubar/api/master-data";
 
 import type { FieldDefinition } from "@/components/master-data-create-form";
 import type { MasterDataEntityType } from "@/components/master-data-types";
@@ -9,7 +13,13 @@ export const masterDataFieldDefinitions: Record<
 > = {
   ACADEMIC_PERIOD: [
     { id: "academicYearId", label: "Tahun akademik" },
-    { id: "term", label: "Term", type: "text" },
+    {
+      id: "term",
+      label: "Semester",
+      optionLabels: academicPeriodTermLabels,
+      options: academicTerms,
+      type: "select",
+    },
     { id: "startDate", label: "Tanggal mulai", type: "date" },
     { id: "endDate", label: "Tanggal akhir", type: "date" },
   ],
