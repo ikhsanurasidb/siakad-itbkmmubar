@@ -41,7 +41,7 @@ export const createContext = async ({
     headers: context.req.raw.headers,
   });
   const identityService = await createIdentityService(db);
-  const masterDataService = await createMasterDataService(db);
+  const masterDataService = await createMasterDataService(db, identityService);
   const settingsService = await createSettingsService(db);
   const curriculumService = await createCurriculumService(db);
   const studyPlanService = await createStudyPlanService(db);

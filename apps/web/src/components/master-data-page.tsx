@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
 
+import CredentialDialog from "@/components/credential-dialog";
 import MasterDataCreateForm from "@/components/master-data-create-form";
 import type { SuggestionOption } from "@/components/master-data-create-form";
 import {
@@ -37,6 +38,12 @@ const getMasterDataRootPath = (): string => {
   return `${rolePath || "/admin-akademik"}/master-data`;
 };
 
+interface CreatedCredential {
+  accountLabel: string;
+  identifier: string;
+  password: string;
+}
+
 const MasterDataPage = ({
   description,
   entityType,
@@ -55,6 +62,8 @@ const MasterDataPage = ({
     Record<string, string>
   >({});
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [createdCredential, setCreatedCredential] =
+    useState<CreatedCredential | null>(null);
   const fields = masterDataFieldDefinitions[entityType];
   const hasStudyProgramReference = ["COHORT", "COURSE", "STUDENT"].includes(
     entityType
@@ -105,7 +114,14 @@ const MasterDataPage = ({
   const createRecord = useMutation(
     orpc.masterData.create.mutationOptions({
       onError: () => toast.error(getErrorMessage()),
-      onSuccess: async () => {
+      onSuccess: async (result) => {
+        if (result.credential) {
+          setCreatedCredential({
+            accountLabel: recordText(result, "name"),
+            identifier: result.credential.identifier,
+            password: result.credential.temporaryPassword,
+          });
+        }
         setValues({});
         setReferenceLabels({});
         setReferenceSearch({});
@@ -157,6 +173,7 @@ const MasterDataPage = ({
     if (missing.length > 0) {
       return;
     }
+    setCreatedCredential(null);
     createRecord.mutate({ data: values, entityType });
   };
 
@@ -260,6 +277,17 @@ const MasterDataPage = ({
         referenceOptions={referenceOptions}
         values={values}
       />
+      {createdCredential && (
+        <CredentialDialog
+          accountLabel={createdCredential.accountLabel}
+          description="Kata sandi sementara wajib diganti saat login pertama. Simpan atau sampaikan kredensial melalui kanal yang aman."
+          identifier={createdCredential.identifier}
+          onClose={() => setCreatedCredential(null)}
+          open={Boolean(createdCredential)}
+          password={createdCredential.password}
+          title={`${masterDataEntityLabels[entityType]} berhasil dibuat`}
+        />
+      )}
       <MasterDataListCard
         detailRootPath={getMasterDataRootPath()}
         entityLabel={masterDataEntityLabels[entityType]}

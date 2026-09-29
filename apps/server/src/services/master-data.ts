@@ -3,7 +3,10 @@ import {
   createPrivateObjectKey,
   uploadWithCompensation,
 } from "@server/services/storage";
-import type { MasterDataService } from "@siakad-itbkmmubar/api/context";
+import type {
+  IdentityService,
+  MasterDataService,
+} from "@siakad-itbkmmubar/api/context";
 import {
   MasterDataDomainError,
   assertAcademicTerm,
@@ -403,10 +406,12 @@ const emitProvisioningOutbox = async (
 
 export const createMasterDataService = ({
   database,
+  identityService,
   now = () => new Date(),
   storage,
 }: {
   database: Database;
+  identityService?: Pick<IdentityService, "createAccount">;
   now?: () => Date;
   storage?: FileStorage;
 }): MasterDataService => {
@@ -830,9 +835,16 @@ export const createMasterDataService = ({
     actorUserId,
     data,
     entityType,
+    provisionAccount = false,
   }) => {
     const id = crypto.randomUUID();
     const currentTime = now();
+    let credential:
+      | {
+          identifier: string;
+          temporaryPassword: string;
+        }
+      | undefined;
     switch (entityType) {
       case "STUDY_PROGRAM": {
         const row = {
@@ -889,7 +901,43 @@ export const createMasterDataService = ({
         await replaceIdentifierUsages(database, "STUDENT", id, [
           { identifier: nim, identifierType: "NIM" },
         ]);
-        await emitProvisioningOutbox(database, "STUDENT", id, nim);
+        if (provisionAccount) {
+          if (!identityService) {
+            throw new MasterDataDomainError(
+              "IDENTITY_SERVICE_UNAVAILABLE",
+              "Layanan identitas belum tersedia untuk menerbitkan akun mahasiswa."
+            );
+          }
+          try {
+            const account = await identityService.createAccount({
+              actorUserId,
+              email: row.email ?? undefined,
+              identifier: nim,
+              identityType: "MAHASISWA",
+              masterRecordId: id,
+              name: row.name,
+            });
+            await database
+              .update(students)
+              .set({
+                provisioningStatus: "PROVISIONED",
+                updatedAt: currentTime,
+              })
+              .where(eq(students.id, id));
+            credential = {
+              identifier: account.identifier,
+              temporaryPassword: account.temporaryPassword,
+            };
+          } catch (error) {
+            await database
+              .update(students)
+              .set({ provisioningStatus: "FAILED", updatedAt: currentTime })
+              .where(eq(students.id, id));
+            throw error;
+          }
+        } else {
+          await emitProvisioningOutbox(database, "STUDENT", id, nim);
+        }
         break;
       }
       case "LECTURER": {
@@ -948,7 +996,62 @@ export const createMasterDataService = ({
               ]
             : []),
         ]);
-        await emitProvisioningOutbox(database, "LECTURER", id);
+        if (provisionAccount) {
+          if (!identityService) {
+            throw new MasterDataDomainError(
+              "IDENTITY_SERVICE_UNAVAILABLE",
+              "Layanan identitas belum tersedia untuk menerbitkan akun dosen."
+            );
+          }
+          try {
+            const account = await identityService.createAccount({
+              actorUserId,
+              email: row.email ?? undefined,
+              identityType: "DOSEN",
+              masterRecordId: id,
+              name: row.name,
+            });
+            await database
+              .update(lecturers)
+              .set({
+                dsn: account.identifier,
+                provisioningStatus: "PROVISIONED",
+                updatedAt: currentTime,
+              })
+              .where(eq(lecturers.id, id));
+            await replaceIdentifierUsages(database, "LECTURER", id, [
+              ...(normalizedNidn
+                ? [
+                    {
+                      identifier: normalizedNidn,
+                      identifierType: "NIDN" as const,
+                    },
+                  ]
+                : []),
+              ...(normalizedNuptk
+                ? [
+                    {
+                      identifier: normalizedNuptk,
+                      identifierType: "NUPTK" as const,
+                    },
+                  ]
+                : []),
+              { identifier: account.identifier, identifierType: "DSN" },
+            ]);
+            credential = {
+              identifier: account.identifier,
+              temporaryPassword: account.temporaryPassword,
+            };
+          } catch (error) {
+            await database
+              .update(lecturers)
+              .set({ provisioningStatus: "FAILED", updatedAt: currentTime })
+              .where(eq(lecturers.id, id));
+            throw error;
+          }
+        } else {
+          await emitProvisioningOutbox(database, "LECTURER", id);
+        }
         break;
       }
       case "ROOM": {
@@ -1084,7 +1187,7 @@ export const createMasterDataService = ({
       null,
       result
     );
-    return result;
+    return credential ? { ...result, credential } : result;
   };
 
   const assertNotLocked = async (

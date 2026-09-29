@@ -10,26 +10,18 @@ import { FormField } from "@siakad-itbkmmubar/ui/components/form-field";
 import { Input } from "@siakad-itbkmmubar/ui/components/input";
 import { PageHeader } from "@siakad-itbkmmubar/ui/components/page-header";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Clipboard, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
 
+import CredentialDialog from "@/components/credential-dialog";
 import { orpc } from "@/utils/orpc";
 
 interface CreatedAdmin {
   identifier: string;
   temporaryPassword: string;
 }
-
-const copyCredential = async (value: string, label: string): Promise<void> => {
-  try {
-    await navigator.clipboard.writeText(value);
-    toast.success(`${label} disalin.`);
-  } catch {
-    toast.error(`${label} belum dapat disalin.`);
-  }
-};
 
 const AdminCreatePage = () => {
   const queryClient = useQueryClient();
@@ -161,63 +153,15 @@ const AdminCreatePage = () => {
       </div>
 
       {createdAdmin && (
-        <Card className="border-emerald-200 bg-emerald-50/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-emerald-900">
-              <CheckCircle2 aria-hidden="true" className="size-5" />
-              Akun berhasil dibuat
-            </CardTitle>
-            <CardDescription className="text-emerald-800">
-              Salin kredensial sekarang. Kata sandi sementara hanya ditampilkan
-              pada hasil pembuatan ini dan wajib diganti saat login pertama.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-xl border border-emerald-200 bg-white p-4">
-              <p className="text-muted-foreground text-xs font-medium">
-                Identifier
-              </p>
-              <div className="mt-2 flex items-center justify-between gap-3">
-                <code className="font-semibold text-emerald-950">
-                  {createdAdmin.identifier}
-                </code>
-                <Button
-                  aria-label="Salin identifier"
-                  onClick={() =>
-                    copyCredential(createdAdmin.identifier, "Identifier")
-                  }
-                  size="icon-sm"
-                  variant="outline"
-                >
-                  <Clipboard aria-hidden="true" />
-                </Button>
-              </div>
-            </div>
-            <div className="rounded-xl border border-emerald-200 bg-white p-4">
-              <p className="text-muted-foreground text-xs font-medium">
-                Kata sandi sementara
-              </p>
-              <div className="mt-2 flex items-center justify-between gap-3">
-                <code className="font-semibold break-all text-emerald-950">
-                  {createdAdmin.temporaryPassword}
-                </code>
-                <Button
-                  aria-label="Salin kata sandi sementara"
-                  onClick={() =>
-                    copyCredential(
-                      createdAdmin.temporaryPassword,
-                      "Kata sandi sementara"
-                    )
-                  }
-                  size="icon-sm"
-                  variant="outline"
-                >
-                  <Clipboard aria-hidden="true" />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <CredentialDialog
+          accountLabel="Admin Akademik"
+          description="Kata sandi sementara wajib diganti saat login pertama. Simpan atau sampaikan kredensial melalui kanal yang aman."
+          identifier={createdAdmin.identifier}
+          onClose={() => setCreatedAdmin(null)}
+          open={Boolean(createdAdmin)}
+          password={createdAdmin.temporaryPassword}
+          title="Akun berhasil dibuat"
+        />
       )}
     </div>
   );

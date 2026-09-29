@@ -10,11 +10,12 @@ import {
 import { ConfirmationDialog } from "@siakad-itbkmmubar/ui/components/confirmation-dialog";
 import { DataTable } from "@siakad-itbkmmubar/ui/components/data-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Clipboard, KeyRound } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import CredentialDialog from "@/components/credential-dialog";
 import { orpc } from "@/utils/orpc";
 
 interface IdentityAccountsPageProps {
@@ -70,15 +71,6 @@ const AccountResetAction = ({
 
 const renderAccountResetAction = (row: AccountTableRow): ReactNode =>
   row.canReset ? <AccountResetAction onReset={row.handleReset} /> : null;
-
-const copyCredential = async (value: string, label: string): Promise<void> => {
-  try {
-    await navigator.clipboard.writeText(value);
-    toast.success(`${label} disalin.`);
-  } catch {
-    toast.error(`${label} belum dapat disalin.`);
-  }
-};
 
 const IdentityAccountsPage = ({
   description,
@@ -190,51 +182,15 @@ const IdentityAccountsPage = ({
         <CardContent>{accountContent}</CardContent>
       </Card>
       {resetCredential && (
-        <Card className="border-amber-200 bg-amber-50/60">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-950">
-              <KeyRound aria-hidden="true" className="size-5" />
-              Kredensial sementara
-            </CardTitle>
-            <CardDescription className="text-amber-900">
-              Kata sandi ini hanya ditampilkan setelah reset dan wajib diganti
-              pada login berikutnya. Simpan atau sampaikan melalui kanal aman.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-xl border border-amber-200 bg-white p-4">
-              <p className="text-muted-foreground text-xs font-medium">Akun</p>
-              <p className="mt-1 font-semibold">{resetCredential.name}</p>
-              <p className="text-muted-foreground text-sm">
-                {resetCredential.identifier}
-              </p>
-            </div>
-            <div className="rounded-xl border border-amber-200 bg-white p-4">
-              <p className="text-muted-foreground text-xs font-medium">
-                Kata sandi sementara
-              </p>
-              <div className="mt-2 flex items-center justify-between gap-3">
-                <code className="font-semibold break-all">
-                  {resetCredential.temporaryPassword}
-                </code>
-                <Button
-                  aria-label="Salin kata sandi sementara"
-                  onClick={() =>
-                    copyCredential(
-                      resetCredential.temporaryPassword,
-                      "Kata sandi sementara"
-                    )
-                  }
-                  size="icon-sm"
-                  type="button"
-                  variant="outline"
-                >
-                  <Clipboard aria-hidden="true" />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <CredentialDialog
+          accountLabel={resetCredential.name}
+          description="Kata sandi sementara wajib diganti saat login berikutnya. Simpan atau sampaikan kredensial melalui kanal yang aman."
+          identifier={resetCredential.identifier}
+          onClose={() => setResetCredential(null)}
+          open={Boolean(resetCredential)}
+          password={resetCredential.temporaryPassword}
+          title="Kredensial berhasil diatur ulang"
+        />
       )}
       <ConfirmationDialog
         confirmLabel="Atur ulang kata sandi"

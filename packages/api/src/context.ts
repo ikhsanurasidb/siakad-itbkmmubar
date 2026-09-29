@@ -171,6 +171,14 @@ export interface IdentityService {
   }) => Promise<{ phone: string | null }>;
 }
 
+export interface MasterDataCreateResult {
+  [key: string]: unknown;
+  credential?: {
+    identifier: string;
+    temporaryPassword: string;
+  };
+}
+
 export interface MasterDataService {
   archive: (input: {
     actorUserId: string;
@@ -182,7 +190,8 @@ export interface MasterDataService {
     actorUserId: string;
     data: Readonly<Record<string, unknown>>;
     entityType: MasterDataEntityType;
-  }) => Promise<Record<string, unknown>>;
+    provisionAccount?: boolean;
+  }) => Promise<MasterDataCreateResult>;
   createImport: (input: {
     actorUserId: string;
     checksum: string;

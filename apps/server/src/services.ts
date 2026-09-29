@@ -11,6 +11,7 @@ import { seedData as seedConfiguredData } from "@server/services/seed-data";
 import { createSettingsService as createConfiguredSettingsService } from "@server/services/settings";
 import { createR2FileStorage } from "@server/services/storage";
 import { createStudyPlanService as createConfiguredStudyPlanService } from "@server/services/study-plan";
+import type { IdentityService } from "@siakad-itbkmmubar/api/context";
 import { createAuth as createConfiguredAuth } from "@siakad-itbkmmubar/auth";
 import { createDb } from "@siakad-itbkmmubar/db";
 import type { Database } from "@siakad-itbkmmubar/db";
@@ -40,11 +41,17 @@ export const createIdentityService = async (database?: Database) => {
   });
 };
 
-export const createMasterDataService = async (database?: Database) =>
-  createConfiguredMasterDataService({
-    database: database ?? (await getDb()),
+export const createMasterDataService = async (
+  database?: Database,
+  identityService?: Pick<IdentityService, "createAccount">
+) => {
+  const db = database ?? (await getDb());
+  return createConfiguredMasterDataService({
+    database: db,
+    identityService,
     storage: getStorage(),
   });
+};
 
 export const createSettingsService = async (database?: Database) =>
   createConfiguredSettingsService({ database: database ?? (await getDb()) });

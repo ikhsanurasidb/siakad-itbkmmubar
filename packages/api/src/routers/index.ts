@@ -1234,6 +1234,7 @@ export const appRouter = {
         return context.masterDataService.create({
           ...input,
           actorUserId: context.session?.user.id as string,
+          provisionAccount: true,
         });
       }),
     export: protectedProcedure
