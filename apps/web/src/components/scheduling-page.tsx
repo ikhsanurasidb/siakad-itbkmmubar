@@ -11,6 +11,7 @@ import { Input } from "@siakad-itbkmmubar/ui/components/input";
 import { PageHeader } from "@siakad-itbkmmubar/ui/components/page-header";
 import { SearchableSelect } from "@siakad-itbkmmubar/ui/components/searchable-select";
 import { State } from "@siakad-itbkmmubar/ui/components/state";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, CheckCircle2, RefreshCw, Video } from "lucide-react";
 import { useState } from "react";
@@ -132,9 +133,15 @@ const SchedulingPage = ({
     orpc.scheduling.mapping.generate.mutationOptions({
       onError: (error) => toast.error(error.message),
       onSuccess: (result) => {
-        toast.success(
-          `Pemetaan selesai: ${result.completedCount} kelompok diproses.`
-        );
+        if (result.totalCount === 0) {
+          toast.warning(
+            "Pemetaan belum dijalankan karena tidak ada KRS final pada periode dan Prodi yang dipilih."
+          );
+        } else {
+          toast.success(
+            `Pemetaan selesai: ${result.completedCount} kelompok diproses.`
+          );
+        }
         queryClient.invalidateQueries({
           queryKey: orpc.scheduling.sections.key(),
         });
@@ -348,6 +355,7 @@ const SchedulingPage = ({
                 mapping.mutate({
                   academicPeriodId,
                   classCapacity: Number(classCapacity),
+                  idempotencyKey: createUuidV7(),
                   studyProgramId: studyProgramId || undefined,
                 })
               }
