@@ -44,6 +44,8 @@ const referenceFieldIds = new Set([
   "studyProgramId",
 ]);
 
+const MAX_SEARCH_SUGGESTIONS = 4;
+
 export const ReferenceSearchField = ({
   error,
   id,
@@ -57,14 +59,16 @@ export const ReferenceSearchField = ({
 }: ReferenceSearchFieldProps) => {
   const [isFocused, setIsFocused] = useState(false);
   const normalizedValue = value.trim().toLowerCase();
-  const filteredOptions = options.filter((option) => {
-    if (!normalizedValue) {
-      return true;
-    }
-    return `${option.label} ${option.description ?? ""}`
-      .toLowerCase()
-      .includes(normalizedValue);
-  });
+  const filteredOptions = options
+    .filter((option) => {
+      if (!normalizedValue) {
+        return true;
+      }
+      return `${option.label} ${option.description ?? ""}`
+        .toLowerCase()
+        .includes(normalizedValue);
+    })
+    .slice(0, MAX_SEARCH_SUGGESTIONS);
   return (
     <FormField
       error={error}

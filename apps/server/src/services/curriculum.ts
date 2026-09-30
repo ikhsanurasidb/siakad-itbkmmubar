@@ -23,6 +23,7 @@ import type {
 } from "@siakad-itbkmmubar/api/curriculum";
 import type { RoleKey } from "@siakad-itbkmmubar/api/identity";
 import type { Database } from "@siakad-itbkmmubar/db";
+import { chunkUniqueIds } from "@siakad-itbkmmubar/db/atomic-batch";
 import {
   courseAssessmentDefaults,
   curriculumAssessmentOverrides,
@@ -70,6 +71,14 @@ const baseReadCondition = (actor: CurriculumActor, now: Date) =>
       );
 
 const unique = (values: readonly string[]): string[] => [...new Set(values)];
+
+const isImportableDefaultSemester = (value: number | null): value is number =>
+  typeof value === "number" &&
+  Number.isInteger(value) &&
+  value >= 1 &&
+  value <= 8;
+
+const CURRICULUM_COURSE_INSERT_BATCH_SIZE = 20;
 
 const decodeBase64 = (value: string): Uint8Array => {
   const normalized = value.trim();
@@ -319,23 +328,24 @@ export const createCurriculumService = ({
     const curriculumCourseIds = courseRows.map(
       (row) => row.curriculumCourse.id
     );
-    const defaults = courseIds.length
-      ? await database
+    const defaultRows = await Promise.all(
+      chunkUniqueIds(courseIds).map((ids) =>
+        database
           .select()
           .from(courseAssessmentDefaults)
-          .where(inArray(courseAssessmentDefaults.courseId, courseIds))
-      : [];
-    const overrides = curriculumCourseIds.length
-      ? await database
+          .where(inArray(courseAssessmentDefaults.courseId, ids))
+      )
+    );
+    const defaults = defaultRows.flat();
+    const overrideRows = await Promise.all(
+      chunkUniqueIds(curriculumCourseIds).map((ids) =>
+        database
           .select()
           .from(curriculumAssessmentOverrides)
-          .where(
-            inArray(
-              curriculumAssessmentOverrides.curriculumCourseId,
-              curriculumCourseIds
-            )
-          )
-      : [];
+          .where(inArray(curriculumAssessmentOverrides.curriculumCourseId, ids))
+      )
+    );
+    const overrides = overrideRows.flat();
     const serializedDocuments: CurriculumDocumentRecord[] = documentRows.map(
       ({ document, file }) => ({
         createdAt: toIso(document.createdAt),
@@ -451,6 +461,132 @@ export const createCurriculumService = ({
     return { id };
   };
 
+  const importFromCatalog: CurriculumService["importFromCatalog"] = async ({
+    actorRoles,
+    actorUserId,
+    curriculumId,
+  }) => {
+    const header = await ensureManageable(
+      { actorRoles, actorUserId },
+      curriculumId
+    );
+    if (header.curriculum.status !== "DRAFT") {
+      throw new CurriculumDomainError(
+        "CURRICULUM_NOT_DRAFT",
+        "Struktur hanya dapat diubah pada kurikulum draft."
+      );
+    }
+    const existingRows = await database
+      .select({ courseId: curriculumCourses.courseId })
+      .from(curriculumCourses)
+      .where(eq(curriculumCourses.curriculumId, curriculumId));
+    const existingCourseIds = new Set(existingRows.map((row) => row.courseId));
+    const catalogRows = await database
+      .select({
+        code: courses.code,
+        credits: courses.credits,
+        defaultSemester: courses.defaultSemester,
+        id: courses.id,
+      })
+      .from(courses)
+      .where(
+        and(
+          eq(courses.status, "ACTIVE"),
+          eq(courses.studyProgramId, header.curriculum.studyProgramId)
+        )
+      );
+    const skippedExistingCount = catalogRows.filter((course) =>
+      existingCourseIds.has(course.id)
+    ).length;
+    const coursesToImport = catalogRows
+      .flatMap((course) => {
+        const { defaultSemester } = course;
+        if (
+          existingCourseIds.has(course.id) ||
+          !isImportableDefaultSemester(defaultSemester)
+        ) {
+          return [];
+        }
+        return [{ ...course, defaultSemester }];
+      })
+      .toSorted((left, right) => {
+        const semesterDifference =
+          (left.defaultSemester ?? 0) - (right.defaultSemester ?? 0);
+        return semesterDifference || left.code.localeCompare(right.code);
+      });
+    const skippedWithoutDefaultSemesterCount = catalogRows.filter(
+      (course) =>
+        !existingCourseIds.has(course.id) &&
+        !isImportableDefaultSemester(course.defaultSemester)
+    ).length;
+    if (coursesToImport.length === 0) {
+      return {
+        importedCount: 0,
+        skippedExistingCount,
+        skippedWithoutDefaultSemesterCount,
+      };
+    }
+    if (existingRows.length + coursesToImport.length > 200) {
+      throw new CurriculumDomainError(
+        "CURRICULUM_COURSE_LIMIT",
+        "Jumlah mata kuliah dalam kurikulum tidak boleh melebihi 200."
+      );
+    }
+    const currentTime = now();
+    const rowsToInsert = coursesToImport.map((course, index) => ({
+      courseId: course.id,
+      courseType: "REQUIRED" as const,
+      createdAt: currentTime,
+      credits: course.credits,
+      curriculumId,
+      id: createUuidV7(),
+      semester: course.defaultSemester,
+      sortOrder: existingRows.length + index,
+      updatedAt: currentTime,
+    }));
+    for (
+      let index = 0;
+      index < rowsToInsert.length;
+      index += CURRICULUM_COURSE_INSERT_BATCH_SIZE
+    ) {
+      const chunk = rowsToInsert.slice(
+        index,
+        index + CURRICULUM_COURSE_INSERT_BATCH_SIZE
+      );
+      // eslint-disable-next-line no-await-in-loop
+      await database.batch(
+        chunk.map((row) =>
+          database.insert(curriculumCourses).values(row)
+        ) as unknown as Parameters<Database["batch"]>[0]
+      );
+    }
+    await database.batch([
+      database
+        .update(curricula)
+        .set({ updatedAt: currentTime })
+        .where(eq(curricula.id, curriculumId)),
+      database.insert(auditLogs).values({
+        action: "UPDATE",
+        actorUserId,
+        afterState: JSON.stringify({
+          importedCourseCount: coursesToImport.length,
+          source: "COURSE_CATALOG_DEFAULT_SEMESTER",
+        }),
+        beforeState: JSON.stringify({ courseCount: existingRows.length }),
+        createdAt: currentTime,
+        entityId: curriculumId,
+        entityType: "CURRICULUM_STRUCTURE",
+        id: createUuidV7(),
+        requestId: null,
+      }),
+    ] as unknown as Parameters<Database["batch"]>[0]);
+    return {
+      importedCount: coursesToImport.length,
+      skippedExistingCount,
+      skippedWithoutDefaultSemesterCount,
+    };
+  };
+
   const replaceStructure: CurriculumService["replaceStructure"] = async ({
     actorRoles,
     actorUserId,
@@ -471,18 +607,19 @@ export const createCurriculumService = ({
     const courseIds = unique(
       normalizedCourses.map((course) => course.courseId)
     );
-    const courseRows = courseIds.length
-      ? await database
+    const courseRowsByChunk = await Promise.all(
+      chunkUniqueIds(courseIds).map((ids) =>
+        database
           .select({
             credits: courses.credits,
             id: courses.id,
             studyProgramId: courses.studyProgramId,
           })
           .from(courses)
-          .where(
-            and(inArray(courses.id, courseIds), eq(courses.status, "ACTIVE"))
-          )
-      : [];
+          .where(and(inArray(courses.id, ids), eq(courses.status, "ACTIVE")))
+      )
+    );
+    const courseRows = courseRowsByChunk.flat();
     const coursesById = new Map(
       courseRows.map((course) => [course.id, course])
     );
@@ -504,39 +641,52 @@ export const createCurriculumService = ({
       .where(eq(curriculumCourses.curriculumId, curriculumId));
     const existingIds = existingRows.map((row) => row.id);
     const currentTime = now();
-    const statements = [
-      ...(existingIds.length
-        ? [
-            database
-              .delete(curriculumAssessmentOverrides)
-              .where(
-                inArray(
-                  curriculumAssessmentOverrides.curriculumCourseId,
-                  existingIds
-                )
-              ),
-          ]
-        : []),
+    const rowsToInsert = normalizedCourses.map((course, sortOrder) => ({
+      courseId: course.courseId,
+      courseType: course.courseType,
+      createdAt: currentTime,
+      credits: coursesById.get(course.courseId)?.credits ?? 0,
+      curriculumId,
+      id: createUuidV7(),
+      semester: course.semester,
+      sortOrder,
+      updatedAt: currentTime,
+    }));
+    for (const ids of chunkUniqueIds(existingIds)) {
+      // eslint-disable-next-line no-await-in-loop
+      await database.batch([
+        database
+          .delete(curriculumAssessmentOverrides)
+          .where(
+            inArray(curriculumAssessmentOverrides.curriculumCourseId, ids)
+          ),
+      ] as unknown as Parameters<Database["batch"]>[0]);
+    }
+    const cleanupStatements = [
       database
         .delete(curriculumCourses)
         .where(eq(curriculumCourses.curriculumId, curriculumId)),
-      ...(normalizedCourses.length
-        ? [
-            database.insert(curriculumCourses).values(
-              normalizedCourses.map((course, sortOrder) => ({
-                courseId: course.courseId,
-                courseType: course.courseType,
-                createdAt: currentTime,
-                credits: coursesById.get(course.courseId)?.credits ?? 0,
-                curriculumId,
-                id: createUuidV7(),
-                semester: course.semester,
-                sortOrder,
-                updatedAt: currentTime,
-              }))
-            ),
-          ]
-        : []),
+    ];
+    await database.batch(
+      cleanupStatements as unknown as Parameters<Database["batch"]>[0]
+    );
+    for (
+      let index = 0;
+      index < rowsToInsert.length;
+      index += CURRICULUM_COURSE_INSERT_BATCH_SIZE
+    ) {
+      const chunk = rowsToInsert.slice(
+        index,
+        index + CURRICULUM_COURSE_INSERT_BATCH_SIZE
+      );
+      // eslint-disable-next-line no-await-in-loop
+      await database.batch(
+        chunk.map((row) =>
+          database.insert(curriculumCourses).values(row)
+        ) as unknown as Parameters<Database["batch"]>[0]
+      );
+    }
+    await database.batch([
       database
         .update(curricula)
         .set({ updatedAt: currentTime })
@@ -552,10 +702,7 @@ export const createCurriculumService = ({
         id: createUuidV7(),
         requestId: null,
       }),
-    ];
-    await database.batch(
-      statements as unknown as Parameters<Database["batch"]>[0]
-    );
+    ] as unknown as Parameters<Database["batch"]>[0]);
   };
 
   const replaceAssessments: CurriculumService["replaceAssessments"] = async ({
@@ -910,6 +1057,7 @@ export const createCurriculumService = ({
     create,
     downloadDocument,
     get,
+    importFromCatalog,
     list,
     replaceAssessments,
     replaceStructure,

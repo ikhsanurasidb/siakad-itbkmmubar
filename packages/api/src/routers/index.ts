@@ -353,6 +353,16 @@ export const appRouter = {
         });
       }),
     structure: {
+      importFromCatalog: protectedProcedure
+        .input(z.object({ curriculumId: z.string().min(1) }))
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "KAPRODI"]);
+          return context.curriculumService.importFromCatalog({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
       replace: protectedProcedure
         .input(
           z.object({

@@ -7,6 +7,36 @@ import {
 import type { FieldDefinition } from "@/components/master-data-create-form";
 import type { MasterDataEntityType } from "@/components/master-data-types";
 
+const masterDataReferenceFieldIds = new Set([
+  "academicYearId",
+  "cohortId",
+  "studyProgramId",
+]);
+
+export const isMasterDataReferenceField = (fieldId: string): boolean =>
+  masterDataReferenceFieldIds.has(fieldId);
+
+export const getMasterDataReferenceLabel = (
+  record: Record<string, unknown>,
+  fieldId: string
+): string | undefined => {
+  if (fieldId === "academicYearId") {
+    const code = record.academicYearCode;
+    return typeof code === "string" && code ? code : undefined;
+  }
+  if (fieldId === "cohortId") {
+    const entryYear = record.cohortEntryYear;
+    return typeof entryYear === "string" || typeof entryYear === "number"
+      ? `Angkatan ${entryYear}`
+      : undefined;
+  }
+  if (fieldId === "studyProgramId") {
+    const name = record.studyProgramName;
+    return typeof name === "string" && name ? name : undefined;
+  }
+  return undefined;
+};
+
 export const masterDataFieldDefinitions: Record<
   MasterDataEntityType,
   readonly FieldDefinition[]

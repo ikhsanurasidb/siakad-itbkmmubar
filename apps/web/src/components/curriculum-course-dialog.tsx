@@ -22,6 +22,8 @@ interface CurriculumCourseDialogProps {
   semester: number;
 }
 
+const MAX_SEARCH_SUGGESTIONS = 4;
+
 const CurriculumCourseDialog = ({
   courseSuggestions,
   isLoading,
@@ -51,12 +53,14 @@ const CurriculumCourseDialog = ({
   }, [open]);
 
   const searchTerm = courseSearch.trim().toLowerCase();
-  const suggestions = courseSuggestions.filter((course) => {
-    if (!searchTerm) {
-      return true;
-    }
-    return `${course.code} ${course.name}`.toLowerCase().includes(searchTerm);
-  });
+  const suggestions = courseSuggestions
+    .filter((course) => {
+      if (!searchTerm) {
+        return true;
+      }
+      return `${course.code} ${course.name}`.toLowerCase().includes(searchTerm);
+    })
+    .slice(0, MAX_SEARCH_SUGGESTIONS);
   const selectedCourse = courseSuggestions.find(
     (course) => course.id === selectedCourseId
   );

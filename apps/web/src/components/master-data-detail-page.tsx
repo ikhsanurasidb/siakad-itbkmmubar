@@ -8,6 +8,7 @@ import type {
   SuggestionOption,
 } from "@/components/master-data-create-form";
 import {
+  getMasterDataReferenceLabel,
   masterDataEntityLabels,
   masterDataFieldDefinitions,
 } from "@/components/master-data-definitions";
@@ -218,6 +219,11 @@ const MasterDataDetailPage = ({
     const labels = { ...referenceLabels };
     if (record) {
       for (const fieldId of referenceFieldIds) {
+        const recordLabel = getMasterDataReferenceLabel(record, fieldId);
+        if (recordLabel && !labels[fieldId]) {
+          labels[fieldId] = recordLabel;
+          continue;
+        }
         const selected = referenceOptions[fieldId]?.find(
           (option) => option.id === recordText(record, fieldId)
         );

@@ -10,8 +10,25 @@ import {
 import { ArrowLeft, Pencil } from "lucide-react";
 
 import type { FieldDefinition } from "@/components/master-data-create-form";
+import {
+  getMasterDataReferenceLabel,
+  isMasterDataReferenceField,
+} from "@/components/master-data-definitions";
 
-const formatDetailValue = (value: unknown, fieldId?: string): string => {
+const formatDetailValue = (
+  value: unknown,
+  fieldId: string | undefined,
+  record: Record<string, unknown>
+): string => {
+  if (fieldId) {
+    const referenceLabel = getMasterDataReferenceLabel(record, fieldId);
+    if (referenceLabel) {
+      return referenceLabel;
+    }
+    if (isMasterDataReferenceField(fieldId)) {
+      return "—";
+    }
+  }
   if (fieldId === "term" && typeof value === "string") {
     return formatAcademicPeriodTerm(value);
   }
@@ -74,7 +91,8 @@ export const MasterDataDetailSummary = ({
       <CardHeader>
         <CardTitle>Informasi {entityLabel}</CardTitle>
         <CardDescription>
-          Versi data: {formatDetailValue(record.version ?? 1)}
+          Versi data:{" "}
+          {formatDetailValue(record.version ?? 1, undefined, record)}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -83,7 +101,7 @@ export const MasterDataDetailSummary = ({
             <div className="grid gap-1" key={field.id}>
               <dt className="text-muted-foreground text-xs">{field.label}</dt>
               <dd className="text-sm">
-                {formatDetailValue(record[field.id], field.id)}
+                {formatDetailValue(record[field.id], field.id, record)}
               </dd>
             </div>
           ))}

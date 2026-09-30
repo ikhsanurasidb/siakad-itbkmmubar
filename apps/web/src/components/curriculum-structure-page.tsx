@@ -1,23 +1,17 @@
-import type { CurriculumCourseType } from "@siakad-itbkmmubar/api/curriculum";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@siakad-itbkmmubar/ui/components/card";
 import { PageHeader } from "@siakad-itbkmmubar/ui/components/page-header";
 import { State } from "@siakad-itbkmmubar/ui/components/state";
 import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowLeft, ListPlus, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import CurriculumCatalogImportDialog from "@/components/curriculum-catalog-import-dialog";
 import CurriculumCourseDialog from "@/components/curriculum-course-dialog";
+import CurriculumSemesterCard from "@/components/curriculum-semester-card";
+import type { StructureRow } from "@/components/curriculum-semester-card";
 import { curriculumRoutePaths, recordText } from "@/components/curriculum-ui";
 import type { CurriculumBasePath } from "@/components/curriculum-ui";
 import { orpc } from "@/utils/orpc";
@@ -27,13 +21,6 @@ interface CurriculumStructurePageProps {
   canManage: boolean;
   curriculumId: string;
   roleName: string;
-}
-
-interface StructureRow {
-  courseId: string;
-  courseType: CurriculumCourseType;
-  id: string;
-  semester: number;
 }
 
 const semesters = Array.from({ length: 8 }, (_, index) => index + 1);
@@ -52,6 +39,7 @@ const CurriculumStructurePage = ({
   const [addDialog, setAddDialog] = useState<
     { id: number; semester: number } | undefined
   >();
+  const [catalogImportOpen, setCatalogImportOpen] = useState(false);
   const detail = useQuery(
     orpc.curriculum.detail.queryOptions({ input: { curriculumId } })
   );
@@ -66,6 +54,25 @@ const CurriculumStructurePage = ({
       onError: () => toast.error("Struktur belum dapat disimpan."),
       onSuccess: async () => {
         toast.success("Struktur kurikulum disimpan.");
+        await queryClient.invalidateQueries({
+          queryKey: orpc.curriculum.detail.key(),
+        });
+      },
+    })
+  );
+  const importFromCatalog = useMutation(
+    orpc.curriculum.structure.importFromCatalog.mutationOptions({
+      onError: () =>
+        toast.error("Mata kuliah dari katalog belum dapat diimpor."),
+      onSuccess: async (result) => {
+        setCatalogImportOpen(false);
+        if (result.importedCount > 0) {
+          toast.success(
+            `${result.importedCount} mata kuliah berhasil diimpor dari katalog.`
+          );
+        } else {
+          toast("Tidak ada mata kuliah baru dengan semester bawaan 1–8.");
+        }
         await queryClient.invalidateQueries({
           queryKey: orpc.curriculum.detail.key(),
         });
@@ -105,6 +112,7 @@ const CurriculumStructurePage = ({
 
   const curriculum = detail.data;
   const detailRoute = curriculumRoutePaths[basePath].detail;
+  const hasUnsavedChanges = draft?.curriculumId === curriculumId;
   const initialRows = curriculum.courses.map((course) => ({
     courseId: course.courseId,
     courseType: course.courseType,
@@ -160,7 +168,7 @@ const CurriculumStructurePage = ({
   };
   const addCourse = (
     course: (typeof courseSuggestions)[number],
-    courseType: CurriculumCourseType
+    courseType: StructureRow["courseType"]
   ) => {
     if (!addDialog) {
       return;
@@ -180,7 +188,10 @@ const CurriculumStructurePage = ({
     ]);
     setAddDialog(undefined);
   };
-  const updateCourseType = (id: string, courseType: CurriculumCourseType) => {
+  const updateCourseType = (
+    id: string,
+    courseType: StructureRow["courseType"]
+  ) => {
     updateRows((current) =>
       current.map((row) => (row.id === id ? { ...row, courseType } : row))
     );
@@ -206,12 +217,32 @@ const CurriculumStructurePage = ({
     <div className="mx-auto grid w-full max-w-screen-2xl gap-6 p-4 lg:p-6">
       <PageHeader
         action={
-          <Link params={{ curriculumId }} to={detailRoute}>
-            <Button variant="outline">
-              <ArrowLeft aria-hidden="true" />
-              Kembali ke detail
-            </Button>
-          </Link>
+          <div className="flex flex-wrap justify-end gap-2">
+            {canManage && curriculum.status === "DRAFT" ? (
+              <Button
+                disabled={importFromCatalog.isPending}
+                onClick={() => {
+                  if (hasUnsavedChanges) {
+                    toast.error(
+                      "Simpan atau batalkan perubahan struktur sebelum mengimpor dari katalog."
+                    );
+                    return;
+                  }
+                  setCatalogImportOpen(true);
+                }}
+                variant="outline"
+              >
+                <ListPlus aria-hidden="true" />
+                Impor dari katalog
+              </Button>
+            ) : null}
+            <Link params={{ curriculumId }} to={detailRoute}>
+              <Button variant="outline">
+                <ArrowLeft aria-hidden="true" />
+                Kembali ke detail
+              </Button>
+            </Link>
+          </div>
         }
         description={`${curriculum.name} · ${curriculum.studyProgram.code} · ${curriculum.cohort.entryYear}`}
         eyebrow={`Kurikulum · ${roleName}`}
@@ -221,87 +252,19 @@ const CurriculumStructurePage = ({
         aria-label="Struktur mata kuliah per semester"
         className="grid gap-4 md:grid-cols-2"
       >
-        {semesters.map((semester) => {
-          const semesterRows = rows.filter((row) => row.semester === semester);
-          return (
-            <Card key={semester}>
-              <CardHeader>
-                <div>
-                  <CardTitle>Semester {semester}</CardTitle>
-                  <CardDescription>
-                    {semesterRows.length} mata kuliah
-                  </CardDescription>
-                </div>
-                {canManage && curriculum.status === "DRAFT" ? (
-                  <CardAction>
-                    <Button
-                      onClick={() => openAddDialog(semester)}
-                      size="sm"
-                      variant="outline"
-                    >
-                      <Plus aria-hidden="true" />
-                      Tambah mata kuliah
-                    </Button>
-                  </CardAction>
-                ) : null}
-              </CardHeader>
-              <CardContent className="grid gap-3">
-                {semesterRows.length === 0 ? (
-                  <p className="text-muted-foreground rounded-xl border border-dashed p-3 text-sm">
-                    Belum ada mata kuliah pada semester ini.
-                  </p>
-                ) : (
-                  semesterRows.map((row, index) => (
-                    <div
-                      className="grid gap-2 rounded-xl border border-[#dbe5ee] p-3 sm:grid-cols-[minmax(0,1fr)_8rem_auto] sm:items-center"
-                      key={row.id}
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">
-                          {courseLabel(row.courseId)}
-                        </p>
-                        <p className="text-muted-foreground text-xs">
-                          Mata kuliah {index + 1}
-                        </p>
-                      </div>
-                      <label
-                        className="grid gap-1 text-xs font-medium"
-                        htmlFor={`type-${row.id}`}
-                      >
-                        Jenis
-                        <select
-                          className="border-input bg-background h-9 rounded-md border px-2 text-sm"
-                          disabled={!canManage || curriculum.status !== "DRAFT"}
-                          id={`type-${row.id}`}
-                          onChange={(event) =>
-                            updateCourseType(
-                              row.id,
-                              event.target.value as CurriculumCourseType
-                            )
-                          }
-                          value={row.courseType}
-                        >
-                          <option value="REQUIRED">Wajib</option>
-                          <option value="ELECTIVE">Pilihan</option>
-                        </select>
-                      </label>
-                      {canManage && curriculum.status === "DRAFT" ? (
-                        <Button
-                          aria-label={`Hapus ${courseLabel(row.courseId)}`}
-                          onClick={() => removeCourse(row.id)}
-                          size="icon-sm"
-                          variant="outline"
-                        >
-                          <Trash2 aria-hidden="true" />
-                        </Button>
-                      ) : null}
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+        {semesters.map((semester) => (
+          <CurriculumSemesterCard
+            canManage={canManage}
+            courseLabel={courseLabel}
+            isDraft={curriculum.status === "DRAFT"}
+            key={semester}
+            onAdd={openAddDialog}
+            onRemove={removeCourse}
+            onUpdateCourseType={updateCourseType}
+            rows={rows.filter((row) => row.semester === semester)}
+            semester={semester}
+          />
+        ))}
       </section>
       {canManage && curriculum.status === "DRAFT" ? (
         <div className="flex justify-end">
@@ -323,6 +286,17 @@ const CurriculumStructurePage = ({
           semester={addDialog.semester}
         />
       ) : null}
+      <CurriculumCatalogImportDialog
+        curriculumProgramName={curriculum.studyProgram.name}
+        isPending={importFromCatalog.isPending}
+        onCancel={() => setCatalogImportOpen(false)}
+        onConfirm={() => {
+          if (!hasUnsavedChanges && !importFromCatalog.isPending) {
+            importFromCatalog.mutate({ curriculumId });
+          }
+        }}
+        open={catalogImportOpen}
+      />
     </div>
   );
 };

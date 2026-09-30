@@ -9,12 +9,14 @@ import {
 import { DataTable } from "@siakad-itbkmmubar/ui/components/data-table";
 import { FormField } from "@siakad-itbkmmubar/ui/components/form-field";
 import { Input } from "@siakad-itbkmmubar/ui/components/input";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { Download } from "lucide-react";
 import { useState } from "react";
 import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 
+import { masterDataEntitySlugs } from "@/components/master-data-types";
 import type { MasterDataEntityType } from "@/components/master-data-types";
 import {
   calculateMasterDataImportChecksum,
@@ -40,6 +42,18 @@ const getErrorMessage = (error: unknown): string =>
     ? error.message
     : "Impor belum dapat diproses. Periksa file lalu coba lagi.";
 
+const getMasterDataEntityPath = (entityType: MasterDataEntityType): string => {
+  const slug = masterDataEntitySlugs[entityType];
+  if (typeof window === "undefined") {
+    return `/admin-akademik/master-data/${slug}`;
+  }
+
+  return window.location.pathname.replace(
+    /\/master-data\/import$/u,
+    `/master-data/${slug}`
+  );
+};
+
 const importRowStatusLabels: Record<string, string> = {
   INVALID: "Perlu diperbaiki",
   VALID: "Lolos validasi",
@@ -55,6 +69,8 @@ const MasterDataImportPage = ({
   description,
   title,
 }: MasterDataImportPageProps) => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [entityType, setEntityType] =
     useState<(typeof entityOptions)[number][0]>("STUDENT");
   const [jobId, setJobId] = useState<string>();
@@ -85,7 +101,18 @@ const MasterDataImportPage = ({
   const commitImport = useMutation(
     orpc.masterData.import.commit.mutationOptions({
       onError: (error) => toast.error(getErrorMessage(error)),
-      onSuccess: () => {
+      onSuccess: async (result) => {
+        if (String(result.status) === "COMPLETED") {
+          toast.success("Impor berhasil disimpan.");
+          await queryClient.invalidateQueries({
+            queryKey: orpc.masterData.list.key(),
+          });
+          await navigate({
+            to: getMasterDataEntityPath(entityType) as never,
+          });
+          return;
+        }
+
         toast.success("Pemrosesan impor dilanjutkan.");
         void preview.refetch();
       },

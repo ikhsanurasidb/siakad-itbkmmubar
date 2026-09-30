@@ -64,6 +64,110 @@ const toRecords = async <T extends object>(
   return values.map(asRecord);
 };
 
+const getReferenceIds = (
+  records: readonly MasterDataRecord[],
+  fieldId: string
+): string[] => [
+  ...new Set(
+    records.flatMap((record) => {
+      const value = record[fieldId];
+      return typeof value === "string" && value ? [value] : [];
+    })
+  ),
+];
+
+const addStudyProgramNames = async (
+  database: Database,
+  records: readonly MasterDataRecord[]
+): Promise<MasterDataRecord[]> => {
+  const ids = getReferenceIds(records, "studyProgramId");
+  if (ids.length === 0) {
+    return [...records];
+  }
+  const references = await database
+    .select({ id: studyPrograms.id, name: studyPrograms.name })
+    .from(studyPrograms)
+    .where(inArray(studyPrograms.id, ids));
+  const names = new Map(
+    references.map((reference) => [reference.id, reference.name])
+  );
+  return records.map((record) => ({
+    ...record,
+    studyProgramName: names.get(String(record.studyProgramId)) ?? null,
+  }));
+};
+
+const addCohortEntryYears = async (
+  database: Database,
+  records: readonly MasterDataRecord[]
+): Promise<MasterDataRecord[]> => {
+  const ids = getReferenceIds(records, "cohortId");
+  if (ids.length === 0) {
+    return [...records];
+  }
+  const references = await database
+    .select({ entryYear: cohorts.entryYear, id: cohorts.id })
+    .from(cohorts)
+    .where(inArray(cohorts.id, ids));
+  const entryYears = new Map(
+    references.map((reference) => [reference.id, reference.entryYear])
+  );
+  return records.map((record) => ({
+    ...record,
+    cohortEntryYear: entryYears.get(String(record.cohortId)) ?? null,
+  }));
+};
+
+const addAcademicYearCodes = async (
+  database: Database,
+  records: readonly MasterDataRecord[]
+): Promise<MasterDataRecord[]> => {
+  const ids = getReferenceIds(records, "academicYearId");
+  if (ids.length === 0) {
+    return [...records];
+  }
+  const references = await database
+    .select({ code: academicYears.code, id: academicYears.id })
+    .from(academicYears)
+    .where(inArray(academicYears.id, ids));
+  const codes = new Map(
+    references.map((reference) => [reference.id, reference.code])
+  );
+  return records.map((record) => ({
+    ...record,
+    academicYearCode: codes.get(String(record.academicYearId)) ?? null,
+  }));
+};
+
+const enrichReferenceLabels = async (
+  database: Database,
+  entityType: MasterDataEntityType,
+  records: readonly MasterDataRecord[]
+): Promise<MasterDataRecord[]> => {
+  switch (entityType) {
+    case "ACADEMIC_PERIOD": {
+      return addAcademicYearCodes(database, records);
+    }
+    case "COHORT":
+    case "COURSE": {
+      return addStudyProgramNames(database, records);
+    }
+    case "STUDENT": {
+      const [withProgramNames, withCohortYears] = await Promise.all([
+        addStudyProgramNames(database, records),
+        addCohortEntryYears(database, records),
+      ]);
+      return withProgramNames.map((record, index) => ({
+        ...record,
+        cohortEntryYear: withCohortYears[index]?.cohortEntryYear ?? null,
+      }));
+    }
+    default: {
+      return [...records];
+    }
+  }
+};
+
 const normalizeCount = (value: number | null): number => value ?? 0;
 
 const readStatusCount = async (
@@ -485,7 +589,10 @@ export const createMasterDataService = ({
         "Data master tidak ditemukan."
       );
     }
-    return asRecord(result);
+    const [enriched] = await enrichReferenceLabels(database, entityType, [
+      asRecord(result),
+    ]);
+    return enriched ?? asRecord(result);
   };
 
   // Server-side filters intentionally share one bounded list entry point.
@@ -656,6 +763,7 @@ export const createMasterDataService = ({
         );
       }
     }
+    rows = await enrichReferenceLabels(database, entityType, rows);
     const hasMore = rows.length > limit;
     return {
       data: hasMore ? rows.slice(0, limit) : rows,

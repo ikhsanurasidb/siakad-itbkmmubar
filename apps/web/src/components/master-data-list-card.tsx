@@ -14,6 +14,10 @@ import { Search } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 
 import type { FieldDefinition } from "@/components/master-data-create-form";
+import {
+  getMasterDataReferenceLabel,
+  isMasterDataReferenceField,
+} from "@/components/master-data-definitions";
 import { masterDataEntitySlugs } from "@/components/master-data-types";
 import type { MasterDataEntityType } from "@/components/master-data-types";
 
@@ -31,7 +35,18 @@ const statusLabels: Record<string, string> = {
   DRAFT: "Draf",
 };
 
-const formatFieldValue = (fieldId: string, value: unknown): string => {
+const formatFieldValue = (
+  fieldId: string,
+  value: unknown,
+  record: DisplayRow
+): string => {
+  const referenceLabel = getMasterDataReferenceLabel(record, fieldId);
+  if (referenceLabel) {
+    return referenceLabel;
+  }
+  if (isMasterDataReferenceField(fieldId)) {
+    return "—";
+  }
   if (fieldId === "term" && typeof value === "string") {
     return formatAcademicPeriodTerm(value);
   }
@@ -157,7 +172,7 @@ const MasterDataListCard = ({
   );
   const columns = [
     ...fields.slice(0, 4).map((field) => ({
-      cell: (row: DisplayRow) => formatFieldValue(field.id, row[field.id]),
+      cell: (row: DisplayRow) => formatFieldValue(field.id, row[field.id], row),
       header: field.label,
       id: field.id,
     })),

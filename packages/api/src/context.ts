@@ -332,6 +332,15 @@ export interface CurriculumService {
       curriculumCourseId: string;
     }[];
   }) => Promise<void>;
+  importFromCatalog: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    curriculumId: string;
+  }) => Promise<{
+    importedCount: number;
+    skippedExistingCount: number;
+    skippedWithoutDefaultSemesterCount: number;
+  }>;
   replaceStructure: (input: {
     actorRoles: readonly RoleKey[];
     actorUserId: string;
