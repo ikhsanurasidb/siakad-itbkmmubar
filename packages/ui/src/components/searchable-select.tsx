@@ -168,7 +168,7 @@ const SearchableSelect = ({
               </Combobox.Status>
               {status === "ready" && options.length > 0 ? (
                 <Combobox.List className="max-h-64 overflow-y-auto">
-                  {options.map((option, index) => (
+                  {(option: SearchableSelectOption, index: number) => (
                     <Combobox.Item
                       className="data-highlighted:bg-accent data-highlighted:text-accent-foreground relative flex cursor-default items-start gap-2 rounded-lg px-3 py-2 text-sm outline-none"
                       index={index}
@@ -187,7 +187,7 @@ const SearchableSelect = ({
                         <Check aria-hidden="true" className="size-4" />
                       </Combobox.ItemIndicator>
                     </Combobox.Item>
-                  ))}
+                  )}
                 </Combobox.List>
               ) : null}
               {status === "ready" && options.length === 0 ? (
