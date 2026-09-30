@@ -1,4 +1,4 @@
-import { formatAcademicPeriodTerm } from "@siakad-itbkmmubar/api/master-data";
+import { formatAcademicPeriodLabel } from "@siakad-itbkmmubar/api/master-data";
 import type { StudyPlanGenerationResult } from "@siakad-itbkmmubar/api/study-plan";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
@@ -35,12 +35,13 @@ const buildPeriodOptions = (
       return [];
     }
     const term = recordText(period, "term");
+    const academicYear = recordText(period, "academicYearLabel");
     const startDate = recordText(period, "startDate").slice(0, 10);
     const endDate = recordText(period, "endDate").slice(0, 10);
     return [
       {
         description: [startDate, endDate].filter(Boolean).join(" – "),
-        label: `Periode ${formatAcademicPeriodTerm(term || "akademik")}`,
+        label: formatAcademicPeriodLabel(term || "akademik", academicYear),
         value: id,
       },
     ];

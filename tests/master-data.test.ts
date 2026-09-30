@@ -7,6 +7,7 @@ import {
   assertAcademicPeriodStatusTransition,
   assertHeaders,
   assertTemplateVersion,
+  formatAcademicPeriodLabel,
   formatAcademicPeriodTerm,
   normalizeCode,
   normalizeIdentifierValue,
@@ -201,6 +202,9 @@ describe("SIAKAD-02 master data rules", () => {
   test("localizes academic period terms and includes the end date", () => {
     expect(formatAcademicPeriodTerm("ODD")).toBe("Ganjil");
     expect(formatAcademicPeriodTerm("EVEN")).toBe("Genap");
+    expect(formatAcademicPeriodLabel("ODD", "2026/2027")).toBe(
+      "Periode Ganjil · 2026/2027"
+    );
 
     const endDate = parseAcademicPeriodDate(
       "2026-09-30",

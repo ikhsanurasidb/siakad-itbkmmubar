@@ -132,15 +132,29 @@ const addAcademicYearCodes = async (
     return [...records];
   }
   const references = await database
-    .select({ code: academicYears.code, id: academicYears.id })
+    .select({
+      code: academicYears.code,
+      endYear: academicYears.endYear,
+      id: academicYears.id,
+      startYear: academicYears.startYear,
+    })
     .from(academicYears)
     .where(inArray(academicYears.id, ids));
-  const codes = new Map(
-    references.map((reference) => [reference.id, reference.code])
+  const academicYearLabels = new Map(
+    references.map((reference) => [
+      reference.id,
+      {
+        code: reference.code,
+        label: `${reference.startYear}/${reference.endYear}`,
+      },
+    ])
   );
   return records.map((record) => ({
     ...record,
-    academicYearCode: codes.get(String(record.academicYearId)) ?? null,
+    academicYearCode:
+      academicYearLabels.get(String(record.academicYearId))?.code ?? null,
+    academicYearLabel:
+      academicYearLabels.get(String(record.academicYearId))?.label ?? null,
   }));
 };
 

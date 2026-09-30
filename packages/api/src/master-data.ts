@@ -42,6 +42,16 @@ export const academicPeriodTermLabels = {
 export const formatAcademicPeriodTerm = (term: string): string =>
   academicPeriodTermLabels[term as keyof typeof academicPeriodTermLabels] ??
   term;
+export const formatAcademicPeriodLabel = (
+  term: string,
+  academicYear?: string
+): string => {
+  const termLabel = formatAcademicPeriodTerm(term);
+  const yearLabel = academicYear?.trim();
+  return yearLabel
+    ? `Periode ${termLabel} · ${yearLabel}`
+    : `Periode ${termLabel}`;
+};
 export const studyProgramDegreeOptions = studyProgramDegrees;
 
 export type MasterDataEntityType = (typeof masterDataEntityTypes)[number];
