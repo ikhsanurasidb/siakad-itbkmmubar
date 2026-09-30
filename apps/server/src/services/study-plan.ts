@@ -1,15 +1,18 @@
 import type { StudyPlanService } from "@api/context";
 import type { RoleKey } from "@api/identity";
 import {
+  getStudyPlanFailureAction,
   StudyPlanDomainError,
   assertStudyPlanManageRole,
   assertStudyPlanReadRole,
   calculateStudyPlanTotals,
   normalizeStudyPlanReason,
+  studyPlanFailureReasonCodes,
   studyPlanStrategies,
 } from "@api/study-plan";
 import type {
   StudyPlanFailure,
+  StudyPlanFailureReasonCode,
   StudyPlanListItem,
   StudyPlanRecord,
   StudyPlanStatus,
@@ -56,6 +59,8 @@ interface StudentCandidate {
 
 interface GenerationCourse {
   courseId: string;
+  courseCode: string;
+  courseStatus: string;
   credits: number;
   curriculumCourseId: string;
   semester: number;
@@ -75,6 +80,12 @@ type GenerationStudent = Pick<
 
 const toIso = (value: Date): string => value.toISOString();
 
+const isStudyPlanFailureReasonCode = (
+  value: unknown
+): value is StudyPlanFailureReasonCode =>
+  typeof value === "string" &&
+  studyPlanFailureReasonCodes.includes(value as StudyPlanFailureReasonCode);
+
 const isSuperadmin = (roles: readonly RoleKey[]): boolean =>
   roles.includes("SUPERADMIN");
 
@@ -90,22 +101,96 @@ const parseFailures = (value: string | null): StudyPlanFailure[] => {
     if (!Array.isArray(parsed)) {
       return [];
     }
-    return parsed.filter((item): item is StudyPlanFailure => {
+    return parsed.flatMap((item): StudyPlanFailure[] => {
       if (!item || typeof item !== "object") {
-        return false;
+        return [];
       }
       const record = item as Record<string, unknown>;
-      return (
-        typeof record.message === "string" &&
-        typeof record.nim === "string" &&
-        typeof record.studentId === "string" &&
-        (record.reasonCode === "CURRICULUM_NOT_FOUND" ||
-          record.reasonCode === "GENERATION_FAILED")
-      );
+      if (
+        typeof record.message !== "string" ||
+        typeof record.nim !== "string" ||
+        typeof record.studentId !== "string" ||
+        !isStudyPlanFailureReasonCode(record.reasonCode)
+      ) {
+        return [];
+      }
+      return [
+        {
+          action:
+            typeof record.action === "string"
+              ? record.action
+              : getStudyPlanFailureAction(record.reasonCode),
+          message: record.message,
+          nim: record.nim,
+          reasonCode: record.reasonCode,
+          studentId: record.studentId,
+        },
+      ];
     });
   } catch {
     return [];
   }
+};
+
+const validateGenerationCourses = ({
+  courses: generationCourses,
+  student,
+}: {
+  courses: readonly GenerationCourse[];
+  student: GenerationStudent;
+}): StudyPlanFailure | null => {
+  if (generationCourses.length === 0) {
+    return {
+      action: getStudyPlanFailureAction("CURRICULUM_EMPTY"),
+      message: "Kurikulum aktif belum memiliki mata kuliah.",
+      nim: student.nim,
+      reasonCode: "CURRICULUM_EMPTY",
+      studentId: student.id,
+    };
+  }
+
+  const courseIds = new Set<string>();
+  for (const course of generationCourses) {
+    if (courseIds.has(course.courseId)) {
+      return {
+        action: getStudyPlanFailureAction("CURRICULUM_DUPLICATE_COURSE"),
+        message: `Mata kuliah ${course.courseCode} tercantum lebih dari sekali pada kurikulum aktif.`,
+        nim: student.nim,
+        reasonCode: "CURRICULUM_DUPLICATE_COURSE",
+        studentId: student.id,
+      };
+    }
+    courseIds.add(course.courseId);
+
+    if (
+      !Number.isInteger(course.semester) ||
+      course.semester < 1 ||
+      course.semester > 8 ||
+      !Number.isInteger(course.credits) ||
+      course.credits < 1 ||
+      course.credits > 6
+    ) {
+      return {
+        action: getStudyPlanFailureAction("CURRICULUM_COURSE_INVALID"),
+        message: `Data mata kuliah ${course.courseCode} memiliki semester atau SKS yang tidak valid.`,
+        nim: student.nim,
+        reasonCode: "CURRICULUM_COURSE_INVALID",
+        studentId: student.id,
+      };
+    }
+
+    if (course.courseStatus !== "ACTIVE") {
+      return {
+        action: getStudyPlanFailureAction("CURRICULUM_COURSE_INACTIVE"),
+        message: `Mata kuliah ${course.courseCode} tidak berstatus aktif.`,
+        nim: student.nim,
+        reasonCode: "CURRICULUM_COURSE_INACTIVE",
+        studentId: student.id,
+      };
+    }
+  }
+
+  return null;
 };
 
 const asStatus = (value: string): StudyPlanStatus => {
@@ -184,6 +269,7 @@ const processGenerationStudent = async ({
       return {
         completed: false,
         failure: {
+          action: getStudyPlanFailureAction("CURRICULUM_NOT_FOUND"),
           message: "Kurikulum aktif untuk Prodi dan angkatan tidak ditemukan.",
           nim: student.nim,
           reasonCode: "CURRICULUM_NOT_FOUND",
@@ -191,8 +277,16 @@ const processGenerationStudent = async ({
         },
       };
     }
+    const generationCourses = coursesByCurriculum.get(curriculum.id) ?? [];
+    const courseFailure = validateGenerationCourses({
+      courses: generationCourses,
+      student,
+    });
+    if (courseFailure) {
+      return { completed: false, failure: courseFailure };
+    }
     const items = studyPlanStrategies.PACKAGE.generate({
-      courses: coursesByCurriculum.get(curriculum.id) ?? [],
+      courses: generationCourses,
     });
     const totals = calculateStudyPlanTotals(items);
     let planId = existingPlan?.id;
@@ -251,7 +345,8 @@ const processGenerationStudent = async ({
     return {
       completed: false,
       failure: {
-        message: "KRS mahasiswa belum dapat dibuat karena data belum lengkap.",
+        action: getStudyPlanFailureAction("GENERATION_FAILED"),
+        message: "KRS gagal disimpan karena terjadi konflik pada data KRS.",
         nim: student.nim,
         reasonCode: "GENERATION_FAILED",
         studentId: student.id,
@@ -318,7 +413,9 @@ const processGenerationPage = async ({
     const items =
       coursesByCurriculum.get(row.curriculumCourse.curriculumId) ?? [];
     items.push({
+      courseCode: row.course.code,
       courseId: row.curriculumCourse.courseId,
+      courseStatus: row.course.status,
       credits: row.curriculumCourse.credits,
       curriculumCourseId: row.curriculumCourse.id,
       semester: row.curriculumCourse.semester,

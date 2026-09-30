@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  getStudyPlanFailureAction,
   StudyPlanDomainError,
   calculateStudyPlanTotals,
   normalizeStudyPlanReason,
@@ -46,6 +47,18 @@ describe("SIAKAD-05 KRS Paket rules", () => {
     );
     expect(normalizeStudyPlanReason("  Perubahan data kurikulum  ")).toBe(
       "Perubahan data kurikulum"
+    );
+  });
+
+  test("provides actionable instructions for generation failures", () => {
+    expect(getStudyPlanFailureAction("CURRICULUM_NOT_FOUND")).toContain(
+      "aktifkan kurikulum"
+    );
+    expect(getStudyPlanFailureAction("CURRICULUM_EMPTY")).toContain(
+      "tambahkan minimal satu mata kuliah"
+    );
+    expect(getStudyPlanFailureAction("CURRICULUM_DUPLICATE_COURSE")).toContain(
+      "hapus mata kuliah"
     );
   });
 });

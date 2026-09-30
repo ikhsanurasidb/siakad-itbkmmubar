@@ -8,6 +8,17 @@ export type StudyPlanStatus = (typeof studyPlanStatuses)[number];
 
 export type StudyPlanHistoryAction = "GENERATE" | "FINALIZE" | "REOPEN";
 
+export const studyPlanFailureReasonCodes = [
+  "CURRICULUM_NOT_FOUND",
+  "CURRICULUM_EMPTY",
+  "CURRICULUM_DUPLICATE_COURSE",
+  "CURRICULUM_COURSE_INVALID",
+  "CURRICULUM_COURSE_INACTIVE",
+  "GENERATION_FAILED",
+] as const;
+export type StudyPlanFailureReasonCode =
+  (typeof studyPlanFailureReasonCodes)[number];
+
 export interface StudyPlanItemDraft {
   courseId: string;
   credits: number;
@@ -33,11 +44,40 @@ export interface StudyPlanStrategy {
 }
 
 export interface StudyPlanFailure {
+  action: string;
   message: string;
   nim: string;
-  reasonCode: "CURRICULUM_NOT_FOUND" | "GENERATION_FAILED";
+  reasonCode: StudyPlanFailureReasonCode;
   studentId: string;
 }
+
+export const getStudyPlanFailureAction = (
+  reasonCode: StudyPlanFailureReasonCode
+): string => {
+  switch (reasonCode) {
+    case "CURRICULUM_NOT_FOUND": {
+      return "Buka Master Data > Kurikulum, buat atau aktifkan kurikulum untuk Prodi dan angkatan mahasiswa, lalu jalankan ulang.";
+    }
+    case "CURRICULUM_EMPTY": {
+      return "Buka kurikulum aktif tersebut dan tambahkan minimal satu mata kuliah sebelum menjalankan ulang.";
+    }
+    case "CURRICULUM_DUPLICATE_COURSE": {
+      return "Buka kurikulum aktif tersebut dan hapus mata kuliah yang tercantum lebih dari sekali, lalu jalankan ulang.";
+    }
+    case "CURRICULUM_COURSE_INVALID": {
+      return "Perbaiki semester menjadi 1–8 dan SKS menjadi 1–6 pada mata kuliah kurikulum, lalu jalankan ulang.";
+    }
+    case "CURRICULUM_COURSE_INACTIVE": {
+      return "Aktifkan kembali mata kuliah tersebut atau keluarkan dari kurikulum aktif, lalu jalankan ulang.";
+    }
+    case "GENERATION_FAILED": {
+      return "Buat job baru setelah memeriksa data kurikulum. Jika masih gagal, minta administrator memeriksa log server dengan NIM mahasiswa.";
+    }
+    default: {
+      return "Periksa data kurikulum dan jalankan ulang pembuatan KRS.";
+    }
+  }
+};
 
 export interface StudyPlanListItem {
   academicPeriod: {

@@ -12,6 +12,7 @@ import { PageHeader } from "@siakad-itbkmmubar/ui/components/page-header";
 import { SearchableSelect } from "@siakad-itbkmmubar/ui/components/searchable-select";
 import type { SearchableSelectOption } from "@siakad-itbkmmubar/ui/components/searchable-select";
 import { State } from "@siakad-itbkmmubar/ui/components/state";
+import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, RefreshCw } from "lucide-react";
@@ -106,8 +107,8 @@ const StudyPlanGenerationForm = ({
     <CardHeader>
       <CardTitle>Parameter pembuatan</CardTitle>
       <CardDescription>
-        Mahasiswa aktif akan diproses per kelompok kecil. Mahasiswa tanpa
-        kurikulum aktif dicatat sebagai kendala.
+        Mahasiswa aktif akan diproses per kelompok kecil. Mahasiswa tanpa data
+        kurikulum yang siap digunakan akan dicatat dengan langkah perbaikannya.
       </CardDescription>
     </CardHeader>
     <CardContent className="grid gap-4 md:grid-cols-3">
@@ -175,7 +176,13 @@ const StudyPlanGenerationResultCard = ({
           <ul className="grid gap-2 text-sm text-[#5c6f82]">
             {result.failures.slice(0, 10).map((failure) => (
               <li key={failure.studentId}>
-                {failure.nim}: {failure.message}
+                <p>
+                  <span className="font-medium">{failure.nim}</span>:{" "}
+                  {failure.message}
+                </p>
+                <p className="mt-1 text-xs text-[#5c6f82]">
+                  Tindakan: {failure.action}
+                </p>
               </li>
             ))}
           </ul>
@@ -219,12 +226,17 @@ const StudyPlanGeneratePage = ({
     orpc.studyPlan.generate.mutationOptions({
       onError: () =>
         toast.error(
-          "KRS belum dapat dibuat. Periksa periode dan data mahasiswa."
+          "Pembuatan KRS gagal dijalankan. Periksa periode aktif, kurikulum Prodi–angkatan, dan mata kuliahnya."
         ),
       onSuccess: async (result) => {
         setGenerationResult(result);
         if (result.errorCount > 0) {
-          toast.warning(`KRS dibuat dengan ${result.errorCount} kendala.`);
+          const [firstFailure] = result.failures;
+          toast.warning(
+            firstFailure
+              ? `${result.errorCount} kendala. ${firstFailure.action}`
+              : `KRS dibuat dengan ${result.errorCount} kendala.`
+          );
         } else {
           toast.success("KRS draft dibuat.");
         }
@@ -252,6 +264,7 @@ const StudyPlanGeneratePage = ({
     generate.mutate({
       academicPeriodId,
       cohortId: cohortId || undefined,
+      idempotencyKey: createUuidV7(),
       prodiId: prodiId || undefined,
     });
   };
