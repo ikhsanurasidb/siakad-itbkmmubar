@@ -290,56 +290,68 @@ const processGenerationStudent = async ({
     });
     const totals = calculateStudyPlanTotals(items);
     let planId = existingPlan?.id;
+    const mutationStatements: unknown[] = [];
     if (planId) {
-      await database
-        .delete(studyPlanItems)
-        .where(eq(studyPlanItems.studyPlanId, planId));
-      await database
-        .update(studyPlans)
-        .set({
-          curriculumId: curriculum.id,
-          totalCourses: totals.totalCourses,
-          totalCredits: totals.totalCredits,
-          updatedAt: now(),
-          version: (existingPlan?.version ?? 0) + 1,
-        })
-        .where(eq(studyPlans.id, planId));
+      mutationStatements.push(
+        database
+          .delete(studyPlanItems)
+          .where(eq(studyPlanItems.studyPlanId, planId)),
+        database
+          .update(studyPlans)
+          .set({
+            curriculumId: curriculum.id,
+            totalCourses: totals.totalCourses,
+            totalCredits: totals.totalCredits,
+            updatedAt: now(),
+            version: (existingPlan?.version ?? 0) + 1,
+          })
+          .where(eq(studyPlans.id, planId))
+      );
     } else {
       planId = createUuidV7();
-      await database.insert(studyPlans).values({
-        academicPeriodId,
-        curriculumId: curriculum.id,
-        id: planId,
-        mode: "PACKAGE",
-        status: "DRAFT",
-        studentId: student.id,
-        totalCourses: totals.totalCourses,
-        totalCredits: totals.totalCredits,
-      });
-    }
-    if (items.length > 0) {
-      await database.insert(studyPlanItems).values(
-        items.map((item) => ({
-          courseId: item.courseId,
-          credits: item.credits,
-          curriculumCourseId: item.curriculumCourseId,
-          id: createUuidV7(),
-          semester: item.semester,
-          sortOrder: item.sortOrder,
-          source: item.source,
-          studyPlanId: planId,
-        }))
+      mutationStatements.push(
+        database.insert(studyPlans).values({
+          academicPeriodId,
+          curriculumId: curriculum.id,
+          id: planId,
+          mode: "PACKAGE",
+          status: "DRAFT",
+          studentId: student.id,
+          totalCourses: totals.totalCourses,
+          totalCredits: totals.totalCredits,
+        })
       );
     }
-    await database.insert(studyPlanHistories).values({
-      action: "GENERATE",
-      actorUserId,
-      fromStatus: existingPlan?.status ?? null,
-      id: createUuidV7(),
-      metadata: JSON.stringify({ jobId }),
-      studyPlanId: planId,
-      toStatus: "DRAFT",
-    });
+    if (items.length > 0) {
+      mutationStatements.push(
+        database.insert(studyPlanItems).values(
+          items.map((item) => ({
+            courseId: item.courseId,
+            credits: item.credits,
+            curriculumCourseId: item.curriculumCourseId,
+            id: createUuidV7(),
+            semester: item.semester,
+            sortOrder: item.sortOrder,
+            source: item.source,
+            studyPlanId: planId,
+          }))
+        )
+      );
+    }
+    mutationStatements.push(
+      database.insert(studyPlanHistories).values({
+        action: "GENERATE",
+        actorUserId,
+        fromStatus: existingPlan?.status ?? null,
+        id: createUuidV7(),
+        metadata: JSON.stringify({ jobId }),
+        studyPlanId: planId,
+        toStatus: "DRAFT",
+      })
+    );
+    await database.batch(
+      mutationStatements as unknown as Parameters<Database["batch"]>[0]
+    );
     return { completed: true, failure: null };
   } catch {
     return {
