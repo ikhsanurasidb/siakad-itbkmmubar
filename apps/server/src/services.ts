@@ -50,6 +50,7 @@ export const createMasterDataService = async (
   return createConfiguredMasterDataService({
     database: db,
     identityService,
+    timeZone: ENV.BUSINESS_TIME_ZONE,
   });
 };
 

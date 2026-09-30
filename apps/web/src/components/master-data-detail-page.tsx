@@ -1,3 +1,4 @@
+import { getDatePartsInTimeZone } from "@siakad-itbkmmubar/api/time-zone";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
@@ -15,6 +16,7 @@ import {
 import { MasterDataDetailSummary } from "@/components/master-data-detail-summary";
 import { MasterDataEditDialog } from "@/components/master-data-edit-dialog";
 import type { MasterDataEntityType } from "@/components/master-data-types";
+import { ENV } from "@/env.public";
 import { orpc } from "@/utils/orpc";
 
 interface MasterDataDetailPageProps {
@@ -47,7 +49,14 @@ const valueForInput = (
   }
   if (type === "date") {
     const date = value instanceof Date ? value : new Date(String(value));
-    return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+    const { day, month, year } = getDatePartsInTimeZone(
+      date,
+      ENV.VITE_BUSINESS_TIME_ZONE
+    );
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   }
   return String(value);
 };
@@ -58,6 +67,19 @@ const getErrorCode = (error: unknown): string | undefined => {
   }
   const { code } = error as { code?: unknown };
   return typeof code === "string" ? code : undefined;
+};
+
+const getErrorMessage = (error: unknown): string => {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string" &&
+    error.message.trim()
+  ) {
+    return error.message;
+  }
+  return "Data belum dapat disimpan. Periksa data lalu coba lagi.";
 };
 
 const getInitialValues = (
@@ -136,7 +158,7 @@ const MasterDataDetailPage = ({
           });
           return;
         }
-        toast.error("Data belum dapat disimpan. Periksa data lalu coba lagi.");
+        toast.error(getErrorMessage(error));
       },
       onSuccess: async () => {
         toast.success("Perubahan data disimpan.");

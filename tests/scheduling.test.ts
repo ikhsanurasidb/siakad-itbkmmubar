@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { createWeeklyMeetings } from "../apps/server/src/services/scheduling";
 import {
   SchedulingDomainError,
   assertOnlineMeetingChange,
@@ -71,6 +72,49 @@ describe("SIAKAD-06 scheduling rules", () => {
         new Date("2026-10-01T02:00:00Z"),
         new Date("2026-10-01T02:00:00Z"),
         new Date("2026-10-01T03:00:00Z")
+      )
+    ).toBe(false);
+  });
+
+  test("skips weekly meetings that fall inside UTS and UAS windows", () => {
+    const meetings = createWeeklyMeetings({
+      blackoutRanges: [
+        {
+          endAt: new Date("2026-10-14T03:00:00.000Z"),
+          startAt: new Date("2026-10-07T00:00:00.000Z"),
+        },
+        {
+          endAt: new Date("2026-11-25T03:00:00.000Z"),
+          startAt: new Date("2026-11-18T00:00:00.000Z"),
+        },
+      ],
+      classSectionId: "section-1",
+      firstWindow: {
+        endAt: new Date("2026-08-26T03:00:00.000Z"),
+        startAt: new Date("2026-08-26T01:00:00.000Z"),
+      },
+      instructions: null,
+      modality: "OFFLINE",
+      roomId: "room-1",
+    });
+
+    expect(meetings).toHaveLength(16);
+    expect(meetings.at(-1)?.sequence).toBe(16);
+    expect(
+      meetings.some(
+        (meeting) =>
+          timeRangesOverlap(
+            meeting.startAt,
+            meeting.endAt,
+            new Date("2026-10-07T00:00:00.000Z"),
+            new Date("2026-10-14T03:00:00.000Z")
+          ) ||
+          timeRangesOverlap(
+            meeting.startAt,
+            meeting.endAt,
+            new Date("2026-11-18T00:00:00.000Z"),
+            new Date("2026-11-25T03:00:00.000Z")
+          )
       )
     ).toBe(false);
   });

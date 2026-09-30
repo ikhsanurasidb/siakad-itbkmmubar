@@ -18,6 +18,8 @@ import {
   parseCsvRow,
 } from "../packages/api/src/master-data";
 import {
+  academicPeriods,
+  academicYears,
   identifierUsages,
   studyPrograms,
 } from "../packages/db/src/schema/master-data";
@@ -37,6 +39,19 @@ const createMasterDataTestDatabase = () => {
   };
   const rows = new Map<object, Record<string, unknown>[]>([
     [auditLogs, []],
+    [academicPeriods, []],
+    [
+      academicYears,
+      [
+        {
+          code: "2026/2027",
+          endYear: 2027,
+          id: "year-1",
+          startYear: 2026,
+          status: "ACTIVE",
+        },
+      ],
+    ],
     [identifierUsages, []],
     [studyPrograms, [studyProgram]],
   ]);
@@ -212,6 +227,78 @@ describe("SIAKAD-02 master data rules", () => {
       "end"
     );
     expect(endDate.toISOString()).toBe("2026-09-30T23:59:59.999Z");
+  });
+
+  test("stores academic period windows in the configured business timezone", async () => {
+    const { database, rows } = createMasterDataTestDatabase();
+    const service = createMasterDataService({
+      database: database as never,
+      timeZone: "Asia/Jakarta",
+    });
+
+    await service.create({
+      actorUserId: "admin-1",
+      data: {
+        academicYearId: "year-1",
+        endDate: "2027-01-31",
+        finalExamEndDate: "2027-01-16",
+        finalExamStartDate: "2027-01-11",
+        finalGradeInputEndDate: "2027-01-23",
+        finalGradeInputStartDate: "2027-01-17",
+        finalGradePublishEndDate: "2027-01-31",
+        finalGradePublishStartDate: "2027-01-24",
+        midtermEndDate: "2026-10-17",
+        midtermGradeInputEndDate: "2026-10-24",
+        midtermGradeInputStartDate: "2026-10-18",
+        midtermGradePublishEndDate: "2026-10-31",
+        midtermGradePublishStartDate: "2026-10-25",
+        midtermStartDate: "2026-10-12",
+        startDate: "2026-08-17",
+        term: "ODD",
+      },
+      entityType: "ACADEMIC_PERIOD",
+    });
+
+    const [period] = rows.get(academicPeriods) ?? [];
+    expect(period?.startDate).toEqual(new Date("2026-08-16T17:00:00.000Z"));
+    expect(period?.endDate).toEqual(new Date("2027-01-31T16:59:59.999Z"));
+    expect(period?.midtermStartDate).toEqual(
+      new Date("2026-10-11T17:00:00.000Z")
+    );
+  });
+
+  test("rejects academic period windows that are out of order", async () => {
+    const { database, rows } = createMasterDataTestDatabase();
+    const service = createMasterDataService({
+      database: database as never,
+      timeZone: "Asia/Jakarta",
+    });
+
+    await expect(
+      service.create({
+        actorUserId: "admin-1",
+        data: {
+          academicYearId: "year-1",
+          endDate: "2027-01-31",
+          finalExamEndDate: "2027-01-16",
+          finalExamStartDate: "2027-01-11",
+          finalGradeInputEndDate: "2027-01-23",
+          finalGradeInputStartDate: "2027-01-17",
+          finalGradePublishEndDate: "2027-01-31",
+          finalGradePublishStartDate: "2027-01-24",
+          midtermEndDate: "2026-10-17",
+          midtermGradeInputEndDate: "2026-10-24",
+          midtermGradeInputStartDate: "2026-10-18",
+          midtermGradePublishEndDate: "2026-10-23",
+          midtermGradePublishStartDate: "2026-10-20",
+          midtermStartDate: "2026-10-12",
+          startDate: "2026-08-17",
+          term: "ODD",
+        },
+        entityType: "ACADEMIC_PERIOD",
+      })
+    ).rejects.toThrow("harus dimulai setelah rentang sebelumnya selesai");
+    expect(rows.get(academicPeriods)).toHaveLength(0);
   });
 
   test("allows only forward academic period status transitions", () => {

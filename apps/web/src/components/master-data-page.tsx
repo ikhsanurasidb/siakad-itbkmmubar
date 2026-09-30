@@ -32,8 +32,18 @@ const recordText = (row: Record<string, unknown>, key: string): string => {
     : "";
 };
 
-const getErrorMessage = (): string =>
-  "Perubahan belum dapat disimpan. Periksa data lalu coba lagi.";
+const getErrorMessage = (error: unknown): string => {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string" &&
+    error.message.trim()
+  ) {
+    return error.message;
+  }
+  return "Perubahan belum dapat disimpan. Periksa data lalu coba lagi.";
+};
 
 const getMasterDataRootPath = (): string => {
   if (typeof window === "undefined") {
@@ -124,7 +134,7 @@ const MasterDataPage = ({
   );
   const createRecord = useMutation(
     orpc.masterData.create.mutationOptions({
-      onError: () => toast.error(getErrorMessage()),
+      onError: (error) => toast.error(getErrorMessage(error)),
       onSuccess: async (result) => {
         if (result.credential) {
           setCreatedCredential({
@@ -148,7 +158,7 @@ const MasterDataPage = ({
   );
   const createAcademicYearRecord = useMutation(
     orpc.masterData.create.mutationOptions({
-      onError: () => toast.error(getErrorMessage()),
+      onError: (error) => toast.error(getErrorMessage(error)),
       onSuccess: async () => {
         setAcademicYearValues({});
         setAcademicYearHasSubmitted(false);
@@ -161,7 +171,7 @@ const MasterDataPage = ({
   );
   const archiveRecord = useMutation(
     orpc.masterData.archive.mutationOptions({
-      onError: () => toast.error(getErrorMessage()),
+      onError: (error) => toast.error(getErrorMessage(error)),
       onSuccess: async () => {
         toast.success("Data diarsipkan.");
         await queryClient.invalidateQueries({
@@ -172,7 +182,7 @@ const MasterDataPage = ({
   );
   const reactivateRecord = useMutation(
     orpc.masterData.reactivate.mutationOptions({
-      onError: () => toast.error(getErrorMessage()),
+      onError: (error) => toast.error(getErrorMessage(error)),
       onSuccess: async () => {
         toast.success("Data diaktifkan kembali.");
         await queryClient.invalidateQueries({
@@ -183,7 +193,7 @@ const MasterDataPage = ({
   );
   const changeAcademicPeriodStatus = useMutation(
     orpc.masterData.changeAcademicPeriodStatus.mutationOptions({
-      onError: () => toast.error(getErrorMessage()),
+      onError: (error) => toast.error(getErrorMessage(error)),
       onSuccess: async (_result, variables) => {
         toast.success(
           `Status periode diubah menjadi ${academicPeriodStatusLabels[variables.status]}.`

@@ -52,6 +52,50 @@ export const masterDataFieldDefinitions: Record<
     },
     { id: "startDate", label: "Tanggal mulai", type: "date" },
     { id: "endDate", label: "Tanggal akhir", type: "date" },
+    { id: "midtermStartDate", label: "Mulai UTS", type: "date" },
+    { id: "midtermEndDate", label: "Selesai UTS", type: "date" },
+    {
+      id: "midtermGradeInputStartDate",
+      label: "Mulai input nilai UTS",
+      type: "date",
+    },
+    {
+      id: "midtermGradeInputEndDate",
+      label: "Selesai input nilai UTS",
+      type: "date",
+    },
+    {
+      id: "midtermGradePublishStartDate",
+      label: "Mulai publish nilai UTS",
+      type: "date",
+    },
+    {
+      id: "midtermGradePublishEndDate",
+      label: "Selesai publish nilai UTS",
+      type: "date",
+    },
+    { id: "finalExamStartDate", label: "Mulai UAS", type: "date" },
+    { id: "finalExamEndDate", label: "Selesai UAS", type: "date" },
+    {
+      id: "finalGradeInputStartDate",
+      label: "Mulai input nilai akhir",
+      type: "date",
+    },
+    {
+      id: "finalGradeInputEndDate",
+      label: "Selesai input nilai akhir",
+      type: "date",
+    },
+    {
+      id: "finalGradePublishStartDate",
+      label: "Mulai publish nilai akhir",
+      type: "date",
+    },
+    {
+      id: "finalGradePublishEndDate",
+      label: "Selesai publish nilai akhir",
+      type: "date",
+    },
   ],
   ACADEMIC_YEAR: [
     { id: "code", label: "Kode" },

@@ -22,6 +22,7 @@ import type {
   AcademicPeriodStatus,
   MasterDataEntityType,
 } from "@siakad-itbkmmubar/api/master-data";
+import { parseLocalDateTime } from "@siakad-itbkmmubar/api/time-zone";
 import type { Database } from "@siakad-itbkmmubar/db";
 import {
   academicPeriods,
@@ -274,6 +275,161 @@ const optionalIntegerValue = (
   return parseInteger(valueAsString(data, key), key);
 };
 
+const academicPeriodDateFields = [
+  {
+    end: "midtermEndDate",
+    endLabel: "Tanggal akhir UTS",
+    start: "midtermStartDate",
+    startLabel: "Tanggal mulai UTS",
+  },
+  {
+    end: "midtermGradeInputEndDate",
+    endLabel: "Tanggal akhir input nilai UTS",
+    start: "midtermGradeInputStartDate",
+    startLabel: "Tanggal mulai input nilai UTS",
+  },
+  {
+    end: "midtermGradePublishEndDate",
+    endLabel: "Tanggal akhir publish nilai UTS",
+    start: "midtermGradePublishStartDate",
+    startLabel: "Tanggal mulai publish nilai UTS",
+  },
+  {
+    end: "finalExamEndDate",
+    endLabel: "Tanggal akhir UAS",
+    start: "finalExamStartDate",
+    startLabel: "Tanggal mulai UAS",
+  },
+  {
+    end: "finalGradeInputEndDate",
+    endLabel: "Tanggal akhir input nilai akhir",
+    start: "finalGradeInputStartDate",
+    startLabel: "Tanggal mulai input nilai akhir",
+  },
+  {
+    end: "finalGradePublishEndDate",
+    endLabel: "Tanggal akhir publish nilai akhir",
+    start: "finalGradePublishStartDate",
+    startLabel: "Tanggal mulai publish nilai akhir",
+  },
+] as const;
+
+const getAcademicPeriodDateValue = (
+  data: Readonly<Record<string, unknown>>,
+  fieldId: string,
+  label: string,
+  boundary: "end" | "start",
+  timeZone: string | undefined
+): Date | null => {
+  const value = data[fieldId];
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (value instanceof Date) {
+    return value;
+  }
+  if (typeof value !== "string" || !normalizeText(value)) {
+    throw new MasterDataDomainError("INVALID_DATE", `${label} tidak valid.`);
+  }
+  const normalized = normalizeText(value);
+  try {
+    if (!timeZone) {
+      return parseAcademicPeriodDate(normalized, label, boundary);
+    }
+    const localValue =
+      boundary === "end" && /^\d{4}-\d{2}-\d{2}$/u.test(normalized)
+        ? `${normalized}T23:59:59.999`
+        : normalized;
+    return parseLocalDateTime(localValue, timeZone);
+  } catch {
+    throw new MasterDataDomainError(
+      "INVALID_DATE",
+      `${label} harus berupa tanggal yang valid.`
+    );
+  }
+};
+
+const readAcademicPeriodWindows = ({
+  data,
+  timeZone,
+}: {
+  data: Readonly<Record<string, unknown>>;
+  timeZone: string | undefined;
+}): Record<string, Date | null> => {
+  const values: Record<string, Date | null> = {};
+  for (const field of academicPeriodDateFields) {
+    values[field.start] = getAcademicPeriodDateValue(
+      data,
+      field.start,
+      field.startLabel,
+      "start",
+      timeZone
+    );
+    values[field.end] = getAcademicPeriodDateValue(
+      data,
+      field.end,
+      field.endLabel,
+      "end",
+      timeZone
+    );
+  }
+  return values;
+};
+
+const validateAcademicPeriodWindows = ({
+  endDate,
+  startDate,
+  windows,
+}: {
+  endDate: Date;
+  startDate: Date;
+  windows: Record<string, Date | null>;
+}): void => {
+  let previousEnd = startDate;
+  for (const field of academicPeriodDateFields) {
+    const start = windows[field.start];
+    const end = windows[field.end];
+    if ((start && !end) || (!start && end)) {
+      throw new MasterDataDomainError(
+        "INCOMPLETE_DATE_RANGE",
+        `${field.startLabel} dan ${field.endLabel} harus diisi berpasangan.`
+      );
+    }
+    if (!start || !end) {
+      continue;
+    }
+    if (start < startDate || end > endDate) {
+      throw new MasterDataDomainError(
+        "DATE_RANGE_OUTSIDE_PERIOD",
+        `${field.startLabel} sampai ${field.endLabel} harus berada di dalam periode akademik.`
+      );
+    }
+    if (end < start) {
+      throw new MasterDataDomainError(
+        "INVALID_DATE_RANGE",
+        `${field.endLabel} tidak boleh sebelum ${field.startLabel}.`
+      );
+    }
+    if (start < previousEnd) {
+      throw new MasterDataDomainError(
+        "INVALID_DATE_ORDER",
+        `Rentang ${field.startLabel.toLowerCase()} harus dimulai setelah rentang sebelumnya selesai.`
+      );
+    }
+    previousEnd = end;
+  }
+};
+
+const academicPeriodDateValues = (
+  windows: Record<string, Date | null>
+): Record<string, Date | null> =>
+  Object.fromEntries(
+    academicPeriodDateFields.flatMap((field) => [
+      [field.start, windows[field.start] ?? null],
+      [field.end, windows[field.end] ?? null],
+    ])
+  );
+
 const coordinateValue = (
   data: Readonly<Record<string, unknown>>,
   key: "latitude" | "longitude"
@@ -521,10 +677,12 @@ export const createMasterDataService = ({
   database,
   identityService,
   now = () => new Date(),
+  timeZone,
 }: {
   database: Database;
   identityService?: Pick<IdentityService, "createAccount">;
   now?: () => Date;
+  timeZone?: string;
 }): MasterDataService => {
   // The entity switch is centralized so every master entity shares the same access contract.
   // eslint-disable-next-line complexity
@@ -1259,32 +1417,39 @@ export const createMasterDataService = ({
             "Tahun akademik tidak ditemukan atau tidak aktif."
           );
         }
-        const startDate =
-          data.startDate instanceof Date
-            ? data.startDate
-            : parseAcademicPeriodDate(
-                valueAsString(data, "startDate"),
-                "Tanggal mulai",
-                "start"
-              );
-        const endDate =
-          data.endDate instanceof Date
-            ? data.endDate
-            : parseAcademicPeriodDate(
-                valueAsString(data, "endDate"),
-                "Tanggal akhir",
-                "end"
-              );
+        const startDate = getAcademicPeriodDateValue(
+          data,
+          "startDate",
+          "Tanggal mulai",
+          "start",
+          timeZone
+        );
+        const endDate = getAcademicPeriodDateValue(
+          data,
+          "endDate",
+          "Tanggal akhir",
+          "end",
+          timeZone
+        );
+        if (!startDate || !endDate) {
+          throw new MasterDataDomainError(
+            "FIELD_REQUIRED",
+            "Tanggal mulai dan tanggal akhir wajib diisi."
+          );
+        }
         if (endDate < startDate) {
           throw new MasterDataDomainError(
             "INVALID_DATE_RANGE",
             "Tanggal akhir tidak boleh sebelum tanggal mulai."
           );
         }
+        const windows = readAcademicPeriodWindows({ data, timeZone });
+        validateAcademicPeriodWindows({ endDate, startDate, windows });
         await database.insert(academicPeriods).values({
           academicYearId,
           createdAt: currentTime,
           endDate,
+          ...academicPeriodDateValues(windows),
           id,
           startDate,
           status: String(data.status ?? "DRAFT").toUpperCase(),
@@ -1719,28 +1884,38 @@ export const createMasterDataService = ({
         break;
       }
       case "ACADEMIC_PERIOD": {
-        const startDate =
-          data.startDate === undefined
-            ? new Date(String(before.startDate))
-            : parseAcademicPeriodDate(
-                valueAsString(data, "startDate"),
-                "Tanggal mulai",
-                "start"
-              );
-        const endDate =
-          data.endDate === undefined
-            ? new Date(String(before.endDate))
-            : parseAcademicPeriodDate(
-                valueAsString(data, "endDate"),
-                "Tanggal akhir",
-                "end"
-              );
+        const periodData = { ...before, ...data };
+        const startDate = getAcademicPeriodDateValue(
+          periodData,
+          "startDate",
+          "Tanggal mulai",
+          "start",
+          timeZone
+        );
+        const endDate = getAcademicPeriodDateValue(
+          periodData,
+          "endDate",
+          "Tanggal akhir",
+          "end",
+          timeZone
+        );
+        if (!startDate || !endDate) {
+          throw new MasterDataDomainError(
+            "FIELD_REQUIRED",
+            "Tanggal mulai dan tanggal akhir wajib diisi."
+          );
+        }
         if (endDate < startDate) {
           throw new MasterDataDomainError(
             "INVALID_DATE_RANGE",
             "Tanggal akhir tidak boleh sebelum tanggal mulai."
           );
         }
+        const windows = readAcademicPeriodWindows({
+          data: periodData,
+          timeZone,
+        });
+        validateAcademicPeriodWindows({ endDate, startDate, windows });
         const academicYearId =
           data.academicYearId === undefined
             ? String(before.academicYearId)
@@ -1754,6 +1929,7 @@ export const createMasterDataService = ({
             .set({
               academicYearId,
               endDate,
+              ...academicPeriodDateValues(windows),
               startDate,
               status:
                 data.status === undefined

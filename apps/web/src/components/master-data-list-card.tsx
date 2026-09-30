@@ -29,6 +29,7 @@ import {
 } from "@/components/master-data-definitions";
 import { masterDataEntitySlugs } from "@/components/master-data-types";
 import type { MasterDataEntityType } from "@/components/master-data-types";
+import { ENV } from "@/env.public";
 
 type DisplayRow = Record<string, unknown> & {
   id: string;
@@ -36,6 +37,11 @@ type DisplayRow = Record<string, unknown> & {
   statusCode?: string;
   version: number;
 };
+
+const dateFormatter = new Intl.DateTimeFormat("id-ID", {
+  dateStyle: "medium",
+  timeZone: ENV.VITE_BUSINESS_TIME_ZONE,
+});
 
 const statusLabels: Record<string, string> = {
   ...academicPeriodStatusLabels,
@@ -56,6 +62,15 @@ const formatFieldValue = (
   }
   if (fieldId === "term" && typeof value === "string") {
     return formatAcademicPeriodTerm(value);
+  }
+  if (value instanceof Date) {
+    return dateFormatter.format(value);
+  }
+  if (typeof value === "string" && value.includes("T")) {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) {
+      return dateFormatter.format(date);
+    }
   }
   return String(value ?? "—");
 };

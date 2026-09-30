@@ -1,4 +1,5 @@
 import { formatAcademicPeriodTerm } from "@siakad-itbkmmubar/api/master-data";
+import { getDatePartsInTimeZone } from "@siakad-itbkmmubar/api/time-zone";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
   Card,
@@ -14,6 +15,15 @@ import {
   getMasterDataReferenceLabel,
   isMasterDataReferenceField,
 } from "@/components/master-data-definitions";
+import { ENV } from "@/env.public";
+
+const formatDate = (value: Date): string => {
+  const { day, month, year } = getDatePartsInTimeZone(
+    value,
+    ENV.VITE_BUSINESS_TIME_ZONE
+  );
+  return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
+};
 
 const formatDetailValue = (
   value: unknown,
@@ -33,12 +43,12 @@ const formatDetailValue = (
     return formatAcademicPeriodTerm(value);
   }
   if (value instanceof Date) {
-    return value.toLocaleDateString("id-ID");
+    return formatDate(value);
   }
   if (typeof value === "string" && value.includes("T")) {
     const date = new Date(value);
     if (!Number.isNaN(date.getTime())) {
-      return date.toLocaleDateString("id-ID");
+      return formatDate(date);
     }
   }
   return value === null || value === undefined || value === ""

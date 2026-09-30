@@ -230,32 +230,99 @@ const getFirstWeeklyWindow = ({
   };
 };
 
-const createWeeklyMeetings = ({
+interface AcademicPeriodBlackoutRange {
+  endAt: Date;
+  startAt: Date;
+}
+
+const getAcademicPeriodBlackoutRanges = (period: {
+  finalExamEndDate: Date | null;
+  finalExamStartDate: Date | null;
+  midtermEndDate: Date | null;
+  midtermStartDate: Date | null;
+}): AcademicPeriodBlackoutRange[] =>
+  [
+    {
+      endAt: period.midtermEndDate,
+      startAt: period.midtermStartDate,
+    },
+    {
+      endAt: period.finalExamEndDate,
+      startAt: period.finalExamStartDate,
+    },
+  ].flatMap((range) =>
+    range.startAt && range.endAt
+      ? [{ endAt: range.endAt, startAt: range.startAt }]
+      : []
+  );
+
+export const createWeeklyMeetings = ({
+  blackoutRanges,
   classSectionId,
   firstWindow,
   instructions,
   modality,
+  onlineUrl,
   roomId,
 }: {
+  blackoutRanges: readonly AcademicPeriodBlackoutRange[];
   classSectionId: string;
   firstWindow: { endAt: Date; startAt: Date };
   instructions: string | null;
   modality: "OFFLINE" | "ONLINE";
+  onlineUrl?: string | null;
   roomId: string | null;
-}) =>
-  Array.from({ length: MEETINGS_PER_TERM }, (_, index) => {
-    const offset = index * WEEK_IN_MILLISECONDS;
-    return {
+}): {
+  classSectionId: string;
+  endAt: Date;
+  id: string;
+  instructions: string | null;
+  modality: "OFFLINE" | "ONLINE";
+  onlineUrl: string | null;
+  roomId: string | null;
+  sequence: number;
+  startAt: Date;
+}[] => {
+  const meetings: {
+    classSectionId: string;
+    endAt: Date;
+    id: string;
+    instructions: string | null;
+    modality: "OFFLINE" | "ONLINE";
+    onlineUrl: string | null;
+    roomId: string | null;
+    sequence: number;
+    startAt: Date;
+  }[] = [];
+  for (
+    let weekIndex = 0;
+    weekIndex < MEETINGS_PER_TERM * 3 && meetings.length < MEETINGS_PER_TERM;
+    weekIndex += 1
+  ) {
+    const offset = weekIndex * WEEK_IN_MILLISECONDS;
+    const startAt = new Date(firstWindow.startAt.getTime() + offset);
+    const endAt = new Date(firstWindow.endAt.getTime() + offset);
+    if (
+      blackoutRanges.some((range) =>
+        timeRangesOverlap(startAt, endAt, range.startAt, range.endAt)
+      )
+    ) {
+      continue;
+    }
+    meetings.push({
       classSectionId,
-      endAt: new Date(firstWindow.endAt.getTime() + offset),
+      endAt,
       id: createUuidV7(),
       instructions,
       modality,
+      onlineUrl: onlineUrl ?? null,
       roomId,
-      sequence: index + 1,
-      startAt: new Date(firstWindow.startAt.getTime() + offset),
-    };
-  });
+      sequence: meetings.length + 1,
+      startAt,
+    });
+  }
+  return meetings;
+};
 
 const chunkItems = <T>(items: readonly T[], size: number): T[][] => {
   const chunks: T[][] = [];
@@ -1149,10 +1216,12 @@ export const createSchedulingService = ({
       timeZone,
     });
     const meetingValues = createWeeklyMeetings({
+      blackoutRanges: getAcademicPeriodBlackoutRanges(sectionRow.period),
       classSectionId,
       firstWindow,
       instructions: instructions?.trim() || null,
       modality,
+      onlineUrl: null,
       roomId: modality === "OFFLINE" ? (roomId ?? null) : null,
     });
     const lastMeeting = meetingValues.at(-1);
@@ -1801,6 +1870,36 @@ export const createSchedulingService = ({
         "Jadwal harus memiliki minimal satu slot sebelum diterbitkan."
       );
     }
+    const [period] = await database
+      .select()
+      .from(academicPeriods)
+      .where(eq(academicPeriods.id, draft.academicPeriodId))
+      .limit(1);
+    if (!period) {
+      throw new SchedulingDomainError(
+        "ACADEMIC_PERIOD_NOT_FOUND",
+        "Periode akademik tidak ditemukan."
+      );
+    }
+    const meetingValuesBySlot = slots.map((slot) => {
+      const meetingValues = createWeeklyMeetings({
+        blackoutRanges: getAcademicPeriodBlackoutRanges(period),
+        classSectionId: slot.classSectionId,
+        firstWindow: { endAt: slot.endAt, startAt: slot.startAt },
+        instructions: slot.instructions,
+        modality: slot.modality as "OFFLINE" | "ONLINE",
+        onlineUrl: slot.onlineUrl,
+        roomId: slot.roomId,
+      });
+      const lastMeeting = meetingValues.at(-1);
+      if (!lastMeeting || lastMeeting.endAt > period.endDate) {
+        throw new SchedulingDomainError(
+          "SCHEDULE_OUTSIDE_PERIOD",
+          "Rentang 16 pertemuan harus berada di dalam periode akademik setelah masa UTS dan UAS dikecualikan."
+        );
+      }
+      return { meetingValues, slot };
+    });
     const updated = await database
       .update(scheduleDrafts)
       .set({
@@ -1824,22 +1923,7 @@ export const createSchedulingService = ({
         "Draft jadwal telah berubah. Muat ulang lalu coba lagi."
       );
     }
-    for (const slot of slots) {
-      const meetingValues = [];
-      for (let sequence = 1; sequence <= MEETINGS_PER_TERM; sequence += 1) {
-        const offset = (sequence - 1) * WEEK_IN_MILLISECONDS;
-        meetingValues.push({
-          classSectionId: slot.classSectionId,
-          endAt: new Date(slot.endAt.getTime() + offset),
-          id: createUuidV7(),
-          instructions: slot.instructions,
-          modality: slot.modality,
-          onlineUrl: slot.onlineUrl,
-          roomId: slot.roomId,
-          sequence,
-          startAt: new Date(slot.startAt.getTime() + offset),
-        });
-      }
+    for (const { meetingValues, slot } of meetingValuesBySlot) {
       // eslint-disable-next-line no-await-in-loop
       await database
         .insert(classMeetings)

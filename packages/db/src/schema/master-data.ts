@@ -254,7 +254,37 @@ export const academicPeriods = sqliteTable(
       .references(() => academicYears.id, { onDelete: "restrict" }),
     createdAt: timestamp("created_at"),
     endDate: integer("end_date", { mode: "timestamp_ms" }).notNull(),
+    finalExamEndDate: integer("final_exam_end_date", { mode: "timestamp_ms" }),
+    finalExamStartDate: integer("final_exam_start_date", {
+      mode: "timestamp_ms",
+    }),
+    finalGradeInputEndDate: integer("final_grade_input_end_date", {
+      mode: "timestamp_ms",
+    }),
+    finalGradeInputStartDate: integer("final_grade_input_start_date", {
+      mode: "timestamp_ms",
+    }),
+    finalGradePublishEndDate: integer("final_grade_publish_end_date", {
+      mode: "timestamp_ms",
+    }),
+    finalGradePublishStartDate: integer("final_grade_publish_start_date", {
+      mode: "timestamp_ms",
+    }),
     id: text("id").primaryKey(),
+    midtermEndDate: integer("midterm_end_date", { mode: "timestamp_ms" }),
+    midtermGradeInputEndDate: integer("midterm_grade_input_end_date", {
+      mode: "timestamp_ms",
+    }),
+    midtermGradeInputStartDate: integer("midterm_grade_input_start_date", {
+      mode: "timestamp_ms",
+    }),
+    midtermGradePublishEndDate: integer("midterm_grade_publish_end_date", {
+      mode: "timestamp_ms",
+    }),
+    midtermGradePublishStartDate: integer("midterm_grade_publish_start_date", {
+      mode: "timestamp_ms",
+    }),
+    midtermStartDate: integer("midterm_start_date", { mode: "timestamp_ms" }),
     startDate: integer("start_date", { mode: "timestamp_ms" }).notNull(),
     status: text("status").default("DRAFT").notNull(),
     term: text("term").notNull(),
