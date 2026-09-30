@@ -4,6 +4,7 @@ import { createMasterDataService } from "../apps/server/src/services/master-data
 import {
   MASTER_DATA_TEMPLATE_VERSION,
   MasterDataDomainError,
+  assertAcademicPeriodStatusTransition,
   assertHeaders,
   assertTemplateVersion,
   formatAcademicPeriodTerm,
@@ -207,6 +208,18 @@ describe("SIAKAD-02 master data rules", () => {
       "end"
     );
     expect(endDate.toISOString()).toBe("2026-09-30T23:59:59.999Z");
+  });
+
+  test("allows only forward academic period status transitions", () => {
+    expect(() =>
+      assertAcademicPeriodStatusTransition("DRAFT", "ACTIVE")
+    ).not.toThrow();
+    expect(() =>
+      assertAcademicPeriodStatusTransition("ACTIVE", "CLOSED")
+    ).not.toThrow();
+    expect(() =>
+      assertAcademicPeriodStatusTransition("DRAFT", "CLOSED")
+    ).toThrow("Status periode tidak dapat diubah");
   });
 
   test("accepts coordinate boundaries and rejects values outside them", () => {

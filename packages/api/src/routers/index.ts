@@ -15,9 +15,10 @@ import {
 } from "@api/index";
 import {
   MASTER_DATA_TEMPLATE_VERSION,
+  academicPeriodStatusesList,
   templateHeaders,
   masterDataEntityTypes,
-  masterDataStatusesList,
+  masterDataListStatuses,
 } from "@api/master-data";
 import {
   scheduleChangeRequestStatuses,
@@ -85,7 +86,8 @@ const phoneSchema = z
     "Nomor telepon harus berisi 9–15 digit dan dapat diawali tanda plus."
   );
 const masterDataEntitySchema = z.enum(masterDataEntityTypes);
-const masterDataStatusSchema = z.enum(masterDataStatusesList);
+const academicPeriodStatusSchema = z.enum(academicPeriodStatusesList);
+const masterDataListStatusSchema = z.enum(masterDataListStatuses);
 const masterDataDataSchema = z.record(z.string(), z.unknown());
 const masterDataImportValueSchema = z.union([
   z.string().max(1000),
@@ -1255,6 +1257,22 @@ export const appRouter = {
         });
         return { status: "ARCHIVED" as const };
       }),
+    changeAcademicPeriodStatus: protectedProcedure
+      .input(
+        z.object({
+          expectedVersion: z.number().int().min(1),
+          id: z.string().min(1),
+          status: academicPeriodStatusSchema,
+        })
+      )
+      .handler(async ({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        await context.masterDataService.changeAcademicPeriodStatus({
+          ...input,
+          actorUserId: context.session?.user.id as string,
+        });
+        return { status: input.status };
+      }),
     create: protectedProcedure
       .input(
         z.object({
@@ -1275,7 +1293,7 @@ export const appRouter = {
         z.object({
           entityType: masterDataEntitySchema,
           search: z.string().trim().max(100).optional(),
-          status: masterDataStatusSchema.optional(),
+          status: masterDataListStatusSchema.optional(),
         })
       )
       .handler(({ context, input }) => {
@@ -1381,7 +1399,7 @@ export const appRouter = {
           entityType: masterDataEntitySchema,
           limit: z.coerce.number().int().min(1).max(100).default(25),
           search: z.string().trim().max(100).optional(),
-          status: masterDataStatusSchema.optional(),
+          status: masterDataListStatusSchema.optional(),
         })
       )
       .handler(({ context, input }) => {

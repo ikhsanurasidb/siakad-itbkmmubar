@@ -1,6 +1,7 @@
 import { ApiError } from "@api/errors";
 import {
   academicPeriodTerms,
+  academicPeriodStatuses,
   importEntityTypes,
   importRowStatuses,
   masterDataStatuses,
@@ -11,8 +12,28 @@ export const MASTER_DATA_TEMPLATE_VERSION = "1";
 
 export const masterDataEntityTypes = importEntityTypes;
 export const masterDataStatusesList = masterDataStatuses;
+export const masterDataListStatuses = [
+  "ACTIVE",
+  "ARCHIVED",
+  "DRAFT",
+  "CLOSED",
+] as const;
 export const masterDataImportRowStatuses = importRowStatuses;
 export const academicTerms = academicPeriodTerms;
+export const academicPeriodStatusesList = academicPeriodStatuses;
+export const academicPeriodStatusLabels = {
+  ACTIVE: "Aktif",
+  CLOSED: "Ditutup",
+  DRAFT: "Draf",
+} as const;
+export const academicPeriodStatusTransitions = {
+  ACTIVE: ["CLOSED"],
+  CLOSED: [],
+  DRAFT: ["ACTIVE"],
+} as const satisfies Record<
+  (typeof academicPeriodStatusesList)[number],
+  readonly (typeof academicPeriodStatusesList)[number][]
+>;
 export const academicPeriodTermLabels = {
   EVEN: "Genap",
   ODD: "Ganjil",
@@ -29,6 +50,15 @@ export type MasterDataImportRow = Readonly<
   Record<string, MasterDataImportValue>
 >;
 export type MasterDataStatus = (typeof masterDataStatusesList)[number];
+export type MasterDataListStatus =
+  | MasterDataStatus
+  | (typeof academicPeriodStatusesList)[number];
+export type AcademicPeriodStatus = (typeof academicPeriodStatusesList)[number];
+
+export const isAcademicPeriodStatus = (
+  value: string
+): value is AcademicPeriodStatus =>
+  academicPeriodStatusesList.includes(value as AcademicPeriodStatus);
 export type ImportRowStatus = (typeof masterDataImportRowStatuses)[number];
 export type StudyProgramDegree = (typeof studyProgramDegreeOptions)[number];
 
@@ -46,6 +76,22 @@ export class MasterDataDomainError extends ApiError {
 
 export const normalizeText = (value: string): string =>
   value.trim().replaceAll(/\s+/gu, " ");
+
+export const assertAcademicPeriodStatusTransition = (
+  from: AcademicPeriodStatus,
+  to: AcademicPeriodStatus
+): void => {
+  if (from === to) {
+    return;
+  }
+  const allowedStatuses = academicPeriodStatusTransitions[from];
+  if (!allowedStatuses.some((allowedStatus) => allowedStatus === to)) {
+    throw new MasterDataDomainError(
+      "INVALID_STATUS_TRANSITION",
+      `Status periode tidak dapat diubah dari ${academicPeriodStatusLabels[from]} menjadi ${academicPeriodStatusLabels[to]}.`
+    );
+  }
+};
 
 export const normalizeCode = (value: string, fieldName = "Kode"): string => {
   const normalized = normalizeText(value).toUpperCase();

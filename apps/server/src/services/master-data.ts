@@ -3,7 +3,9 @@ import type {
   MasterDataService,
 } from "@siakad-itbkmmubar/api/context";
 import {
+  academicPeriodStatusesList,
   MasterDataDomainError,
+  assertAcademicPeriodStatusTransition,
   assertAcademicTerm,
   assertTemplateVersion,
   normalizeCode,
@@ -16,7 +18,10 @@ import {
   parseInteger,
   templateHeaders,
 } from "@siakad-itbkmmubar/api/master-data";
-import type { MasterDataEntityType } from "@siakad-itbkmmubar/api/master-data";
+import type {
+  AcademicPeriodStatus,
+  MasterDataEntityType,
+} from "@siakad-itbkmmubar/api/master-data";
 import type { Database } from "@siakad-itbkmmubar/db";
 import {
   academicPeriods,
@@ -1975,6 +1980,57 @@ export const createMasterDataService = ({
     );
   };
 
+  const changeAcademicPeriodStatus: MasterDataService["changeAcademicPeriodStatus"] =
+    async ({ actorUserId, expectedVersion, id, status }) => {
+      const before = await get({ entityType: "ACADEMIC_PERIOD", id });
+      const currentStatus = String(before.status);
+      if (
+        !academicPeriodStatusesList.includes(
+          currentStatus as AcademicPeriodStatus
+        )
+      ) {
+        throw new MasterDataDomainError(
+          "INVALID_STATUS_TRANSITION",
+          "Periode yang diarsipkan harus diaktifkan kembali sebelum statusnya diubah."
+        );
+      }
+      assertAcademicPeriodStatusTransition(
+        currentStatus as AcademicPeriodStatus,
+        status
+      );
+      if (currentStatus === status) {
+        return;
+      }
+      await assertVersionedUpdate(
+        database
+          .update(academicPeriods)
+          .set({
+            status,
+            updatedAt: now(),
+            version: sql`${academicPeriods.version} + 1`,
+          })
+          .where(
+            and(
+              eq(academicPeriods.id, id),
+              eq(academicPeriods.version, expectedVersion)
+            )
+          )
+          .returning({ id: academicPeriods.id }),
+        "ACADEMIC_PERIOD",
+        id,
+        expectedVersion
+      );
+      await createAudit(
+        database,
+        actorUserId,
+        "UPDATE",
+        "ACADEMIC_PERIOD",
+        id,
+        before,
+        await get({ entityType: "ACADEMIC_PERIOD", id })
+      );
+    };
+
   // Import validation reports all field issues in one pass for the preview.
   // eslint-disable-next-line complexity
   const validateImportRow = async (
@@ -2645,6 +2701,7 @@ export const createMasterDataService = ({
 
   return {
     archive: (input) => setStatus({ ...input, status: "ARCHIVED" }),
+    changeAcademicPeriodStatus,
     commitImport,
     create,
     createImport,

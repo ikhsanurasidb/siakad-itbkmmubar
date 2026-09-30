@@ -1,4 +1,13 @@
-import { formatAcademicPeriodTerm } from "@siakad-itbkmmubar/api/master-data";
+import {
+  academicPeriodStatusLabels,
+  academicPeriodStatusTransitions,
+  formatAcademicPeriodTerm,
+  isAcademicPeriodStatus,
+} from "@siakad-itbkmmubar/api/master-data";
+import type {
+  AcademicPeriodStatus,
+  MasterDataListStatus,
+} from "@siakad-itbkmmubar/api/master-data";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
   Card,
@@ -29,10 +38,8 @@ type DisplayRow = Record<string, unknown> & {
 };
 
 const statusLabels: Record<string, string> = {
-  ACTIVE: "Aktif",
+  ...academicPeriodStatusLabels,
   ARCHIVED: "Diarsipkan",
-  CLOSED: "Ditutup",
-  DRAFT: "Draf",
 };
 
 const formatFieldValue = (
@@ -66,6 +73,11 @@ interface MasterDataListCardProps {
     expectedVersion: number;
     id: string;
   }) => void;
+  onAcademicPeriodStatusChange?: (input: {
+    expectedVersion: number;
+    id: string;
+    status: AcademicPeriodStatus;
+  }) => void;
   onNextPage: () => void;
   onReactivate: (input: {
     entityType: MasterDataEntityType;
@@ -73,19 +85,22 @@ interface MasterDataListCardProps {
     id: string;
   }) => void;
   onSearchChange: (value: string) => void;
-  onStatusChange: (value: "ACTIVE" | "ARCHIVED" | undefined) => void;
+  onStatusChange: (value: MasterDataListStatus | undefined) => void;
   onSubmitSearch: (event: FormEvent<HTMLFormElement>) => void;
   rows: readonly Record<string, unknown>[];
   search: string;
-  status: "ACTIVE" | "ARCHIVED" | undefined;
+  status: MasterDataListStatus | undefined;
+  academicPeriodStatusChangePending?: boolean;
 }
 
 const MasterDataRowActions = ({
   detailRootPath,
   entityType,
   onArchive,
+  onAcademicPeriodStatusChange,
   onReactivate,
   row,
+  statusChangePending,
 }: {
   detailRootPath: string;
   entityType: MasterDataEntityType;
@@ -94,14 +109,25 @@ const MasterDataRowActions = ({
     expectedVersion: number;
     id: string;
   }) => void;
+  onAcademicPeriodStatusChange?: (input: {
+    expectedVersion: number;
+    id: string;
+    status: AcademicPeriodStatus;
+  }) => void;
   onReactivate: (input: {
     entityType: MasterDataEntityType;
     expectedVersion: number;
     id: string;
   }) => void;
   row: DisplayRow;
+  statusChangePending?: boolean;
 }) => {
   const isArchived = row.statusCode === "ARCHIVED";
+  const currentStatus = row.statusCode ?? "";
+  const academicPeriodStatuses =
+    entityType === "ACADEMIC_PERIOD" && isAcademicPeriodStatus(currentStatus)
+      ? academicPeriodStatusTransitions[currentStatus]
+      : [];
   return (
     <div className="flex flex-wrap items-center gap-2">
       <a
@@ -132,6 +158,31 @@ const MasterDataRowActions = ({
       >
         {isArchived ? "Aktifkan" : "Arsipkan"}
       </Button>
+      {academicPeriodStatuses.length > 0 && onAcademicPeriodStatusChange ? (
+        <select
+          aria-label="Ubah status periode akademik"
+          className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+          defaultValue=""
+          disabled={statusChangePending}
+          onChange={(event) => {
+            const nextStatus = event.target.value;
+            if (isAcademicPeriodStatus(nextStatus)) {
+              onAcademicPeriodStatusChange({
+                expectedVersion: row.version,
+                id: row.id,
+                status: nextStatus,
+              });
+            }
+          }}
+        >
+          <option value="">Ubah status</option>
+          {academicPeriodStatuses.map((status) => (
+            <option key={status} value={status}>
+              {academicPeriodStatusLabels[status]}
+            </option>
+          ))}
+        </select>
+      ) : null}
     </div>
   );
 };
@@ -145,6 +196,7 @@ const MasterDataListCard = ({
   isPending,
   nextCursor,
   onArchive,
+  onAcademicPeriodStatusChange,
   onNextPage,
   onReactivate,
   onSearchChange,
@@ -153,6 +205,7 @@ const MasterDataListCard = ({
   rows: sourceRows,
   search,
   status,
+  academicPeriodStatusChangePending = false,
 }: MasterDataListCardProps) => {
   const rows: DisplayRow[] = sourceRows.map((row) => ({
     ...row,
@@ -166,8 +219,10 @@ const MasterDataListCard = ({
       detailRootPath={detailRootPath}
       entityType={entityType}
       onArchive={onArchive}
+      onAcademicPeriodStatusChange={onAcademicPeriodStatusChange}
       onReactivate={onReactivate}
       row={row}
+      statusChangePending={academicPeriodStatusChangePending}
     />
   );
   const columns = [
@@ -224,14 +279,30 @@ const MasterDataListCard = ({
               onChange={(event) => {
                 const { value } = event.target;
                 onStatusChange(
-                  value === "ACTIVE" || value === "ARCHIVED" ? value : undefined
+                  value === "ACTIVE" ||
+                    value === "ARCHIVED" ||
+                    value === "DRAFT" ||
+                    value === "CLOSED"
+                    ? value
+                    : undefined
                 );
               }}
               value={status ?? ""}
             >
               <option value="">Semua status</option>
-              <option value="ACTIVE">Aktif</option>
-              <option value="ARCHIVED">Diarsipkan</option>
+              {entityType === "ACADEMIC_PERIOD" ? (
+                <>
+                  <option value="DRAFT">Draf</option>
+                  <option value="ACTIVE">Aktif</option>
+                  <option value="CLOSED">Ditutup</option>
+                  <option value="ARCHIVED">Diarsipkan</option>
+                </>
+              ) : (
+                <>
+                  <option value="ACTIVE">Aktif</option>
+                  <option value="ARCHIVED">Diarsipkan</option>
+                </>
+              )}
             </select>
           </FormField>
           <Button type="submit" variant="outline">

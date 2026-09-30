@@ -1,3 +1,5 @@
+import { academicPeriodStatusLabels } from "@siakad-itbkmmubar/api/master-data";
+import type { MasterDataListStatus } from "@siakad-itbkmmubar/api/master-data";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { FormEvent } from "react";
@@ -56,7 +58,7 @@ const MasterDataPage = ({
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [submittedSearch, setSubmittedSearch] = useState("");
-  const [status, setStatus] = useState<"ACTIVE" | "ARCHIVED" | undefined>();
+  const [status, setStatus] = useState<MasterDataListStatus | undefined>();
   const [cursor, setCursor] = useState<string>();
   const [values, setValues] = useState<Record<string, string>>({});
   const [referenceLabels, setReferenceLabels] = useState<
@@ -173,6 +175,19 @@ const MasterDataPage = ({
       onError: () => toast.error(getErrorMessage()),
       onSuccess: async () => {
         toast.success("Data diaktifkan kembali.");
+        await queryClient.invalidateQueries({
+          queryKey: orpc.masterData.list.key(),
+        });
+      },
+    })
+  );
+  const changeAcademicPeriodStatus = useMutation(
+    orpc.masterData.changeAcademicPeriodStatus.mutationOptions({
+      onError: () => toast.error(getErrorMessage()),
+      onSuccess: async (_result, variables) => {
+        toast.success(
+          `Status periode diubah menjadi ${academicPeriodStatusLabels[variables.status]}.`
+        );
         await queryClient.invalidateQueries({
           queryKey: orpc.masterData.list.key(),
         });
@@ -357,6 +372,9 @@ const MasterDataPage = ({
         isPending={records.isPending}
         nextCursor={records.data?.nextCursor}
         onArchive={(input) => archiveRecord.mutate(input)}
+        onAcademicPeriodStatusChange={(input) =>
+          changeAcademicPeriodStatus.mutate(input)
+        }
         onNextPage={() => setCursor(records.data?.nextCursor ?? undefined)}
         onReactivate={(input) => reactivateRecord.mutate(input)}
         onSearchChange={setSearch}
@@ -368,6 +386,7 @@ const MasterDataPage = ({
         rows={records.data?.data ?? []}
         search={search}
         status={status}
+        academicPeriodStatusChangePending={changeAcademicPeriodStatus.isPending}
       />
     </div>
   );

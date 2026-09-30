@@ -30,7 +30,8 @@ import type {
 import type {
   MasterDataEntityType,
   MasterDataImportRow,
-  MasterDataStatus,
+  MasterDataListStatus,
+  AcademicPeriodStatus,
 } from "@api/master-data";
 import type {
   ClassMappingResult,
@@ -211,7 +212,7 @@ export interface MasterDataService {
   export: (input: {
     entityType: MasterDataEntityType;
     search?: string;
-    status?: MasterDataStatus;
+    status?: MasterDataListStatus;
   }) => Promise<readonly Record<string, unknown>[]>;
   get: (input: {
     entityType: MasterDataEntityType;
@@ -222,7 +223,7 @@ export interface MasterDataService {
     entityType: MasterDataEntityType;
     limit: number;
     search?: string;
-    status?: MasterDataStatus;
+    status?: MasterDataListStatus;
   }) => Promise<{
     data: readonly Record<string, unknown>[];
     nextCursor: string | null;
@@ -270,6 +271,12 @@ export interface MasterDataService {
     entityType: MasterDataEntityType;
     expectedVersion: number;
     id: string;
+  }) => Promise<void>;
+  changeAcademicPeriodStatus: (input: {
+    actorUserId: string;
+    expectedVersion: number;
+    id: string;
+    status: AcademicPeriodStatus;
   }) => Promise<void>;
   commitImport: (input: {
     actorUserId: string;
