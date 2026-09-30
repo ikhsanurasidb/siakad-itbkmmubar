@@ -40,6 +40,7 @@ import type {
   ScheduleCreationResult,
   ScheduleDraftRecord,
   ScheduleModality,
+  SchedulePreviewResult,
   ScheduleSectionRecord,
 } from "@api/scheduling";
 import type {
@@ -490,6 +491,14 @@ export interface SchedulingService {
     roomId?: string;
     startTime: string;
   }) => Promise<ScheduleCreationResult>;
+  previewSchedule: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    classSectionId: string;
+    dayOfWeek: number;
+    endTime: string;
+    startTime: string;
+  }) => Promise<SchedulePreviewResult>;
   publishDraft: (input: {
     actorRoles: readonly RoleKey[];
     actorUserId: string;

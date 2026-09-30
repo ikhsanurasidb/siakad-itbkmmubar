@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { parseNationalHolidayPayload } from "../apps/server/src/services/national-holidays";
 import { createWeeklyMeetings } from "../apps/server/src/services/scheduling";
 import {
   SchedulingDomainError,
@@ -96,6 +97,7 @@ describe("SIAKAD-06 scheduling rules", () => {
       instructions: null,
       modality: "OFFLINE",
       roomId: "room-1",
+      timeZone: "Asia/Jakarta",
     });
 
     expect(meetings).toHaveLength(16);
@@ -117,6 +119,45 @@ describe("SIAKAD-06 scheduling rules", () => {
           )
       )
     ).toBe(false);
+  });
+
+  test("skips meetings whose local calendar date is a national holiday", () => {
+    const meetings = createWeeklyMeetings({
+      blackoutRanges: [],
+      classSectionId: "section-1",
+      firstWindow: {
+        endAt: new Date("2026-09-02T03:00:00.000Z"),
+        startAt: new Date("2026-09-02T01:00:00.000Z"),
+      },
+      holidayDates: ["2026-09-02"],
+      instructions: null,
+      modality: "ONLINE",
+      roomId: null,
+      timeZone: "Asia/Jakarta",
+    });
+
+    expect(meetings).toHaveLength(16);
+    expect(meetings[0]?.startAt.toISOString()).toBe("2026-09-09T01:00:00.000Z");
+  });
+
+  test("normalizes the public national holiday response", () => {
+    expect(
+      parseNationalHolidayPayload({
+        data: [
+          {
+            date: "2026-05-28",
+            is_cuti_bersama: true,
+            name: "Idul Adha 1447 Hijriah",
+          },
+        ],
+      })
+    ).toEqual([
+      {
+        date: "2026-05-28",
+        isJointLeave: true,
+        name: "Idul Adha 1447 Hijriah",
+      },
+    ]);
   });
 
   test("splits student enrollments deterministically by class capacity", () => {

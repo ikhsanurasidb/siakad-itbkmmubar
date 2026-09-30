@@ -1759,6 +1759,23 @@ export const appRouter = {
             ...input,
           });
         }),
+      preview: protectedProcedure
+        .input(
+          z.object({
+            classSectionId: z.string().min(1),
+            dayOfWeek: z.number().int().min(1).max(7),
+            endTime: clockTimeSchema,
+            startTime: clockTimeSchema,
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+          return context.schedulingService.previewSchedule({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
     },
     sections: {
       list: protectedProcedure

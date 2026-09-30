@@ -152,8 +152,11 @@ const SchedulingPage = ({
       onSuccess: (result) => {
         setScheduleError("");
         setScheduleSectionId("");
+        const holidayMessage = result.holidayCount
+          ? ` ${result.holidayCount} tanggal merah dilewati.`
+          : "";
         toast.success(
-          `Jadwal berhasil dibuat untuk ${result.meetingCount} pertemuan.`
+          `Jadwal berhasil dibuat untuk ${result.meetingCount} pertemuan.${holidayMessage}`
         );
         queryClient.invalidateQueries({
           queryKey: orpc.scheduling.meetings.key(),

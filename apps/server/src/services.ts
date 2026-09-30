@@ -6,6 +6,7 @@ import { createGradesService as createConfiguredGradesService } from "@server/se
 import { createIdentityService as createConfiguredIdentityService } from "@server/services/identity";
 import { createLmsService as createConfiguredLmsService } from "@server/services/lms";
 import { createMasterDataService as createConfiguredMasterDataService } from "@server/services/master-data";
+import { createNationalHolidayProvider } from "@server/services/national-holidays";
 import { createSchedulingService as createConfiguredSchedulingService } from "@server/services/scheduling";
 import { seedData as seedConfiguredData } from "@server/services/seed-data";
 import { createSettingsService as createConfiguredSettingsService } from "@server/services/settings";
@@ -17,6 +18,8 @@ import { createDb } from "@siakad-itbkmmubar/db";
 import type { Database } from "@siakad-itbkmmubar/db";
 
 export const getDb = (): Database => createDb(ENV);
+
+const nationalHolidayProvider = createNationalHolidayProvider();
 
 export const createAuth = async (database?: Database) => {
   const db = database ?? (await getDb());
@@ -75,6 +78,7 @@ export const createSchedulingService = async (database?: Database) => {
   const settingsService = await createSettingsService(db);
   return createConfiguredSchedulingService({
     database: db,
+    getNationalHolidays: nationalHolidayProvider.getNationalHolidays,
     getSchedulingPolicy: () => settingsService.getSchedulingPolicy(),
     timeZone: ENV.BUSINESS_TIME_ZONE,
   });

@@ -16,6 +16,8 @@ import type {
   ScheduleCreationResult,
   ScheduleDraftRecord,
   ScheduleDraftStatus,
+  ScheduleHolidayRecord,
+  SchedulePreviewResult,
   ScheduleSectionRecord,
 } from "@api/scheduling";
 import type { SchedulingPolicy } from "@api/settings";
@@ -156,6 +158,9 @@ const addCalendarDays = (
   };
 };
 
+const toDateKey = ({ day, month, year }: CalendarDateParts): string =>
+  `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
 const toLocalDate = (
   date: CalendarDateParts,
   time: string,
@@ -256,22 +261,62 @@ const getAcademicPeriodBlackoutRanges = (period: {
       : []
   );
 
+const getWeeklyWindows = ({
+  count,
+  firstWindow,
+}: {
+  count: number;
+  firstWindow: { endAt: Date; startAt: Date };
+}): { endAt: Date; startAt: Date }[] =>
+  Array.from({ length: count }, (_, weekIndex) => {
+    const offset = weekIndex * WEEK_IN_MILLISECONDS;
+    return {
+      endAt: new Date(firstWindow.endAt.getTime() + offset),
+      startAt: new Date(firstWindow.startAt.getTime() + offset),
+    };
+  });
+
+const getInitialHolidayDates = ({
+  firstWindow,
+  holidays,
+  timeZone,
+}: {
+  firstWindow: { endAt: Date; startAt: Date };
+  holidays: readonly ScheduleHolidayRecord[];
+  timeZone: string;
+}): readonly ScheduleHolidayRecord[] => {
+  const holidayByDate = new Map(
+    holidays.map((holiday) => [holiday.date, holiday])
+  );
+  return getWeeklyWindows({ count: MEETINGS_PER_TERM, firstWindow })
+    .map((window) =>
+      holidayByDate.get(
+        toDateKey(getDatePartsInTimeZone(window.startAt, timeZone))
+      )
+    )
+    .filter((holiday): holiday is ScheduleHolidayRecord => Boolean(holiday));
+};
+
 export const createWeeklyMeetings = ({
   blackoutRanges,
   classSectionId,
   firstWindow,
+  holidayDates,
   instructions,
   modality,
   onlineUrl,
   roomId,
+  timeZone,
 }: {
   blackoutRanges: readonly AcademicPeriodBlackoutRange[];
   classSectionId: string;
   firstWindow: { endAt: Date; startAt: Date };
+  holidayDates?: readonly string[];
   instructions: string | null;
   modality: "OFFLINE" | "ONLINE";
   onlineUrl?: string | null;
   roomId: string | null;
+  timeZone: string;
 }): {
   classSectionId: string;
   endAt: Date;
@@ -294,6 +339,7 @@ export const createWeeklyMeetings = ({
     sequence: number;
     startAt: Date;
   }[] = [];
+  const holidayDateSet = new Set(holidayDates);
   for (
     let weekIndex = 0;
     weekIndex < MEETINGS_PER_TERM * 3 && meetings.length < MEETINGS_PER_TERM;
@@ -302,6 +348,10 @@ export const createWeeklyMeetings = ({
     const offset = weekIndex * WEEK_IN_MILLISECONDS;
     const startAt = new Date(firstWindow.startAt.getTime() + offset);
     const endAt = new Date(firstWindow.endAt.getTime() + offset);
+    const localDate = toDateKey(getDatePartsInTimeZone(startAt, timeZone));
+    if (holidayDateSet.has(localDate)) {
+      continue;
+    }
     if (
       blackoutRanges.some((range) =>
         timeRangesOverlap(startAt, endAt, range.startAt, range.endAt)
@@ -334,16 +384,60 @@ const chunkItems = <T>(items: readonly T[], size: number): T[][] => {
 
 export const createSchedulingService = ({
   database,
+  getNationalHolidays,
   getSchedulingPolicy,
   now = () => new Date(),
   timeZone,
 }: {
   database: Database;
+  getNationalHolidays?: (
+    year: number
+  ) => Promise<readonly ScheduleHolidayRecord[]>;
   getSchedulingPolicy: () => Promise<SchedulingPolicy>;
   now?: () => Date;
   timeZone: string;
 }): SchedulingService => {
   assertValidTimeZone(timeZone);
+  const fetchNationalHolidays =
+    getNationalHolidays ??
+    (() => Promise.resolve([] as readonly ScheduleHolidayRecord[]));
+  const getNationalHolidaysForPeriod = async (period: {
+    endDate: Date;
+    startDate: Date;
+  }): Promise<readonly ScheduleHolidayRecord[]> => {
+    const startYear = getDatePartsInTimeZone(period.startDate, timeZone).year;
+    const endYear = getDatePartsInTimeZone(period.endDate, timeZone).year;
+    const years = Array.from(
+      { length: endYear - startYear + 1 },
+      (_, index) => startYear + index
+    );
+    try {
+      const holidayRowsByYear = await Promise.all(
+        years.map((year) => fetchNationalHolidays(year))
+      );
+      const holidayRows = holidayRowsByYear.flat();
+      const startDate = toDateKey(
+        getDatePartsInTimeZone(period.startDate, timeZone)
+      );
+      const endDate = toDateKey(
+        getDatePartsInTimeZone(period.endDate, timeZone)
+      );
+      return [
+        ...new Map(
+          holidayRows
+            .filter(
+              (holiday) => holiday.date >= startDate && holiday.date <= endDate
+            )
+            .map((holiday) => [holiday.date, holiday])
+        ).values(),
+      ].toSorted((left, right) => left.date.localeCompare(right.date));
+    } catch {
+      throw new SchedulingDomainError(
+        "NATIONAL_HOLIDAY_CALENDAR_UNAVAILABLE",
+        "Kalender libur nasional belum tersedia untuk seluruh rentang periode akademik. Perbarui kalender nasional lalu coba lagi."
+      );
+    }
+  };
   const getManagedProgramIds = async (
     actor: SchedulingActor
   ): Promise<string[] | null> => {
@@ -1145,6 +1239,96 @@ export const createSchedulingService = ({
       }));
   };
 
+  const previewSchedule: SchedulingService["previewSchedule"] = async ({
+    actorRoles,
+    actorUserId: _actorUserId,
+    classSectionId,
+    dayOfWeek,
+    endTime,
+    startTime,
+  }): Promise<SchedulePreviewResult> => {
+    requireAcademicManager(actorRoles);
+    if (!Number.isInteger(dayOfWeek) || dayOfWeek < 1 || dayOfWeek > 7) {
+      throw new SchedulingDomainError(
+        "INVALID_DAY_OF_WEEK",
+        "Hari jadwal harus berada antara Senin dan Minggu."
+      );
+    }
+    const [sectionRow] = await database
+      .select({
+        period: academicPeriods,
+        section: classSections,
+      })
+      .from(classSections)
+      .innerJoin(
+        academicPeriods,
+        eq(academicPeriods.id, classSections.academicPeriodId)
+      )
+      .where(eq(classSections.id, classSectionId))
+      .limit(1);
+    if (!sectionRow) {
+      throw new SchedulingDomainError(
+        "CLASS_SECTION_NOT_FOUND",
+        "Kelas kuliah tidak ditemukan."
+      );
+    }
+    if (sectionRow.period.status !== "ACTIVE") {
+      throw new SchedulingDomainError(
+        "ACADEMIC_PERIOD_NOT_ACTIVE",
+        "Jadwal hanya dapat dibuat pada periode akademik yang aktif."
+      );
+    }
+    if (sectionRow.section.status === "PUBLISHED") {
+      throw new SchedulingDomainError(
+        "CLASS_ALREADY_PUBLISHED",
+        "Kelas kuliah ini sudah memiliki jadwal yang diterbitkan."
+      );
+    }
+    const firstWindow = getFirstWeeklyWindow({
+      dayOfWeek,
+      endTime,
+      periodStart: sectionRow.period.startDate,
+      startTime,
+      timeZone,
+    });
+    const nationalHolidays = await getNationalHolidaysForPeriod(
+      sectionRow.period
+    );
+    const initialHolidayRows = getInitialHolidayDates({
+      firstWindow,
+      holidays: nationalHolidays,
+      timeZone,
+    });
+    const meetingValues = createWeeklyMeetings({
+      blackoutRanges: getAcademicPeriodBlackoutRanges(sectionRow.period),
+      classSectionId,
+      firstWindow,
+      holidayDates: nationalHolidays.map((holiday) => holiday.date),
+      instructions: null,
+      modality: "ONLINE",
+      roomId: null,
+      timeZone,
+    });
+    const lastMeeting = meetingValues.at(-1);
+    if (
+      !lastMeeting ||
+      firstWindow.startAt < sectionRow.period.startDate ||
+      lastMeeting.endAt > sectionRow.period.endDate
+    ) {
+      throw new SchedulingDomainError(
+        "SCHEDULE_OUTSIDE_PERIOD",
+        "Rentang 16 pertemuan harus berada di dalam periode akademik."
+      );
+    }
+    return {
+      holidayCount: initialHolidayRows.length,
+      holidays: initialHolidayRows,
+      initialMeetingCount: MEETINGS_PER_TERM,
+      meetingCount: meetingValues.length,
+      shiftedMeetingCount: initialHolidayRows.length,
+    };
+  };
+
   // eslint-disable-next-line complexity -- direct scheduling validates all resources before one atomic write.
   const createSchedule: SchedulingService["createSchedule"] = async ({
     actorRoles,
@@ -1215,14 +1399,24 @@ export const createSchedulingService = ({
       startTime,
       timeZone,
     });
+    const nationalHolidays = await getNationalHolidaysForPeriod(
+      sectionRow.period
+    );
+    const initialHolidayRows = getInitialHolidayDates({
+      firstWindow,
+      holidays: nationalHolidays,
+      timeZone,
+    });
     const meetingValues = createWeeklyMeetings({
       blackoutRanges: getAcademicPeriodBlackoutRanges(sectionRow.period),
       classSectionId,
       firstWindow,
+      holidayDates: nationalHolidays.map((holiday) => holiday.date),
       instructions: instructions?.trim() || null,
       modality,
       onlineUrl: null,
       roomId: modality === "OFFLINE" ? (roomId ?? null) : null,
+      timeZone,
     });
     const lastMeeting = meetingValues.at(-1);
     if (
@@ -1579,7 +1773,12 @@ export const createSchedulingService = ({
       title: "Jadwal kelas dibuat",
       type: "SCHEDULE_PUBLISHED",
     });
-    return { meetingCount: meetingValues.length, status: "PUBLISHED" };
+    return {
+      holidayCount: initialHolidayRows.length,
+      holidayDates: initialHolidayRows.map((holiday) => holiday.date),
+      meetingCount: meetingValues.length,
+      status: "PUBLISHED",
+    };
   };
 
   const createDraft: SchedulingService["createDraft"] = async ({
@@ -1881,15 +2080,18 @@ export const createSchedulingService = ({
         "Periode akademik tidak ditemukan."
       );
     }
+    const nationalHolidays = await getNationalHolidaysForPeriod(period);
     const meetingValuesBySlot = slots.map((slot) => {
       const meetingValues = createWeeklyMeetings({
         blackoutRanges: getAcademicPeriodBlackoutRanges(period),
         classSectionId: slot.classSectionId,
         firstWindow: { endAt: slot.endAt, startAt: slot.startAt },
+        holidayDates: nationalHolidays.map((holiday) => holiday.date),
         instructions: slot.instructions,
         modality: slot.modality as "OFFLINE" | "ONLINE",
         onlineUrl: slot.onlineUrl,
         roomId: slot.roomId,
+        timeZone,
       });
       const lastMeeting = meetingValues.at(-1);
       if (!lastMeeting || lastMeeting.endAt > period.endDate) {
@@ -2431,6 +2633,7 @@ export const createSchedulingService = ({
     listDrafts,
     listMeetings,
     listSections,
+    previewSchedule,
     publishDraft,
     requestOfflineChange,
     submitDraft,

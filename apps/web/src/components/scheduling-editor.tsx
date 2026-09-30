@@ -12,9 +12,12 @@ import type {
   SearchableSelectStatus,
 } from "@siakad-itbkmmubar/ui/components/searchable-select";
 import { Textarea } from "@siakad-itbkmmubar/ui/components/textarea";
+import { useQuery } from "@tanstack/react-query";
 import { CalendarPlus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
+
+import { orpc } from "@/utils/orpc";
 
 export const schedulingStatusLabels = {
   APPROVED: "Disetujui",
@@ -163,6 +166,19 @@ export const ScheduleCreateDialog = ({
   const [modality, setModality] = useState<ScheduleModality>("OFFLINE");
   const [roomId, setRoomId] = useState("");
   const [startTime, setStartTime] = useState("");
+  const hasValidTimeRange =
+    startTime.length > 0 && endTime.length > 0 && endTime > startTime;
+  const holidayPreview = useQuery({
+    ...orpc.scheduling.schedule.preview.queryOptions({
+      input: {
+        classSectionId: section.id,
+        dayOfWeek: Number(dayOfWeek),
+        endTime,
+        startTime,
+      },
+    }),
+    enabled: hasValidTimeRange,
+  });
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -208,6 +224,11 @@ export const ScheduleCreateDialog = ({
       validationError = "Jam selesai harus setelah jam mulai.";
     } else if (modality === "OFFLINE" && roomId.length === 0) {
       validationError = "Pilih ruang untuk jadwal luring.";
+    } else if (holidayPreview.isPending) {
+      validationError = "Tunggu sampai kalender nasional selesai diperiksa.";
+    } else if (holidayPreview.isError) {
+      validationError =
+        "Kalender nasional belum dapat diverifikasi. Perbarui kalender lalu coba lagi.";
     }
     if (validationError) {
       setFormError(validationError);
@@ -376,6 +397,39 @@ export const ScheduleCreateDialog = ({
           />
         </FormField>
 
+        {hasValidTimeRange && holidayPreview.isPending ? (
+          <output className="text-muted-foreground text-sm">
+            Memeriksa tanggal merah pada rencana awal penjadwalan…
+          </output>
+        ) : null}
+        {hasValidTimeRange && holidayPreview.isError ? (
+          <p className="text-destructive text-sm" role="alert">
+            Kalender nasional belum tersedia untuk seluruh rentang periode.
+            Jadwal belum dapat dibuat sampai kalender diperbarui.
+          </p>
+        ) : null}
+        {hasValidTimeRange && holidayPreview.data?.holidayCount ? (
+          <output className="grid gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            <p className="font-semibold">
+              Rencana awal bertemu {holidayPreview.data.holidayCount} tanggal
+              merah.
+            </p>
+            <p>
+              Pertemuan pada tanggal tersebut akan digeser ke minggu
+              selanjutnya, sehingga tetap ada {holidayPreview.data.meetingCount}{" "}
+              pertemuan.
+            </p>
+            <ul className="list-disc space-y-1 pl-5">
+              {holidayPreview.data.holidays.map((holiday) => (
+                <li key={holiday.date}>
+                  {holiday.date} · {holiday.name}
+                  {holiday.isJointLeave ? " (cuti bersama)" : ""}
+                </li>
+              ))}
+            </ul>
+          </output>
+        ) : null}
+
         {formError || errorMessage ? (
           <p className="text-destructive text-sm" role="alert">
             {formError || errorMessage}
@@ -385,7 +439,10 @@ export const ScheduleCreateDialog = ({
           <Button onClick={onClose} type="button" variant="outline">
             Batal
           </Button>
-          <Button disabled={submitting} type="submit">
+          <Button
+            disabled={submitting || holidayPreview.isPending}
+            type="submit"
+          >
             <CalendarPlus aria-hidden="true" />
             {submitting ? "Memvalidasi…" : "Buat jadwal"}
           </Button>

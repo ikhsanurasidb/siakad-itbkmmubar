@@ -298,6 +298,12 @@ export interface ClassMeetingRecord extends ScheduleSlotRecord {
   version: number;
 }
 
+export interface ScheduleHolidayRecord {
+  date: string;
+  isJointLeave: boolean;
+  name: string;
+}
+
 export interface ClassMappingResult {
   completedCount: number;
   errorCount: number;
@@ -308,8 +314,18 @@ export interface ClassMappingResult {
 }
 
 export interface ScheduleCreationResult {
+  holidayCount: number;
+  holidayDates: readonly string[];
   meetingCount: number;
   status: "PUBLISHED";
+}
+
+export interface SchedulePreviewResult {
+  holidayCount: number;
+  holidays: readonly ScheduleHolidayRecord[];
+  initialMeetingCount: number;
+  meetingCount: number;
+  shiftedMeetingCount: number;
 }
 
 export interface ScheduleChangeRequestRecord {
