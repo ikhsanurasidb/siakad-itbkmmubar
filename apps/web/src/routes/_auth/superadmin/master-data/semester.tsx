@@ -6,6 +6,7 @@ const Page = () => (
   <MasterDataPage
     description="Kelola tahun akademik, periode, dan statusnya."
     entityType="ACADEMIC_PERIOD"
+    showAcademicYearCreate
     title="Periode akademik"
   />
 );

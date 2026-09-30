@@ -14,9 +14,12 @@ import MasterDataListCard from "@/components/master-data-list-card";
 import type { MasterDataEntityType } from "@/components/master-data-types";
 import { orpc } from "@/utils/orpc";
 
+const noop = (): undefined => undefined;
+
 interface MasterDataPageProps {
   description: string;
   entityType: MasterDataEntityType;
+  showAcademicYearCreate?: boolean;
   title: string;
 }
 
@@ -47,6 +50,7 @@ interface CreatedCredential {
 const MasterDataPage = ({
   description,
   entityType,
+  showAcademicYearCreate = false,
   title,
 }: MasterDataPageProps) => {
   const queryClient = useQueryClient();
@@ -62,6 +66,11 @@ const MasterDataPage = ({
     Record<string, string>
   >({});
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [academicYearValues, setAcademicYearValues] = useState<
+    Record<string, string>
+  >({});
+  const [academicYearHasSubmitted, setAcademicYearHasSubmitted] =
+    useState(false);
   const [createdCredential, setCreatedCredential] =
     useState<CreatedCredential | null>(null);
   const fields = masterDataFieldDefinitions[entityType];
@@ -135,6 +144,19 @@ const MasterDataPage = ({
       },
     })
   );
+  const createAcademicYearRecord = useMutation(
+    orpc.masterData.create.mutationOptions({
+      onError: () => toast.error(getErrorMessage()),
+      onSuccess: async () => {
+        setAcademicYearValues({});
+        setAcademicYearHasSubmitted(false);
+        toast.success("Tahun akademik berhasil ditambahkan.");
+        await queryClient.invalidateQueries({
+          queryKey: orpc.masterData.list.key(),
+        });
+      },
+    })
+  );
   const archiveRecord = useMutation(
     orpc.masterData.archive.mutationOptions({
       onError: () => toast.error(getErrorMessage()),
@@ -175,6 +197,22 @@ const MasterDataPage = ({
     }
     setCreatedCredential(null);
     createRecord.mutate({ data: values, entityType });
+  };
+
+  const submitAcademicYearCreate = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAcademicYearHasSubmitted(true);
+    const academicYearFields = masterDataFieldDefinitions.ACADEMIC_YEAR;
+    const missing = academicYearFields.filter(
+      (field) => !field.optional && !academicYearValues[field.id]?.trim()
+    );
+    if (missing.length > 0) {
+      return;
+    }
+    createAcademicYearRecord.mutate({
+      data: academicYearValues,
+      entityType: "ACADEMIC_YEAR",
+    });
   };
 
   const studyProgramOptions = (studyPrograms.data?.data ?? []).flatMap(
@@ -257,6 +295,28 @@ const MasterDataPage = ({
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="text-muted-foreground text-sm">{description}</p>
       </div>
+      {showAcademicYearCreate ? (
+        <MasterDataCreateForm
+          createPending={createAcademicYearRecord.isPending}
+          entityLabel={masterDataEntityLabels.ACADEMIC_YEAR}
+          fields={masterDataFieldDefinitions.ACADEMIC_YEAR}
+          hasSubmitted={academicYearHasSubmitted}
+          onClearReference={noop}
+          onSearchReference={noop}
+          onSelectReference={noop}
+          onSubmit={submitAcademicYearCreate}
+          onValueChange={(fieldId, value) =>
+            setAcademicYearValues((current) => ({
+              ...current,
+              [fieldId]: value,
+            }))
+          }
+          referenceLabels={{}}
+          referenceLoading={{}}
+          referenceOptions={{}}
+          values={academicYearValues}
+        />
+      ) : null}
       <MasterDataCreateForm
         createPending={createRecord.isPending}
         entityLabel={masterDataEntityLabels[entityType]}
