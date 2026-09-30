@@ -52,6 +52,7 @@ interface NavigationItem {
 }
 
 interface NavigationSection {
+  id?: string;
   items: readonly NavigationItem[];
   label?: string;
 }
@@ -148,6 +149,13 @@ const studentSchedulingItems: readonly NavigationItem[] = [
     to: "/mahasiswa/jadwal",
   },
 ];
+
+const nationalCalendarItem: NavigationItem = {
+  icon: CalendarDays,
+  label: "Kalender nasional",
+  roles: ["SUPERADMIN", "ADMIN_AKADEMIK", "KAPRODI", "DOSEN", "MAHASISWA"],
+  to: "/kalender-nasional",
+};
 
 const studentLearningItems: readonly NavigationItem[] = [
   {
@@ -641,6 +649,10 @@ const navigationSections: readonly NavigationSection[] = [
     label: "Kelas dan jadwal",
   },
   {
+    id: "national-calendar",
+    items: [nationalCalendarItem],
+  },
+  {
     items: [
       {
         children: lecturerLearningItems,
@@ -925,9 +937,10 @@ const Sidebar = ({ roles }: SidebarProps) => {
           return (
             <SidebarGroup
               key={
-                section.label
+                section.id ??
+                (section.label
                   ? `${section.label}-${sectionIsActive}`
-                  : "primary"
+                  : "primary")
               }
             >
               {section.label ? (

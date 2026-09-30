@@ -40,6 +40,7 @@ import type {
   ScheduleCreationResult,
   ScheduleDraftRecord,
   ScheduleModality,
+  ScheduleHolidayRecord,
   SchedulePreviewResult,
   ScheduleSectionRecord,
 } from "@api/scheduling";
@@ -473,6 +474,11 @@ export interface SchedulingService {
     actorRoles: readonly RoleKey[];
     actorUserId: string;
   }) => Promise<readonly ClassMeetingRecord[]>;
+  listNationalHolidays: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    year: number;
+  }) => Promise<readonly ScheduleHolidayRecord[]>;
   listSections: (input: {
     academicPeriodId?: string;
     actorRoles: readonly RoleKey[];

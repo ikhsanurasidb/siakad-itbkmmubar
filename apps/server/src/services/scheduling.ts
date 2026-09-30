@@ -2176,6 +2176,25 @@ export const createSchedulingService = ({
     return { status: "PUBLISHED" };
   };
 
+  const listNationalHolidays: SchedulingService["listNationalHolidays"] =
+    async ({ actorRoles, actorUserId: _actorUserId, year }) => {
+      assertSchedulingReadRole(actorRoles);
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+        throw new SchedulingDomainError(
+          "INVALID_CALENDAR_YEAR",
+          "Tahun kalender harus berada antara 2000 dan 2100."
+        );
+      }
+      try {
+        return await fetchNationalHolidays(year);
+      } catch {
+        throw new SchedulingDomainError(
+          "NATIONAL_HOLIDAY_CALENDAR_UNAVAILABLE",
+          `Kalender nasional tahun ${year} belum tersedia atau tidak dapat dimuat. Coba lagi setelah data kalender tahun tersebut tersedia.`
+        );
+      }
+    };
+
   const listMeetings: SchedulingService["listMeetings"] = async ({
     actorRoles,
     actorUserId,
@@ -2632,6 +2651,7 @@ export const createSchedulingService = ({
     listChangeRequests,
     listDrafts,
     listMeetings,
+    listNationalHolidays,
     listSections,
     previewSchedule,
     publishDraft,

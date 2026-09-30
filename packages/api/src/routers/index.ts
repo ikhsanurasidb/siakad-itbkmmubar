@@ -1730,6 +1730,24 @@ export const appRouter = {
           });
         }),
     },
+    nationalHolidays: {
+      list: protectedProcedure
+        .input(z.object({ year: z.number().int().min(2000).max(2100) }))
+        .handler(({ context, input }) => {
+          requireRole(context, [
+            "SUPERADMIN",
+            "ADMIN_AKADEMIK",
+            "KAPRODI",
+            "DOSEN",
+            "MAHASISWA",
+          ]);
+          return context.schedulingService.listNationalHolidays({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
     schedule: {
       create: protectedProcedure
         .input(
