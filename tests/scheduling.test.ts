@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { parseNationalHolidayPayload } from "../apps/server/src/services/national-holidays";
+import {
+  createNationalHolidayProvider,
+  parseNationalHolidayPayload,
+} from "../apps/server/src/services/national-holidays";
 import { createWeeklyMeetings } from "../apps/server/src/services/scheduling";
 import {
   SchedulingDomainError,
@@ -156,8 +159,30 @@ describe("SIAKAD-06 scheduling rules", () => {
         date: "2026-05-28",
         isJointLeave: true,
         name: "Idul Adha 1447 Hijriah",
+        source: "PUBLIC_API",
+        sourceUrl: "https://api.kemendesa.link/libur-nasional/api/holidays",
       },
     ]);
+  });
+
+  test("uses the official fallback when the public API has no 2027 data", async () => {
+    const provider = createNationalHolidayProvider({
+      fetcher: () => Promise.resolve(new Response(null, { status: 404 })),
+    });
+
+    const holidays = await provider.getNationalHolidays(2027);
+
+    expect(holidays).toHaveLength(26);
+    expect(holidays[0]).toMatchObject({
+      date: "2027-01-01",
+      isJointLeave: false,
+      source: "OFFICIAL_FALLBACK",
+    });
+    expect(holidays.at(-1)).toMatchObject({
+      date: "2027-12-26",
+      isJointLeave: false,
+      source: "OFFICIAL_FALLBACK",
+    });
   });
 
   test("splits student enrollments deterministically by class capacity", () => {

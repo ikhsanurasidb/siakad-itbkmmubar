@@ -210,44 +210,62 @@ const CalendarSummary = ({
   );
 };
 
-const CalendarInfoCard = () => (
-  <Card>
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        <Info aria-hidden="true" className="text-primary size-5" />
-        Tentang kalender ini
-      </CardTitle>
-      <CardDescription>
-        Informasi yang membantu membaca dan menggunakan kalender nasional.
-      </CardDescription>
-    </CardHeader>
-    <CardContent className="grid gap-4 text-sm leading-6">
-      <div className="bg-muted/30 flex gap-3 rounded-xl p-4">
-        <Sparkles
-          aria-hidden="true"
-          className="text-primary mt-0.5 size-4 shrink-0"
-        />
-        <p>
-          Jadwal kelas yang bertepatan dengan tanggal merah akan otomatis
-          dilewati dan dipindahkan ke minggu berikutnya saat jadwal dibuat.
+const CalendarInfoCard = ({
+  holidays,
+}: {
+  holidays: readonly ScheduleHolidayRecord[];
+}) => {
+  const usesOfficialFallback = holidays[0]?.source === "OFFICIAL_FALLBACK";
+  const sourceUrl =
+    holidays[0]?.sourceUrl ?? "https://api.kemendesa.link/libur-nasional/";
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Info aria-hidden="true" className="text-primary size-5" />
+          Tentang kalender ini
+        </CardTitle>
+        <CardDescription>
+          Informasi yang membantu membaca dan menggunakan kalender nasional.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4 text-sm leading-6">
+        <div className="bg-muted/30 flex gap-3 rounded-xl p-4">
+          <Sparkles
+            aria-hidden="true"
+            className="text-primary mt-0.5 size-4 shrink-0"
+          />
+          <p>
+            Jadwal kelas yang bertepatan dengan tanggal merah akan otomatis
+            dilewati dan dipindahkan ke minggu berikutnya saat jadwal dibuat.
+          </p>
+        </div>
+        <p className="text-muted-foreground">
+          Data mencakup libur nasional dan cuti bersama. Sumber yang digunakan
+          untuk tahun ini adalah{" "}
+          <span className="text-foreground font-medium">
+            {usesOfficialFallback
+              ? "fallback resmi SKB pemerintah"
+              : "kalender publik"}
+          </span>
+          {usesOfficialFallback
+            ? ". Endpoint publik belum menyediakan data tahun tersebut."
+            : ". Data akan mengikuti pembaruan sumber nasional."}
         </p>
-      </div>
-      <p className="text-muted-foreground">
-        Data mencakup libur nasional dan cuti bersama. Perubahan kalender dari
-        sumber nasional akan digunakan ketika tahun tersebut dimuat ulang.
-      </p>
-      <a
-        className="text-primary inline-flex items-center gap-2 font-medium hover:underline"
-        href="https://api.kemendesa.link/libur-nasional/"
-        rel="noreferrer"
-        target="_blank"
-      >
-        Lihat sumber data kalender
-        <ExternalLink aria-hidden="true" className="size-4" />
-      </a>
-    </CardContent>
-  </Card>
-);
+        <a
+          className="text-primary inline-flex items-center gap-2 font-medium hover:underline"
+          href={sourceUrl}
+          rel="noreferrer"
+          target="_blank"
+        >
+          Lihat sumber data kalender
+          <ExternalLink aria-hidden="true" className="size-4" />
+        </a>
+      </CardContent>
+    </Card>
+  );
+};
 
 const NationalCalendarPage = () => {
   const [year, setYear] = useState(currentYear);
@@ -369,7 +387,7 @@ const NationalCalendarPage = () => {
                 <HolidayList holidays={holidays.data} />
               </CardContent>
             </Card>
-            <CalendarInfoCard />
+            <CalendarInfoCard holidays={holidays.data} />
           </div>
         </>
       ) : null}

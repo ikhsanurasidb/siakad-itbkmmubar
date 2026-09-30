@@ -302,6 +302,8 @@ export interface ScheduleHolidayRecord {
   date: string;
   isJointLeave: boolean;
   name: string;
+  source: "OFFICIAL_FALLBACK" | "PUBLIC_API";
+  sourceUrl: string;
 }
 
 export interface ClassMappingResult {
