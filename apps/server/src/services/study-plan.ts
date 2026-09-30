@@ -1,5 +1,6 @@
 import type { StudyPlanService } from "@api/context";
 import type { RoleKey } from "@api/identity";
+import type { StudentAcademicStatus } from "@api/master-data";
 import {
   getStudyPlanFailureAction,
   StudyPlanDomainError,
@@ -27,6 +28,7 @@ import { identityAccounts, programHeads } from "@db/schema/identity";
 import {
   academicPeriods,
   academicYears,
+  academicStatuses as studentAcademicStatuses,
   cohorts,
   courses,
   students,
@@ -112,6 +114,13 @@ const isAcademicAdmin = (roles: readonly RoleKey[]): boolean =>
 
 const asTrackerSource = (value: string): "AUTO" | "MANUAL" =>
   value === "MANUAL" ? "MANUAL" : "AUTO";
+
+const asStudentAcademicStatus = (value: string): StudentAcademicStatus =>
+  studentAcademicStatuses.includes(
+    value as (typeof studentAcademicStatuses)[number]
+  )
+    ? (value as StudentAcademicStatus)
+    : "INACTIVE";
 
 const parseFailures = (value: string | null): StudyPlanFailure[] => {
   if (!value) {
@@ -996,6 +1005,7 @@ export const createStudyPlanService = ({
       actorRoles,
       actorUserId,
       cohortId,
+      includeInactive = false,
       prodiId,
     }) => {
       assertStudyPlanManageRole(actorRoles);
@@ -1017,7 +1027,17 @@ export const createStudyPlanService = ({
           "Periode akademik tidak ditemukan."
         );
       }
-      const conditions = buildGenerationConditions({ cohortId, prodiId });
+      const conditions = includeInactive
+        ? [eq(students.status, "ACTIVE")]
+        : buildGenerationConditions({ cohortId, prodiId });
+      if (includeInactive) {
+        if (prodiId) {
+          conditions.push(eq(students.studyProgramId, prodiId));
+        }
+        if (cohortId) {
+          conditions.push(eq(students.cohortId, cohortId));
+        }
+      }
       const managedProgramIds = await getManagedProgramIds({
         actorRoles,
         actorUserId,
@@ -1056,6 +1076,7 @@ export const createStudyPlanService = ({
           }),
         source: asTrackerSource(tracker?.source ?? "AUTO"),
         student: {
+          academicStatus: asStudentAcademicStatus(student.academicStatus),
           id: student.id,
           name: student.name,
           nim: student.nim,
@@ -1158,6 +1179,7 @@ export const createStudyPlanService = ({
         semesterNumber: tracker.semesterNumber,
         source: "MANUAL",
         student: {
+          academicStatus: asStudentAcademicStatus(row.student.academicStatus),
           id: row.student.id,
           name: row.student.name,
           nim: row.student.nim,

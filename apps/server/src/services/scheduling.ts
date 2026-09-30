@@ -906,6 +906,8 @@ export const createSchedulingService = ({
     const conditions = [
       eq(studyPlans.academicPeriodId, academicPeriodId),
       eq(studyPlans.status, "FINAL"),
+      eq(students.status, "ACTIVE"),
+      eq(students.academicStatus, "ACTIVE"),
     ];
     if (studyProgramId) {
       conditions.push(eq(students.studyProgramId, studyProgramId));

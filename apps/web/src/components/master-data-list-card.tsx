@@ -3,10 +3,12 @@ import {
   academicPeriodStatusTransitions,
   formatAcademicPeriodTerm,
   isAcademicPeriodStatus,
+  studentAcademicStatusLabels,
 } from "@siakad-itbkmmubar/api/master-data";
 import type {
   AcademicPeriodStatus,
   MasterDataListStatus,
+  StudentAcademicStatus,
 } from "@siakad-itbkmmubar/api/master-data";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
@@ -63,6 +65,13 @@ const formatFieldValue = (
   if (fieldId === "term" && typeof value === "string") {
     return formatAcademicPeriodTerm(value);
   }
+  if (
+    fieldId === "academicStatus" &&
+    typeof value === "string" &&
+    value in studentAcademicStatusLabels
+  ) {
+    return studentAcademicStatusLabels[value as StudentAcademicStatus];
+  }
   if (value instanceof Date) {
     return dateFormatter.format(value);
   }
@@ -101,10 +110,12 @@ interface MasterDataListCardProps {
   }) => void;
   onSearchChange: (value: string) => void;
   onStatusChange: (value: MasterDataListStatus | undefined) => void;
+  onAcademicStatusChange?: (value: StudentAcademicStatus | undefined) => void;
   onSubmitSearch: (event: FormEvent<HTMLFormElement>) => void;
   rows: readonly Record<string, unknown>[];
   search: string;
   status: MasterDataListStatus | undefined;
+  academicStatus?: StudentAcademicStatus;
   academicPeriodStatusChangePending?: boolean;
 }
 
@@ -216,10 +227,12 @@ const MasterDataListCard = ({
   onReactivate,
   onSearchChange,
   onStatusChange,
+  onAcademicStatusChange,
   onSubmitSearch,
   rows: sourceRows,
   search,
   status,
+  academicStatus,
   academicPeriodStatusChangePending = false,
 }: MasterDataListCardProps) => {
   const rows: DisplayRow[] = sourceRows.map((row) => ({
@@ -241,7 +254,7 @@ const MasterDataListCard = ({
     />
   );
   const columns = [
-    ...fields.slice(0, 4).map((field) => ({
+    ...fields.slice(0, entityType === "STUDENT" ? 5 : 4).map((field) => ({
       cell: (row: DisplayRow) => formatFieldValue(field.id, row[field.id], row),
       header: field.label,
       id: field.id,
@@ -320,6 +333,32 @@ const MasterDataListCard = ({
               )}
             </select>
           </FormField>
+          {entityType === "STUDENT" && onAcademicStatusChange ? (
+            <FormField id="student-academic-status" label="Status akademik">
+              <select
+                className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+                id="student-academic-status"
+                onChange={(event) => {
+                  const { value } = event.target;
+                  onAcademicStatusChange(
+                    value in studentAcademicStatusLabels
+                      ? (value as StudentAcademicStatus)
+                      : undefined
+                  );
+                }}
+                value={academicStatus ?? ""}
+              >
+                <option value="">Semua status akademik</option>
+                {Object.entries(studentAcademicStatusLabels).map(
+                  ([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  )
+                )}
+              </select>
+            </FormField>
+          ) : null}
           <Button type="submit" variant="outline">
             <Search aria-hidden="true" />
             Terapkan

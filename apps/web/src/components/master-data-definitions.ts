@@ -1,6 +1,8 @@
 import {
   academicPeriodTermLabels,
   academicTerms,
+  studentAcademicStatusLabels,
+  studentAcademicStatuses,
   studyProgramDegreeOptions,
 } from "@siakad-itbkmmubar/api/master-data";
 
@@ -137,6 +139,13 @@ export const masterDataFieldDefinitions: Record<
     { id: "name", label: "Nama" },
     { id: "studyProgramId", label: "Prodi" },
     { id: "cohortId", label: "Angkatan" },
+    {
+      id: "academicStatus",
+      label: "Status akademik",
+      optionLabels: studentAcademicStatusLabels,
+      options: studentAcademicStatuses,
+      type: "select",
+    },
     { id: "email", label: "Email", optional: true },
     { id: "phone", label: "Telepon", optional: true },
   ],

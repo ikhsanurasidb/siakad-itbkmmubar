@@ -2,6 +2,7 @@ import { ApiError } from "@api/errors";
 import {
   academicPeriodTerms,
   academicPeriodStatuses,
+  academicStatuses,
   importEntityTypes,
   importRowStatuses,
   masterDataStatuses,
@@ -39,6 +40,15 @@ export const academicPeriodTermLabels = {
   ODD: "Ganjil",
   SHORT: "Pendek",
 } as const;
+export const studentAcademicStatuses = academicStatuses;
+export const studentAcademicStatusLabels = {
+  ACTIVE: "Aktif",
+  DROPPED_OUT: "Mengundurkan diri",
+  GRADUATED: "Lulus",
+  INACTIVE: "Tidak aktif",
+  LEAVE: "Cuti",
+} as const satisfies Record<(typeof studentAcademicStatuses)[number], string>;
+export type StudentAcademicStatus = (typeof studentAcademicStatuses)[number];
 export const formatAcademicPeriodTerm = (term: string): string =>
   academicPeriodTermLabels[term as keyof typeof academicPeriodTermLabels] ??
   term;
@@ -126,6 +136,19 @@ export const normalizeStudyProgramDegree = (
     );
   }
   return normalized as StudyProgramDegree;
+};
+
+export const normalizeStudentAcademicStatus = (
+  value: string
+): StudentAcademicStatus => {
+  const normalized = normalizeText(value).toUpperCase();
+  if (!studentAcademicStatuses.includes(normalized as StudentAcademicStatus)) {
+    throw new MasterDataDomainError(
+      "INVALID_ACADEMIC_STATUS",
+      "Status akademik mahasiswa harus Aktif, Tidak aktif, Cuti, Lulus, atau Mengundurkan diri."
+    );
+  }
+  return normalized as StudentAcademicStatus;
 };
 
 export const normalizeIdentifierValue = (

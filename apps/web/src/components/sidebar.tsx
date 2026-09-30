@@ -376,6 +376,12 @@ const superadminMasterDataItems: readonly NavigationItem[] = [
   },
   {
     icon: GraduationCap,
+    label: "Progress mahasiswa",
+    roles: SUPERADMIN,
+    to: "/superadmin/master-data/progres-mahasiswa",
+  },
+  {
+    icon: GraduationCap,
     label: "Dosen",
     roles: SUPERADMIN,
     to: "/superadmin/master-data/dosen",
@@ -430,6 +436,12 @@ const academicAdminMasterDataItems: readonly NavigationItem[] = [
     label: "Mahasiswa",
     roles: ACADEMIC_ADMIN,
     to: "/admin-akademik/master-data/mahasiswa",
+  },
+  {
+    icon: GraduationCap,
+    label: "Progress mahasiswa",
+    roles: ACADEMIC_ADMIN,
+    to: "/admin-akademik/master-data/progres-mahasiswa",
   },
   {
     icon: GraduationCap,

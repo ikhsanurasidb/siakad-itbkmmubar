@@ -18,6 +18,7 @@ const timestamp = (name: string) =>
 export const masterDataStatuses = ["ACTIVE", "ARCHIVED"] as const;
 export const academicStatuses = [
   "ACTIVE",
+  "INACTIVE",
   "LEAVE",
   "GRADUATED",
   "DROPPED_OUT",

@@ -32,6 +32,7 @@ import type {
   MasterDataImportRow,
   MasterDataListStatus,
   AcademicPeriodStatus,
+  StudentAcademicStatus,
 } from "@api/master-data";
 import type {
   ClassMappingResult,
@@ -223,6 +224,7 @@ export interface MasterDataService {
     id: string;
   }) => Promise<Record<string, unknown>>;
   list: (input: {
+    academicStatus?: StudentAcademicStatus;
     cursor?: string;
     entityType: MasterDataEntityType;
     limit: number;
@@ -401,6 +403,7 @@ export interface StudyPlanService {
     actorRoles: readonly RoleKey[];
     actorUserId: string;
     cohortId?: string;
+    includeInactive?: boolean;
     prodiId?: string;
   }) => Promise<readonly StudentSemesterTrackerRecord[]>;
   list: (input: {

@@ -11,6 +11,7 @@ import {
   normalizeCode,
   normalizeIdentifierValue,
   normalizeOptional,
+  normalizeStudentAcademicStatus,
   normalizeStudyProgramDegree,
   normalizeText,
   parseAcademicPeriodDate,
@@ -775,6 +776,7 @@ export const createMasterDataService = ({
   // Server-side filters intentionally share one bounded list entry point.
   // eslint-disable-next-line complexity
   const list: MasterDataService["list"] = async ({
+    academicStatus,
     cursor,
     entityType,
     limit,
@@ -821,6 +823,9 @@ export const createMasterDataService = ({
       }
       case "STUDENT": {
         const conditions = status ? [eq(students.status, status)] : [];
+        if (academicStatus) {
+          conditions.push(eq(students.academicStatus, academicStatus));
+        }
         if (normalizedSearch) {
           conditions.push(
             or(
@@ -1154,9 +1159,9 @@ export const createMasterDataService = ({
         await getActiveCohort(database, cohortId, studyProgramId);
         await ensureIdentifierAvailable(database, "NIM", nim);
         const row = {
-          academicStatus: normalizeText(
+          academicStatus: normalizeStudentAcademicStatus(
             String(data.academicStatus ?? "ACTIVE")
-          ).toUpperCase(),
+          ),
           archivedAt: null,
           cohortId,
           createdAt: currentTime,
@@ -1239,9 +1244,9 @@ export const createMasterDataService = ({
           await ensureIdentifierAvailable(database, "NUPTK", normalizedNuptk);
         }
         const row = {
-          academicStatus: normalizeText(
+          academicStatus: normalizeStudentAcademicStatus(
             String(data.academicStatus ?? "ACTIVE")
-          ).toUpperCase(),
+          ),
           archivedAt: null,
           createdAt: currentTime,
           dsn: null,
@@ -1625,7 +1630,7 @@ export const createMasterDataService = ({
               academicStatus:
                 data.academicStatus === undefined
                   ? String(before.academicStatus)
-                  : normalizeText(String(data.academicStatus)).toUpperCase(),
+                  : normalizeStudentAcademicStatus(String(data.academicStatus)),
               cohortId,
               email:
                 data.email === undefined

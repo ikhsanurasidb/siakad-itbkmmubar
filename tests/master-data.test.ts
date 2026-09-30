@@ -11,6 +11,7 @@ import {
   formatAcademicPeriodTerm,
   normalizeCode,
   normalizeIdentifierValue,
+  normalizeStudentAcademicStatus,
   normalizeStudyProgramDegree,
   parseAcademicPeriodDate,
   parseCoordinate,
@@ -211,6 +212,14 @@ describe("SIAKAD-02 master data rules", () => {
     expect(normalizeStudyProgramDegree(" s2 ")).toBe("S2");
     expect(() => normalizeStudyProgramDegree("D3")).toThrow(
       "Jenjang hanya boleh S1, S2, atau S3"
+    );
+  });
+
+  test("normalizes and validates student academic statuses", () => {
+    expect(normalizeStudentAcademicStatus(" leave ")).toBe("LEAVE");
+    expect(normalizeStudentAcademicStatus(" inactive ")).toBe("INACTIVE");
+    expect(() => normalizeStudentAcademicStatus("UNKNOWN")).toThrow(
+      MasterDataDomainError
     );
   });
 

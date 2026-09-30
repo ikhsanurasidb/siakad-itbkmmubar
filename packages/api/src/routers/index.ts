@@ -16,6 +16,7 @@ import {
 import {
   MASTER_DATA_TEMPLATE_VERSION,
   academicPeriodStatusesList,
+  studentAcademicStatuses,
   templateHeaders,
   masterDataEntityTypes,
   masterDataListStatuses,
@@ -88,6 +89,7 @@ const phoneSchema = z
 const masterDataEntitySchema = z.enum(masterDataEntityTypes);
 const academicPeriodStatusSchema = z.enum(academicPeriodStatusesList);
 const masterDataListStatusSchema = z.enum(masterDataListStatuses);
+const studentAcademicStatusSchema = z.enum(studentAcademicStatuses);
 const masterDataDataSchema = z.record(z.string(), z.unknown());
 const masterDataImportValueSchema = z.union([
   z.string().max(1000),
@@ -1398,6 +1400,7 @@ export const appRouter = {
     list: protectedProcedure
       .input(
         z.object({
+          academicStatus: studentAcademicStatusSchema.optional(),
           cursor: z.string().min(1).optional(),
           entityType: masterDataEntitySchema,
           limit: z.coerce.number().int().min(1).max(100).default(25),
@@ -1965,6 +1968,7 @@ export const appRouter = {
         z.object({
           academicPeriodId: z.string().min(1),
           cohortId: z.string().min(1).optional(),
+          includeInactive: z.boolean().optional(),
           prodiId: z.string().min(1).optional(),
         })
       )

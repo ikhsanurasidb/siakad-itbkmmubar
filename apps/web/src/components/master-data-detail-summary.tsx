@@ -1,4 +1,7 @@
-import { formatAcademicPeriodTerm } from "@siakad-itbkmmubar/api/master-data";
+import {
+  formatAcademicPeriodTerm,
+  studentAcademicStatusLabels,
+} from "@siakad-itbkmmubar/api/master-data";
 import { getDatePartsInTimeZone } from "@siakad-itbkmmubar/api/time-zone";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
@@ -41,6 +44,15 @@ const formatDetailValue = (
   }
   if (fieldId === "term" && typeof value === "string") {
     return formatAcademicPeriodTerm(value);
+  }
+  if (
+    fieldId === "academicStatus" &&
+    typeof value === "string" &&
+    value in studentAcademicStatusLabels
+  ) {
+    return studentAcademicStatusLabels[
+      value as keyof typeof studentAcademicStatusLabels
+    ];
   }
   if (value instanceof Date) {
     return formatDate(value);

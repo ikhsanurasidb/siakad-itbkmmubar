@@ -1,5 +1,8 @@
 import { academicPeriodStatusLabels } from "@siakad-itbkmmubar/api/master-data";
-import type { MasterDataListStatus } from "@siakad-itbkmmubar/api/master-data";
+import type {
+  MasterDataListStatus,
+  StudentAcademicStatus,
+} from "@siakad-itbkmmubar/api/master-data";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { FormEvent } from "react";
@@ -69,6 +72,9 @@ const MasterDataPage = ({
   const [search, setSearch] = useState("");
   const [submittedSearch, setSubmittedSearch] = useState("");
   const [status, setStatus] = useState<MasterDataListStatus | undefined>();
+  const [academicStatus, setAcademicStatus] = useState<
+    StudentAcademicStatus | undefined
+  >();
   const [cursor, setCursor] = useState<string>();
   const [values, setValues] = useState<Record<string, string>>({});
   const [referenceLabels, setReferenceLabels] = useState<
@@ -124,6 +130,7 @@ const MasterDataPage = ({
   const records = useQuery(
     orpc.masterData.list.queryOptions({
       input: {
+        academicStatus: entityType === "STUDENT" ? academicStatus : undefined,
         cursor,
         entityType,
         limit: 50,
@@ -392,10 +399,15 @@ const MasterDataPage = ({
           setCursor(undefined);
           setStatus(value);
         }}
+        onAcademicStatusChange={(value) => {
+          setCursor(undefined);
+          setAcademicStatus(value);
+        }}
         onSubmitSearch={submitSearch}
         rows={records.data?.data ?? []}
         search={search}
         status={status}
+        academicStatus={academicStatus}
         academicPeriodStatusChangePending={changeAcademicPeriodStatus.isPending}
       />
     </div>

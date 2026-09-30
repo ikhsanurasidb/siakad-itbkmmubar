@@ -1,4 +1,5 @@
 import type { RoleKey } from "@api/identity";
+import type { StudentAcademicStatus } from "@api/master-data";
 
 export const studyPlanModes = ["PACKAGE", "FREE"] as const;
 export type StudyPlanMode = (typeof studyPlanModes)[number];
@@ -68,6 +69,7 @@ export interface StudentSemesterTrackerRecord {
   semesterNumber: number | null;
   source: StudentSemesterTrackerSource;
   student: {
+    academicStatus: StudentAcademicStatus;
     id: string;
     name: string;
     nim: string;
