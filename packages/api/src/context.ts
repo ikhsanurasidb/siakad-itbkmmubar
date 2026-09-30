@@ -54,6 +54,7 @@ import type {
   SettingScopeType,
 } from "@api/settings";
 import type {
+  StudentSemesterTrackerRecord,
   StudyPlanGenerationResult,
   StudyPlanListItem,
   StudyPlanRecord,
@@ -392,6 +393,13 @@ export interface StudyPlanService {
     idempotencyKey?: string;
     prodiId?: string;
   }) => Promise<StudyPlanGenerationResult>;
+  listSemesterTrackers: (input: {
+    academicPeriodId: string;
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    cohortId?: string;
+    prodiId?: string;
+  }) => Promise<readonly StudentSemesterTrackerRecord[]>;
   list: (input: {
     academicPeriodId?: string;
     actorRoles: readonly RoleKey[];
@@ -405,6 +413,13 @@ export interface StudyPlanService {
     reason: string;
     studyPlanId: string;
   }) => Promise<{ status: "DRAFT" }>;
+  updateSemesterTracker: (input: {
+    academicPeriodId: string;
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    semesterNumber: number;
+    studentId: string;
+  }) => Promise<StudentSemesterTrackerRecord>;
 }
 
 export interface SchedulingService {

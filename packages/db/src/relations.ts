@@ -99,6 +99,7 @@ import {
   settingValues,
   settingVersions,
 } from "@db/schema/settings";
+import { studentSemesterTrackers } from "@db/schema/student-progress";
 import {
   studyPlanGenerationJobs,
   studyPlanHistories,
@@ -178,6 +179,7 @@ const schema = {
   settingValues,
   settingVersions,
   studentComponentScores,
+  studentSemesterTrackers,
   students,
   studyPlanGenerationJobs,
   studyPlanHistories,

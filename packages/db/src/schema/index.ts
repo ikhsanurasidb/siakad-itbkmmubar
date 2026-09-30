@@ -87,6 +87,10 @@ export {
   studyPlanStatuses,
 } from "@db/schema/study-plan";
 export {
+  studentSemesterTrackerSources,
+  studentSemesterTrackers,
+} from "@db/schema/student-progress";
+export {
   assignmentFiles,
   assignmentSubmissionStatuses,
   assignmentSubmissions,

@@ -6,6 +6,8 @@ import {
   assertStudyPlanManageRole,
   assertStudyPlanReadRole,
   calculateStudyPlanTotals,
+  deriveStudentSemester,
+  filterCoursesForSemester,
   normalizeStudyPlanReason,
   studyPlanFailureReasonCodes,
   studyPlanStrategies,
@@ -16,13 +18,21 @@ import type {
   StudyPlanListItem,
   StudyPlanRecord,
   StudyPlanStatus,
+  StudentSemesterTrackerRecord,
 } from "@api/study-plan";
 import { chunkByParameterBudget } from "@db/atomic-batch";
 import type { Database } from "@db/index";
 import { curricula, curriculumCourses } from "@db/schema/curriculum";
 import { identityAccounts, programHeads } from "@db/schema/identity";
-import { academicPeriods, courses, students } from "@db/schema/master-data";
+import {
+  academicPeriods,
+  academicYears,
+  cohorts,
+  courses,
+  students,
+} from "@db/schema/master-data";
 import { auditLogs } from "@db/schema/platform";
+import { studentSemesterTrackers } from "@db/schema/student-progress";
 import {
   studyPlanGenerationJobs,
   studyPlanHistories,
@@ -45,6 +55,7 @@ import {
 
 const GENERATION_CHUNK_SIZE = 25;
 const STUDY_PLAN_ITEM_PARAMETERS = 8;
+const STUDENT_SEMESTER_TRACKER_PARAMETERS = 5;
 
 interface StudyPlanActor {
   actorRoles: readonly RoleKey[];
@@ -75,6 +86,11 @@ interface GenerationProgress {
   processedCount: number;
 }
 
+interface GenerationPeriod {
+  academicYearStartYear: number;
+  term: string;
+}
+
 type GenerationStudent = Pick<
   StudentCandidate,
   "cohortId" | "id" | "name" | "nim" | "studyProgramId"
@@ -93,6 +109,9 @@ const isSuperadmin = (roles: readonly RoleKey[]): boolean =>
 
 const isAcademicAdmin = (roles: readonly RoleKey[]): boolean =>
   roles.includes("ADMIN_AKADEMIK");
+
+const asTrackerSource = (value: string): "AUTO" | "MANUAL" =>
+  value === "MANUAL" ? "MANUAL" : "AUTO";
 
 const parseFailures = (value: string | null): StudyPlanFailure[] => {
   if (!value) {
@@ -239,6 +258,7 @@ const processGenerationStudent = async ({
   database,
   jobId,
   now,
+  studentSemester,
   student,
 }: {
   academicPeriodId: string;
@@ -248,6 +268,7 @@ const processGenerationStudent = async ({
   database: Database;
   jobId: string;
   now: () => Date;
+  studentSemester: number | null;
   student: GenerationStudent;
 }): Promise<{ completed: boolean; failure: StudyPlanFailure | null }> => {
   try {
@@ -263,6 +284,18 @@ const processGenerationStudent = async ({
       .limit(1);
     if (existingPlan?.status === "FINAL") {
       return { completed: true, failure: null };
+    }
+    if (studentSemester === null) {
+      return {
+        completed: false,
+        failure: {
+          action: getStudyPlanFailureAction("SEMESTER_TRACKER_UNAVAILABLE"),
+          message: "Semester berjalan mahasiswa belum dapat ditentukan.",
+          nim: student.nim,
+          reasonCode: "SEMESTER_TRACKER_UNAVAILABLE",
+          studentId: student.id,
+        },
+      };
     }
     const curriculum = curriculumByPair.get(
       `${student.studyProgramId}:${student.cohortId}`
@@ -287,8 +320,24 @@ const processGenerationStudent = async ({
     if (courseFailure) {
       return { completed: false, failure: courseFailure };
     }
+    const semesterCourses = filterCoursesForSemester(
+      generationCourses,
+      studentSemester
+    );
+    if (semesterCourses.length === 0) {
+      return {
+        completed: false,
+        failure: {
+          action: getStudyPlanFailureAction("CURRICULUM_SEMESTER_EMPTY"),
+          message: `Kurikulum aktif belum memiliki mata kuliah untuk semester berjalan ${studentSemester}.`,
+          nim: student.nim,
+          reasonCode: "CURRICULUM_SEMESTER_EMPTY",
+          studentId: student.id,
+        },
+      };
+    }
     const items = studyPlanStrategies.PACKAGE.generate({
-      courses: generationCourses,
+      courses: semesterCourses,
     });
     const totals = calculateStudyPlanTotals(items);
     let planId = existingPlan?.id;
@@ -381,6 +430,7 @@ const processGenerationPage = async ({
   jobId,
   now,
   page,
+  period,
   progress,
 }: {
   academicPeriodId: string;
@@ -389,6 +439,7 @@ const processGenerationPage = async ({
   jobId: string;
   now: () => Date;
   page: readonly GenerationStudent[];
+  period: GenerationPeriod;
   progress: GenerationProgress;
 }): Promise<void> => {
   const programIds = [
@@ -443,6 +494,78 @@ const processGenerationPage = async ({
     coursesByCurriculum.set(row.curriculumCourse.curriculumId, items);
   }
 
+  const studentIds = page.map((student) => student.id);
+  const existingTrackerRows = await database
+    .select()
+    .from(studentSemesterTrackers)
+    .where(
+      and(
+        eq(studentSemesterTrackers.academicPeriodId, academicPeriodId),
+        inArray(studentSemesterTrackers.studentId, studentIds)
+      )
+    );
+  const trackerByStudent = new Map(
+    existingTrackerRows.map((row) => [row.studentId, row])
+  );
+  const cohortRows = await database
+    .select({ entryYear: cohorts.entryYear, id: cohorts.id })
+    .from(cohorts)
+    .where(inArray(cohorts.id, cohortIds));
+  const entryYearByCohort = new Map(
+    cohortRows.map((row) => [row.id, row.entryYear])
+  );
+  const missingTrackerRows = page.flatMap((student) => {
+    if (trackerByStudent.has(student.id)) {
+      return [];
+    }
+    const entryYear = entryYearByCohort.get(student.cohortId);
+    const semesterNumber =
+      entryYear === undefined
+        ? null
+        : deriveStudentSemester({
+            academicYearStartYear: period.academicYearStartYear,
+            cohortEntryYear: entryYear,
+            term: period.term,
+          });
+    return semesterNumber === null
+      ? []
+      : [
+          {
+            academicPeriodId,
+            id: createUuidV7(),
+            semesterNumber,
+            source: "AUTO",
+            studentId: student.id,
+          },
+        ];
+  });
+  const trackerChunks = chunkByParameterBudget(missingTrackerRows, {
+    parametersPerRow: STUDENT_SEMESTER_TRACKER_PARAMETERS,
+  });
+  await Promise.all(
+    trackerChunks.map((trackerChunk) =>
+      database
+        .insert(studentSemesterTrackers)
+        .values(trackerChunk)
+        .onConflictDoNothing()
+    )
+  );
+  if (missingTrackerRows.length > 0) {
+    const persistedTrackerRows = await database
+      .select()
+      .from(studentSemesterTrackers)
+      .where(
+        and(
+          eq(studentSemesterTrackers.academicPeriodId, academicPeriodId),
+          inArray(studentSemesterTrackers.studentId, studentIds)
+        )
+      );
+    trackerByStudent.clear();
+    for (const row of persistedTrackerRows) {
+      trackerByStudent.set(row.studentId, row);
+    }
+  }
+
   for (const student of page) {
     // The checkpoint must advance in student order so a retry cannot skip a row.
     // eslint-disable-next-line no-await-in-loop
@@ -455,6 +578,18 @@ const processGenerationPage = async ({
       jobId,
       now,
       student,
+      studentSemester:
+        trackerByStudent.get(student.id)?.semesterNumber ??
+        (() => {
+          const entryYear = entryYearByCohort.get(student.cohortId);
+          return entryYear === undefined
+            ? null
+            : deriveStudentSemester({
+                academicYearStartYear: period.academicYearStartYear,
+                cohortEntryYear: entryYear,
+                term: period.term,
+              });
+        })(),
     });
     if (result.failure) {
       progress.failures.push(result.failure);
@@ -553,12 +688,14 @@ const runGenerationJob = async ({
   database,
   job,
   now,
+  period,
 }: {
   actorUserId: string;
   conditions: ReturnType<typeof buildGenerationConditions>;
   database: Database;
   job: typeof studyPlanGenerationJobs.$inferSelect;
   now: () => Date;
+  period: GenerationPeriod;
 }): Promise<GenerationProgress> => {
   const progress: GenerationProgress = {
     completedCount: job.completedCount,
@@ -601,6 +738,7 @@ const runGenerationJob = async ({
       jobId: job.id,
       now,
       page,
+      period,
       progress,
     });
     cursor = page.at(-1)?.id;
@@ -852,6 +990,181 @@ export const createStudyPlanService = ({
     })) satisfies readonly StudyPlanListItem[];
   };
 
+  const listSemesterTrackers: StudyPlanService["listSemesterTrackers"] =
+    async ({
+      academicPeriodId,
+      actorRoles,
+      actorUserId,
+      cohortId,
+      prodiId,
+    }) => {
+      assertStudyPlanManageRole(actorRoles);
+      const [periodRow] = await database
+        .select({
+          academicYearStartYear: academicYears.startYear,
+          term: academicPeriods.term,
+        })
+        .from(academicPeriods)
+        .innerJoin(
+          academicYears,
+          eq(academicYears.id, academicPeriods.academicYearId)
+        )
+        .where(eq(academicPeriods.id, academicPeriodId))
+        .limit(1);
+      if (!periodRow) {
+        throw new StudyPlanDomainError(
+          "ACADEMIC_PERIOD_NOT_FOUND",
+          "Periode akademik tidak ditemukan."
+        );
+      }
+      const conditions = buildGenerationConditions({ cohortId, prodiId });
+      const managedProgramIds = await getManagedProgramIds({
+        actorRoles,
+        actorUserId,
+      });
+      if (managedProgramIds) {
+        if (managedProgramIds.length === 0) {
+          return [];
+        }
+        conditions.push(inArray(students.studyProgramId, managedProgramIds));
+      }
+      const rows = await database
+        .select({
+          entryYear: cohorts.entryYear,
+          student: students,
+          tracker: studentSemesterTrackers,
+        })
+        .from(students)
+        .innerJoin(cohorts, eq(cohorts.id, students.cohortId))
+        .leftJoin(
+          studentSemesterTrackers,
+          and(
+            eq(studentSemesterTrackers.studentId, students.id),
+            eq(studentSemesterTrackers.academicPeriodId, academicPeriodId)
+          )
+        )
+        .where(and(...conditions))
+        .orderBy(asc(students.nim));
+      return rows.map(({ entryYear, student, tracker }) => ({
+        entryYear,
+        semesterNumber:
+          tracker?.semesterNumber ??
+          deriveStudentSemester({
+            academicYearStartYear: periodRow.academicYearStartYear,
+            cohortEntryYear: entryYear,
+            term: periodRow.term,
+          }),
+        source: asTrackerSource(tracker?.source ?? "AUTO"),
+        student: {
+          id: student.id,
+          name: student.name,
+          nim: student.nim,
+        },
+      })) satisfies readonly StudentSemesterTrackerRecord[];
+    };
+
+  const updateSemesterTracker: StudyPlanService["updateSemesterTracker"] =
+    async ({
+      academicPeriodId,
+      actorRoles,
+      actorUserId,
+      semesterNumber,
+      studentId,
+    }) => {
+      assertStudyPlanManageRole(actorRoles);
+      const [row] = await database
+        .select({
+          entryYear: cohorts.entryYear,
+          student: students,
+        })
+        .from(students)
+        .innerJoin(cohorts, eq(cohorts.id, students.cohortId))
+        .where(eq(students.id, studentId))
+        .limit(1);
+      if (!row) {
+        throw new StudyPlanDomainError(
+          "STUDENT_NOT_FOUND",
+          "Mahasiswa tidak ditemukan."
+        );
+      }
+      const managedProgramIds = await getManagedProgramIds({
+        actorRoles,
+        actorUserId,
+      });
+      if (
+        managedProgramIds &&
+        !managedProgramIds.includes(row.student.studyProgramId)
+      ) {
+        throw new StudyPlanDomainError(
+          "STUDENT_NOT_FOUND",
+          "Mahasiswa tidak ditemukan."
+        );
+      }
+      const [period] = await database
+        .select({ id: academicPeriods.id })
+        .from(academicPeriods)
+        .where(eq(academicPeriods.id, academicPeriodId))
+        .limit(1);
+      if (!period) {
+        throw new StudyPlanDomainError(
+          "ACADEMIC_PERIOD_NOT_FOUND",
+          "Periode akademik tidak ditemukan."
+        );
+      }
+      const [tracker] = await database
+        .insert(studentSemesterTrackers)
+        .values({
+          academicPeriodId,
+          id: createUuidV7(),
+          semesterNumber,
+          source: "MANUAL",
+          studentId,
+        })
+        .onConflictDoUpdate({
+          set: {
+            semesterNumber,
+            source: "MANUAL",
+            updatedAt: now(),
+          },
+          target: [
+            studentSemesterTrackers.studentId,
+            studentSemesterTrackers.academicPeriodId,
+          ],
+        })
+        .returning();
+      if (!tracker) {
+        throw new StudyPlanDomainError(
+          "SEMESTER_TRACKER_SAVE_FAILED",
+          "Semester berjalan mahasiswa belum dapat disimpan."
+        );
+      }
+      await database.insert(auditLogs).values({
+        action: "UPDATE",
+        actorUserId,
+        afterState: JSON.stringify({
+          academicPeriodId,
+          semesterNumber,
+          source: "MANUAL",
+          studentId,
+        }),
+        beforeState: null,
+        entityId: tracker.id,
+        entityType: "STUDENT_SEMESTER_TRACKER",
+        id: createUuidV7(),
+        metadata: JSON.stringify({ action: "UPDATE_SEMESTER_TRACKER" }),
+      });
+      return {
+        entryYear: row.entryYear,
+        semesterNumber: tracker.semesterNumber,
+        source: "MANUAL",
+        student: {
+          id: row.student.id,
+          name: row.student.name,
+          nim: row.student.nim,
+        },
+      };
+    };
+
   const generate: StudyPlanService["generate"] = async ({
     academicPeriodId,
     actorRoles,
@@ -871,6 +1184,18 @@ export const createStudyPlanService = ({
         "ACADEMIC_PERIOD_NOT_FOUND",
         "Periode akademik tidak ditemukan.",
         { academicPeriodId: ["Pilih periode akademik yang tersedia."] }
+      );
+    }
+    const [academicYear] = await database
+      .select({ startYear: academicYears.startYear })
+      .from(academicYears)
+      .where(eq(academicYears.id, period.academicYearId))
+      .limit(1);
+    if (!academicYear) {
+      throw new StudyPlanDomainError(
+        "ACADEMIC_YEAR_NOT_FOUND",
+        "Tahun akademik periode tidak ditemukan.",
+        { academicPeriodId: ["Periksa tahun akademik pada periode tersebut."] }
       );
     }
     const key = [
@@ -920,6 +1245,10 @@ export const createStudyPlanService = ({
       database,
       job,
       now,
+      period: {
+        academicYearStartYear: academicYear.startYear,
+        term: period.term,
+      },
     });
 
     const status =
@@ -1067,5 +1396,13 @@ export const createStudyPlanService = ({
     return { status: "DRAFT" };
   };
 
-  return { detail, finalize, generate, list, reopen };
+  return {
+    detail,
+    finalize,
+    generate,
+    list,
+    listSemesterTrackers,
+    reopen,
+    updateSemesterTracker,
+  };
 };

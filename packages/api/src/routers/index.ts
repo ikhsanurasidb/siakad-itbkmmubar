@@ -1892,6 +1892,22 @@ export const appRouter = {
           ...input,
         });
       }),
+    listSemesterTrackers: protectedProcedure
+      .input(
+        z.object({
+          academicPeriodId: z.string().min(1),
+          cohortId: z.string().min(1).optional(),
+          prodiId: z.string().min(1).optional(),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        return context.studyPlanService.listSemesterTrackers({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
     reopen: protectedProcedure
       .input(
         z.object({
@@ -1902,6 +1918,22 @@ export const appRouter = {
       .handler(({ context, input }) => {
         requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
         return context.studyPlanService.reopen({
+          actorRoles: context.identity?.roles ?? [],
+          actorUserId: context.session?.user.id as string,
+          ...input,
+        });
+      }),
+    updateSemesterTracker: protectedProcedure
+      .input(
+        z.object({
+          academicPeriodId: z.string().min(1),
+          semesterNumber: z.number().int().min(1).max(8),
+          studentId: z.string().min(1),
+        })
+      )
+      .handler(({ context, input }) => {
+        requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+        return context.studyPlanService.updateSemesterTracker({
           actorRoles: context.identity?.roles ?? [],
           actorUserId: context.session?.user.id as string,
           ...input,

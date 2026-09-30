@@ -4,6 +4,8 @@ import {
   getStudyPlanFailureAction,
   StudyPlanDomainError,
   calculateStudyPlanTotals,
+  deriveStudentSemester,
+  filterCoursesForSemester,
   normalizeStudyPlanReason,
   packageStudyPlanStrategy,
 } from "../packages/api/src/study-plan";
@@ -60,5 +62,38 @@ describe("SIAKAD-05 KRS Paket rules", () => {
     expect(getStudyPlanFailureAction("CURRICULUM_DUPLICATE_COURSE")).toContain(
       "hapus mata kuliah"
     );
+  });
+
+  test("derives the running semester from cohort and academic period", () => {
+    expect(
+      deriveStudentSemester({
+        academicYearStartYear: 2026,
+        cohortEntryYear: 2026,
+        term: "ODD",
+      })
+    ).toBe(1);
+    expect(
+      deriveStudentSemester({
+        academicYearStartYear: 2026,
+        cohortEntryYear: 2025,
+        term: "EVEN",
+      })
+    ).toBe(4);
+    expect(
+      deriveStudentSemester({
+        academicYearStartYear: 2026,
+        cohortEntryYear: 2022,
+        term: "ODD",
+      })
+    ).toBeNull();
+  });
+
+  test("limits package input to the student's running semester", () => {
+    const courses = [
+      { courseId: "course-1", semester: 1 },
+      { courseId: "course-3", semester: 3 },
+      { courseId: "course-1b", semester: 1 },
+    ];
+    expect(filterCoursesForSemester(courses, 3)).toEqual([courses[1]]);
   });
 });

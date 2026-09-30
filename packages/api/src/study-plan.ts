@@ -11,9 +11,11 @@ export type StudyPlanHistoryAction = "GENERATE" | "FINALIZE" | "REOPEN";
 export const studyPlanFailureReasonCodes = [
   "CURRICULUM_NOT_FOUND",
   "CURRICULUM_EMPTY",
+  "CURRICULUM_SEMESTER_EMPTY",
   "CURRICULUM_DUPLICATE_COURSE",
   "CURRICULUM_COURSE_INVALID",
   "CURRICULUM_COURSE_INACTIVE",
+  "SEMESTER_TRACKER_UNAVAILABLE",
   "GENERATION_FAILED",
 ] as const;
 export type StudyPlanFailureReasonCode =
@@ -43,6 +45,12 @@ export interface StudyPlanStrategy {
   generate: (input: PackageStudyPlanInput) => readonly StudyPlanItemDraft[];
 }
 
+export const filterCoursesForSemester = <T extends { semester: number }>(
+  courses: readonly T[],
+  semesterNumber: number
+): readonly T[] =>
+  courses.filter((course) => course.semester === semesterNumber);
+
 export interface StudyPlanFailure {
   action: string;
   message: string;
@@ -50,6 +58,41 @@ export interface StudyPlanFailure {
   reasonCode: StudyPlanFailureReasonCode;
   studentId: string;
 }
+
+export const studentSemesterTrackerSources = ["AUTO", "MANUAL"] as const;
+export type StudentSemesterTrackerSource =
+  (typeof studentSemesterTrackerSources)[number];
+
+export interface StudentSemesterTrackerRecord {
+  entryYear: number;
+  semesterNumber: number | null;
+  source: StudentSemesterTrackerSource;
+  student: {
+    id: string;
+    name: string;
+    nim: string;
+  };
+}
+
+export const deriveStudentSemester = ({
+  academicYearStartYear,
+  cohortEntryYear,
+  term,
+}: {
+  academicYearStartYear: number;
+  cohortEntryYear: number;
+  term: string;
+}): number | null => {
+  if (term !== "ODD" && term !== "EVEN") {
+    return null;
+  }
+  const academicYearOffset = academicYearStartYear - cohortEntryYear;
+  if (academicYearOffset < 0) {
+    return null;
+  }
+  const semesterNumber = academicYearOffset * 2 + (term === "ODD" ? 1 : 2);
+  return semesterNumber >= 1 && semesterNumber <= 8 ? semesterNumber : null;
+};
 
 export const getStudyPlanFailureAction = (
   reasonCode: StudyPlanFailureReasonCode
@@ -61,6 +104,9 @@ export const getStudyPlanFailureAction = (
     case "CURRICULUM_EMPTY": {
       return "Buka kurikulum aktif tersebut dan tambahkan minimal satu mata kuliah sebelum menjalankan ulang.";
     }
+    case "CURRICULUM_SEMESTER_EMPTY": {
+      return "Buka kurikulum aktif tersebut dan tambahkan mata kuliah untuk semester berjalan mahasiswa, lalu jalankan ulang.";
+    }
     case "CURRICULUM_DUPLICATE_COURSE": {
       return "Buka kurikulum aktif tersebut dan hapus mata kuliah yang tercantum lebih dari sekali, lalu jalankan ulang.";
     }
@@ -69,6 +115,9 @@ export const getStudyPlanFailureAction = (
     }
     case "CURRICULUM_COURSE_INACTIVE": {
       return "Aktifkan kembali mata kuliah tersebut atau keluarkan dari kurikulum aktif, lalu jalankan ulang.";
+    }
+    case "SEMESTER_TRACKER_UNAVAILABLE": {
+      return "Periksa angkatan dan tahun akademik periode. Jika mahasiswa tidak mengikuti semester normal, atur semester berjalan secara manual pada tracker lalu jalankan ulang.";
     }
     case "GENERATION_FAILED": {
       return "Buat job baru setelah memeriksa data kurikulum. Jika masih gagal, minta administrator memeriksa log server dengan NIM mahasiswa.";
