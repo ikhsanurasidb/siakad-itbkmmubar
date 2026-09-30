@@ -37,6 +37,7 @@ import type {
   ClassMappingResult,
   ClassMeetingRecord,
   ScheduleChangeRequestRecord,
+  ScheduleCreationResult,
   ScheduleDraftRecord,
   ScheduleModality,
   ScheduleSectionRecord,
@@ -477,6 +478,18 @@ export interface SchedulingService {
     actorUserId: string;
     studyProgramId?: string;
   }) => Promise<readonly ScheduleSectionRecord[]>;
+  createSchedule: (input: {
+    actorRoles: readonly RoleKey[];
+    actorUserId: string;
+    classSectionId: string;
+    dayOfWeek: number;
+    endTime: string;
+    instructions?: string;
+    lecturerIds: readonly string[];
+    modality: ScheduleModality;
+    roomId?: string;
+    startTime: string;
+  }) => Promise<ScheduleCreationResult>;
   publishDraft: (input: {
     actorRoles: readonly RoleKey[];
     actorUserId: string;

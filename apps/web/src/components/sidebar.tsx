@@ -102,19 +102,12 @@ const academicAdminSchedulingItems: readonly NavigationItem[] = [
     roles: ACADEMIC_ADMIN,
     to: "/admin-akademik/kelas/pemetaan",
   },
-  {
-    activePaths: ["/admin-akademik/jadwal/draft"],
-    icon: CalendarDays,
-    label: "Perubahan jadwal",
-    roles: ACADEMIC_ADMIN,
-    to: "/admin-akademik/jadwal/perubahan",
-  },
 ];
 
 const programHeadSchedulingItems: readonly NavigationItem[] = [
   {
     icon: CalendarDays,
-    label: "Persetujuan jadwal",
+    label: "Kelas dan jadwal",
     roles: PROGRAM_HEAD,
     to: "/kaprodi/jadwal/persetujuan",
   },

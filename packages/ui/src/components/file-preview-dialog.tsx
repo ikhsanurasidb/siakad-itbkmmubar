@@ -32,6 +32,22 @@ export const FilePreviewDialog = ({
     }
   }, [open]);
 
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) {
+      return;
+    }
+    const handleBackdropPointerDown = (event: PointerEvent) => {
+      if (event.target === dialog) {
+        onClose();
+      }
+    };
+    dialog.addEventListener("pointerdown", handleBackdropPointerDown);
+    return () => {
+      dialog.removeEventListener("pointerdown", handleBackdropPointerDown);
+    };
+  }, [onClose]);
+
   return (
     <dialog
       aria-labelledby="file-preview-title"

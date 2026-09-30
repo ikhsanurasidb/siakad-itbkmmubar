@@ -281,6 +281,7 @@ export interface ScheduleConflictRecord {
 }
 
 export interface ScheduleSectionRecord {
+  academicPeriodId: string;
   capacity: number;
   code: string;
   courseCode: string;
@@ -329,6 +330,11 @@ export interface ClassMappingResult {
   processedCount: number;
   status: "COMPLETED" | "PARTIAL_FAILED";
   totalCount: number;
+}
+
+export interface ScheduleCreationResult {
+  meetingCount: number;
+  status: "PUBLISHED";
 }
 
 export interface ScheduleChangeRequestRecord {

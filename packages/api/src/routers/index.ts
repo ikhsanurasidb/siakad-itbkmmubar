@@ -130,6 +130,9 @@ const studyPlanStatusSchema = z.enum(studyPlanStatuses);
 const scheduleDraftStatusSchema = z.enum(scheduleDraftStatuses);
 const scheduleModalitySchema = z.enum(scheduleModalities);
 const scheduleChangeRequestStatusSchema = z.enum(scheduleChangeRequestStatuses);
+const clockTimeSchema = z
+  .string()
+  .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/u, "Gunakan format waktu HH:mm.");
 const lmsFileSchema = z.object({
   contentBase64: z.string().min(1).max(40_000_000),
   declaredMime: z.string().trim().max(120).optional(),
@@ -1721,6 +1724,36 @@ export const appRouter = {
         .handler(({ context, input }) => {
           requireRole(context, ["DOSEN"]);
           return context.schedulingService.updateMeetingOnline({
+            actorRoles: context.identity?.roles ?? [],
+            actorUserId: context.session?.user.id as string,
+            ...input,
+          });
+        }),
+    },
+    schedule: {
+      create: protectedProcedure
+        .input(
+          z.object({
+            classSectionId: z.string().min(1),
+            dayOfWeek: z.number().int().min(1).max(7),
+            endTime: clockTimeSchema,
+            instructions: z.string().trim().max(1000).optional(),
+            lecturerIds: z
+              .array(z.string().min(1))
+              .min(1)
+              .max(2)
+              .refine(
+                (ids) => new Set(ids).size === ids.length,
+                "Pilih dosen yang berbeda."
+              ),
+            modality: scheduleModalitySchema,
+            roomId: z.string().min(1).optional(),
+            startTime: clockTimeSchema,
+          })
+        )
+        .handler(({ context, input }) => {
+          requireRole(context, ["SUPERADMIN", "ADMIN_AKADEMIK"]);
+          return context.schedulingService.createSchedule({
             actorRoles: context.identity?.roles ?? [],
             actorUserId: context.session?.user.id as string,
             ...input,

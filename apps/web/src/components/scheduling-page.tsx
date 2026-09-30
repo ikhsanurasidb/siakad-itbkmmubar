@@ -1,4 +1,5 @@
 import { formatAcademicPeriodLabel } from "@siakad-itbkmmubar/api/master-data";
+import type { ScheduleModality } from "@siakad-itbkmmubar/api/scheduling";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
   Card,
@@ -10,20 +11,22 @@ import {
 import { Input } from "@siakad-itbkmmubar/ui/components/input";
 import { PageHeader } from "@siakad-itbkmmubar/ui/components/page-header";
 import { SearchableSelect } from "@siakad-itbkmmubar/ui/components/searchable-select";
+import type { SearchableSelectOption } from "@siakad-itbkmmubar/ui/components/searchable-select";
 import { State } from "@siakad-itbkmmubar/ui/components/state";
 import { createUuidV7 } from "@siakad-itbkmmubar/uuid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, CheckCircle2, RefreshCw, Video } from "lucide-react";
+import { CalendarDays, RefreshCw, Video } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { orpc } from "@/utils/orpc";
 
-interface SearchableSelectOption {
-  description?: string;
-  label: string;
-  value: string;
-}
+import {
+  ClassPreviewCard,
+  ScheduleCreateDialog,
+  schedulingStatusLabels,
+} from "./scheduling-editor";
+
 type SearchableSelectStatus = "error" | "loading" | "ready";
 
 const recordText = (record: Record<string, unknown>, key: string): string => {
@@ -54,9 +57,8 @@ interface SchedulingPageProps {
 
 const schedulingViewCopy = {
   changes: {
-    description:
-      "Tinjau pengajuan perubahan dan terbitkan draft jadwal yang sudah disetujui.",
-    title: "Perubahan jadwal",
+    description: "Pantau kelas dan jadwal yang sudah diterbitkan.",
+    title: "Jadwal kuliah",
   },
   mapping: {
     description:
@@ -75,14 +77,6 @@ const formatDate = new Intl.DateTimeFormat("id-ID", {
   timeStyle: "short",
 });
 
-const statusLabels = {
-  APPROVED: "Disetujui",
-  DRAFT: "Draf",
-  PUBLISHED: "Diterbitkan",
-  REJECTED: "Ditolak",
-  SUBMITTED: "Diajukan",
-} as const;
-
 // eslint-disable-next-line complexity -- this component coordinates role-specific scheduling views and mutations.
 const SchedulingPage = ({
   mode,
@@ -93,30 +87,19 @@ const SchedulingPage = ({
   const [academicPeriodId, setAcademicPeriodId] = useState("");
   const [studyProgramId, setStudyProgramId] = useState("");
   const [classCapacity, setClassCapacity] = useState("30");
-  const [draftId, setDraftId] = useState("");
-  const [expectedVersion, setExpectedVersion] = useState("0");
+  const [selectedSectionId, setSelectedSectionId] = useState("");
+  const [scheduleSectionId, setScheduleSectionId] = useState("");
+  const [scheduleError, setScheduleError] = useState("");
   const [meetingId, setMeetingId] = useState("");
   const [onlineUrl, setOnlineUrl] = useState("");
   const [instructions, setInstructions] = useState("");
   const masterDataEnabled = mode === "ADMIN" && view !== "changes";
-  const draftsEnabled =
-    mode === "APPROVAL" || (mode === "ADMIN" && view !== "mapping");
-  const changeRequestsEnabled = mode === "ADMIN" && view !== "mapping";
+  const scheduleCreationEnabled = mode === "ADMIN" && view === "overview";
 
   const sections = useQuery(
     orpc.scheduling.sections.list.queryOptions({ input: {} })
   );
-  const drafts = useQuery({
-    ...orpc.scheduling.drafts.list.queryOptions({ input: {} }),
-    enabled: draftsEnabled,
-  });
   const meetings = useQuery(orpc.scheduling.meetings.list.queryOptions());
-  const changeRequests = useQuery({
-    ...orpc.scheduling.changeRequests.list.queryOptions({
-      input: { status: "PENDING" },
-    }),
-    enabled: changeRequestsEnabled,
-  });
   const academicPeriods = useQuery({
     ...orpc.masterData.list.queryOptions({
       input: { entityType: "ACADEMIC_PERIOD", limit: 100, status: "ACTIVE" },
@@ -128,6 +111,18 @@ const SchedulingPage = ({
       input: { entityType: "STUDY_PROGRAM", limit: 100, status: "ACTIVE" },
     }),
     enabled: masterDataEnabled,
+  });
+  const rooms = useQuery({
+    ...orpc.masterData.list.queryOptions({
+      input: { entityType: "ROOM", limit: 100, status: "ACTIVE" },
+    }),
+    enabled: masterDataEnabled,
+  });
+  const lecturers = useQuery({
+    ...orpc.masterData.list.queryOptions({
+      input: { entityType: "LECTURER", limit: 100, status: "ACTIVE" },
+    }),
+    enabled: scheduleCreationEnabled,
   });
   const mapping = useMutation(
     orpc.scheduling.mapping.generate.mutationOptions({
@@ -148,27 +143,23 @@ const SchedulingPage = ({
       },
     })
   );
-  const decide = useMutation(
-    orpc.scheduling.drafts.decide.mutationOptions({
-      onError: (error) => toast.error(error.message),
-      onSuccess: () => {
-        toast.success("Keputusan persetujuan tersimpan.");
-        queryClient.invalidateQueries({
-          queryKey: orpc.scheduling.drafts.key(),
-        });
+  const createSchedule = useMutation(
+    orpc.scheduling.schedule.create.mutationOptions({
+      onError: (error) => {
+        setScheduleError(error.message);
+        toast.error(error.message);
       },
-    })
-  );
-  const publish = useMutation(
-    orpc.scheduling.drafts.publish.mutationOptions({
-      onError: (error) => toast.error(error.message),
-      onSuccess: () => {
-        toast.success("Jadwal diterbitkan dan notifikasi dikirim.");
-        queryClient.invalidateQueries({
-          queryKey: orpc.scheduling.drafts.key(),
-        });
+      onSuccess: (result) => {
+        setScheduleError("");
+        setScheduleSectionId("");
+        toast.success(
+          `Jadwal berhasil dibuat untuk ${result.meetingCount} pertemuan.`
+        );
         queryClient.invalidateQueries({
           queryKey: orpc.scheduling.meetings.key(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: orpc.scheduling.sections.key(),
         });
       },
     })
@@ -190,19 +181,19 @@ const SchedulingPage = ({
   const isPending =
     sections.isPending ||
     meetings.isPending ||
-    (draftsEnabled && drafts.isPending) ||
-    (changeRequestsEnabled && changeRequests.isPending) ||
     (masterDataEnabled &&
-      (academicPeriods.isPending || studyPrograms.isPending));
+      (academicPeriods.isPending ||
+        rooms.isPending ||
+        studyPrograms.isPending)) ||
+    (scheduleCreationEnabled && lecturers.isPending);
   const hasError =
     sections.isError ||
     meetings.isError ||
-    (draftsEnabled && drafts.isError) ||
-    (changeRequestsEnabled && changeRequests.isError) ||
-    (masterDataEnabled && (academicPeriods.isError || studyPrograms.isError));
+    (masterDataEnabled &&
+      (academicPeriods.isError || rooms.isError || studyPrograms.isError)) ||
+    (scheduleCreationEnabled && lecturers.isError);
   const viewCopy = schedulingViewCopy[view];
   const showMappingPanel = mode === "ADMIN" && view !== "changes";
-  const showChangesPanel = mode === "ADMIN" && view !== "mapping";
   const academicPeriodOptions: SearchableSelectOption[] = (
     academicPeriods.data?.data ?? []
   ).flatMap((period) => {
@@ -239,13 +230,70 @@ const SchedulingPage = ({
       value: meeting.id,
     })
   );
-  const draftOptions: SearchableSelectOption[] = (drafts.data ?? []).map(
-    (draft) => ({
-      description: `${statusLabels[draft.status]} · versi ${draft.version}`,
-      label: `Draf ${draft.id.slice(0, 8)}`,
-      value: draft.id,
-    })
+  const roomOptions: SearchableSelectOption[] = (
+    rooms.data?.data ?? []
+  ).flatMap((room) => {
+    const id = recordText(room, "id");
+    const code = recordText(room, "code");
+    const name = recordText(room, "name");
+    const capacity = recordText(room, "capacity");
+    if (!(id && (code || name))) {
+      return [];
+    }
+    return [
+      {
+        description: capacity ? `Kapasitas ${capacity}` : undefined,
+        label: [code, name].filter(Boolean).join(" · "),
+        value: id,
+      },
+    ];
+  });
+  const lecturerOptions: SearchableSelectOption[] = (
+    lecturers.data?.data ?? []
+  ).flatMap((lecturer) => {
+    const id = recordText(lecturer, "id");
+    const dsn = recordText(lecturer, "dsn");
+    const name = recordText(lecturer, "name");
+    if (!(id && (dsn || name))) {
+      return [];
+    }
+    return [
+      {
+        description: dsn || undefined,
+        label: name || dsn,
+        value: id,
+      },
+    ];
+  });
+  const selectedSection = (sections.data ?? []).find(
+    (section) => section.id === selectedSectionId
   );
+  const scheduleSection = (sections.data ?? []).find(
+    (section) => section.id === scheduleSectionId
+  );
+  const academicPeriodLabel = selectedSection
+    ? academicPeriodOptions.find(
+        (option) => option.value === selectedSection.academicPeriodId
+      )?.label
+    : undefined;
+  const handleCreateSchedule = (input: {
+    dayOfWeek: number;
+    endTime: string;
+    instructions?: string;
+    lecturerIds: string[];
+    modality: ScheduleModality;
+    roomId?: string;
+    startTime: string;
+  }) => {
+    if (!scheduleSection) {
+      return;
+    }
+    setScheduleError("");
+    createSchedule.mutate({
+      classSectionId: scheduleSection.id,
+      ...input,
+    });
+  };
 
   if (isPending) {
     return (
@@ -277,11 +325,11 @@ const SchedulingPage = ({
             <Button
               onClick={() => {
                 sections.refetch();
-                drafts.refetch();
                 meetings.refetch();
-                changeRequests.refetch();
                 academicPeriods.refetch();
+                rooms.refetch();
                 studyPrograms.refetch();
+                lecturers.refetch();
               }}
               variant="outline"
             >
@@ -417,78 +465,6 @@ const SchedulingPage = ({
         </Card>
       )}
 
-      {mode === "APPROVAL" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Persetujuan jadwal</CardTitle>
-            <CardDescription>
-              Approval dibatasi pada Prodi yang menjadi tanggung jawab Kaprodi.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            {(drafts.data ?? [])
-              .filter((draft) => draft.status === "SUBMITTED")
-              .map((draft) => (
-                <div
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4"
-                  key={draft.id}
-                >
-                  <div>
-                    <p className="font-semibold">
-                      Draft {draft.id.slice(0, 8)}
-                    </p>
-                    <p className="text-muted-foreground text-sm">
-                      {draft.conflicts.length} konflik · versi {draft.version}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      disabled={decide.isPending}
-                      onClick={() =>
-                        decide.mutate({
-                          approve: false,
-                          draftId: draft.id,
-                          expectedVersion: draft.version,
-                          reason:
-                            "Jadwal perlu diperbaiki sebelum diterbitkan.",
-                        })
-                      }
-                      variant="outline"
-                    >
-                      Tolak
-                    </Button>
-                    <Button
-                      disabled={
-                        decide.isPending ||
-                        draft.conflicts.some(
-                          (conflict) => conflict.severity === "BLOCKING"
-                        )
-                      }
-                      onClick={() =>
-                        decide.mutate({
-                          approve: true,
-                          draftId: draft.id,
-                          expectedVersion: draft.version,
-                        })
-                      }
-                    >
-                      Setujui
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            {(drafts.data ?? []).filter((draft) => draft.status === "SUBMITTED")
-              .length === 0 && (
-              <State
-                description="Belum ada draft yang menunggu keputusan."
-                title="Tidak ada pengajuan"
-                variant="not-found"
-              />
-            )}
-          </CardContent>
-        </Card>
-      )}
-
       <section
         aria-label="Ringkasan kelas dan jadwal"
         className="grid gap-4 lg:grid-cols-2"
@@ -515,9 +491,31 @@ const SchedulingPage = ({
                     {section.capacity} mahasiswa
                   </p>
                 </div>
-                <span className="rounded-full bg-[#e7f7ef] px-2.5 py-1 text-xs font-semibold text-[#137a4b]">
-                  {statusLabels[section.status]}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    aria-pressed={selectedSectionId === section.id}
+                    onClick={() => setSelectedSectionId(section.id)}
+                    size="sm"
+                    variant="outline"
+                  >
+                    Preview
+                  </Button>
+                  {mode === "ADMIN" && view === "overview" ? (
+                    <Button
+                      disabled={section.status === "PUBLISHED"}
+                      onClick={() => {
+                        setScheduleError("");
+                        setScheduleSectionId(section.id);
+                      }}
+                      size="sm"
+                    >
+                      <CalendarDays aria-hidden="true" /> Buat jadwal
+                    </Button>
+                  ) : null}
+                  <span className="rounded-full bg-[#e7f7ef] px-2.5 py-1 text-xs font-semibold text-[#137a4b]">
+                    {schedulingStatusLabels[section.status]}
+                  </span>
+                </div>
               </div>
             ))}
             {sections.data?.length === 0 && (
@@ -570,62 +568,43 @@ const SchedulingPage = ({
         </Card>
       </section>
 
-      {showChangesPanel && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Draft jadwal dan pengajuan perubahan</CardTitle>
-            <CardDescription>
-              Publikasikan hanya draft yang sudah disetujui dan tanpa konflik
-              penghambat.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            <div className="grid gap-3 md:grid-cols-3">
-              <SearchableSelect
-                id="scheduling-draft"
-                label="Draft jadwal"
-                onValueChange={setDraftId}
-                options={draftOptions}
-                placeholder="Cari draft jadwal"
-                status={getSelectStatus(drafts.isPending, drafts.isError)}
-                value={draftId}
-              />
-              <Input
-                aria-label="Versi draft"
-                min={0}
-                onChange={(event) => setExpectedVersion(event.target.value)}
-                type="number"
-                value={expectedVersion}
-              />
-              <Button
-                disabled={
-                  !draftOptions.some((option) => option.value === draftId) ||
-                  publish.isPending
-                }
-                onClick={() =>
-                  publish.mutate({
-                    draftId,
-                    expectedVersion: Number(expectedVersion),
-                  })
-                }
-              >
-                <CheckCircle2 aria-hidden="true" /> Terbitkan draft
-              </Button>
-            </div>
-            {(changeRequests.data ?? []).map((request) => (
-              <p className="text-muted-foreground text-sm" key={request.id}>
-                Pengajuan {request.classCode} · {request.reason}
-              </p>
-            ))}
-            {(drafts.data ?? []).map((draft) => (
-              <p className="text-muted-foreground text-sm" key={draft.id}>
-                Draf {draft.id.slice(0, 8)} · {statusLabels[draft.status]} ·
-                versi {draft.version}
-              </p>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      {selectedSection ? (
+        <ClassPreviewCard
+          academicPeriodLabel={academicPeriodLabel}
+          canCreateSchedule={
+            mode === "ADMIN" &&
+            view === "overview" &&
+            selectedSection.status !== "PUBLISHED"
+          }
+          onClose={() => setSelectedSectionId("")}
+          onCreateSchedule={() => {
+            setScheduleError("");
+            setSelectedSectionId("");
+            setScheduleSectionId(selectedSection.id);
+          }}
+          section={selectedSection}
+        />
+      ) : null}
+
+      {scheduleSection ? (
+        <ScheduleCreateDialog
+          errorMessage={scheduleError}
+          lecturerOptions={lecturerOptions}
+          lecturerStatus={getSelectStatus(
+            lecturers.isPending,
+            lecturers.isError
+          )}
+          onClose={() => {
+            setScheduleError("");
+            setScheduleSectionId("");
+          }}
+          onSubmit={handleCreateSchedule}
+          roomOptions={roomOptions}
+          roomStatus={getSelectStatus(rooms.isPending, rooms.isError)}
+          section={scheduleSection}
+          submitting={createSchedule.isPending}
+        />
+      ) : null}
 
       <p className="text-muted-foreground flex items-center gap-2 text-xs">
         <CalendarDays aria-hidden="true" className="size-3.5" /> Semua perubahan

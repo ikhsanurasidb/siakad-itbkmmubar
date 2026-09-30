@@ -61,6 +61,12 @@ describe("SIAKAD-06 scheduling rules", () => {
     ).toThrow(SchedulingDomainError);
   });
 
+  test("allows an approved draft to be published", () => {
+    expect(() =>
+      assertScheduleTransition("APPROVED", "PUBLISHED")
+    ).not.toThrow();
+  });
+
   test("requires usable online meeting details and an HTTPS URL", () => {
     expect(() =>
       assertOnlineMeetingChange({

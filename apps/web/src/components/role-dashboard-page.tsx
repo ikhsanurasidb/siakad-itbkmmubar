@@ -266,13 +266,13 @@ const roleDashboardConfigs: Record<RoleKey, RoleDashboardConfig> = {
   },
   KAPRODI: {
     description:
-      "Pantau mutu dan kesiapan akademik program studi, dari kurikulum hingga persetujuan jadwal.",
+      "Pantau mutu dan kesiapan akademik program studi, dari kurikulum hingga jadwal kuliah.",
     eyebrow: "Pusat kendali program studi",
     highlights: [
       {
-        description: "Tinjau dan setujui perubahan jadwal program studi.",
+        description: "Lihat kelas dan jadwal kuliah program studi.",
         icon: CalendarDays,
-        label: "Persetujuan terarah",
+        label: "Jadwal kuliah",
       },
       {
         description: "Pastikan struktur kurikulum tetap relevan dan lengkap.",
@@ -287,10 +287,10 @@ const roleDashboardConfigs: Record<RoleKey, RoleDashboardConfig> = {
     ],
     metrics: [
       {
-        description: "Perubahan jadwal yang membutuhkan tinjauan",
+        description: "Kelas kuliah dan jadwal program studi",
         icon: CalendarDays,
-        label: "Persetujuan jadwal",
-        value: "Tinjau sekarang",
+        label: "Kelas dan jadwal",
+        value: "Lihat sekarang",
       },
       {
         description: "Kurikulum dan komponen penilaian",
@@ -306,9 +306,9 @@ const roleDashboardConfigs: Record<RoleKey, RoleDashboardConfig> = {
       },
     ],
     primaryAction: {
-      description: "Tinjau perubahan jadwal yang diajukan.",
+      description: "Lihat kelas kuliah dan jadwal program studi.",
       icon: CalendarDays,
-      label: "Tinjau persetujuan jadwal",
+      label: "Buka kelas dan jadwal",
       to: "/kaprodi/jadwal/persetujuan",
     },
     quickActions: [

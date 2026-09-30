@@ -13,6 +13,7 @@ import {
 import type {
   ClassMeetingRecord,
   ScheduleConflictRecord,
+  ScheduleCreationResult,
   ScheduleDraftRecord,
   ScheduleDraftStatus,
   ScheduleSectionRecord,
@@ -60,7 +61,10 @@ import {
 } from "drizzle-orm";
 
 const DEFAULT_CLASS_CAPACITY = 30;
+const DIRECT_MEETING_CHUNK_SIZE = 8;
+const DIRECT_REVISION_CHUNK_SIZE = 5;
 const MEETINGS_PER_TERM = 16;
+const JAKARTA_OFFSET = "+07:00";
 const WEEK_IN_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 
 interface SchedulingActor {
@@ -129,6 +133,146 @@ const sectionSuffix = (index: number): string => {
 };
 
 const unique = (values: readonly string[]): string[] => [...new Set(values)];
+
+interface CalendarDateParts {
+  day: number;
+  month: number;
+  year: number;
+}
+
+const jakartaDateFormatter = new Intl.DateTimeFormat("en-CA", {
+  day: "2-digit",
+  month: "2-digit",
+  timeZone: "Asia/Jakarta",
+  year: "numeric",
+});
+
+const getJakartaDateParts = (value: Date): CalendarDateParts => {
+  const values = new Map(
+    jakartaDateFormatter
+      .formatToParts(value)
+      .map((part) => [part.type, part.value])
+  );
+  return {
+    day: Number(values.get("day")),
+    month: Number(values.get("month")),
+    year: Number(values.get("year")),
+  };
+};
+
+const addCalendarDays = (
+  date: CalendarDateParts,
+  days: number
+): CalendarDateParts => {
+  const value = new Date(Date.UTC(date.year, date.month - 1, date.day + days));
+  return {
+    day: value.getUTCDate(),
+    month: value.getUTCMonth() + 1,
+    year: value.getUTCFullYear(),
+  };
+};
+
+const toJakartaDate = (date: CalendarDateParts, time: string): Date =>
+  new Date(
+    `${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")}T${time}:00${JAKARTA_OFFSET}`
+  );
+
+const parseClockTime = (value: string, label: string): number => {
+  const match = /^(?<hour>\d{2}):(?<minute>\d{2})$/u.exec(value);
+  if (!match) {
+    throw new SchedulingDomainError(
+      "INVALID_TIME_RANGE",
+      `${label} harus menggunakan format HH:mm.`
+    );
+  }
+  const hour = Number(match.groups?.hour);
+  const minute = Number(match.groups?.minute);
+  if (hour > 23 || minute > 59) {
+    throw new SchedulingDomainError(
+      "INVALID_TIME_RANGE",
+      `${label} bukan waktu yang valid.`
+    );
+  }
+  return hour * 60 + minute;
+};
+
+const getFirstWeeklyWindow = ({
+  endTime,
+  periodStart,
+  startTime,
+  dayOfWeek,
+}: {
+  dayOfWeek: number;
+  endTime: string;
+  periodStart: Date;
+  startTime: string;
+}): { endAt: Date; startAt: Date } => {
+  const startMinutes = parseClockTime(startTime, "Jam mulai");
+  const endMinutes = parseClockTime(endTime, "Jam selesai");
+  if (endMinutes <= startMinutes) {
+    throw new SchedulingDomainError(
+      "INVALID_TIME_RANGE",
+      "Jam selesai harus setelah jam mulai pada hari yang sama."
+    );
+  }
+  const periodStartParts = getJakartaDateParts(periodStart);
+  const periodStartWeekday = new Date(
+    Date.UTC(
+      periodStartParts.year,
+      periodStartParts.month - 1,
+      periodStartParts.day
+    )
+  ).getUTCDay();
+  const normalizedPeriodWeekday = periodStartWeekday || 7;
+  let firstDate = addCalendarDays(
+    periodStartParts,
+    (dayOfWeek - normalizedPeriodWeekday + 7) % 7
+  );
+  let startAt = toJakartaDate(firstDate, startTime);
+  if (startAt < periodStart) {
+    firstDate = addCalendarDays(firstDate, 7);
+    startAt = toJakartaDate(firstDate, startTime);
+  }
+  return {
+    endAt: toJakartaDate(firstDate, endTime),
+    startAt,
+  };
+};
+
+const createWeeklyMeetings = ({
+  classSectionId,
+  firstWindow,
+  instructions,
+  modality,
+  roomId,
+}: {
+  classSectionId: string;
+  firstWindow: { endAt: Date; startAt: Date };
+  instructions: string | null;
+  modality: "OFFLINE" | "ONLINE";
+  roomId: string | null;
+}) =>
+  Array.from({ length: MEETINGS_PER_TERM }, (_, index) => {
+    const offset = index * WEEK_IN_MILLISECONDS;
+    return {
+      classSectionId,
+      endAt: new Date(firstWindow.endAt.getTime() + offset),
+      id: createUuidV7(),
+      instructions,
+      modality,
+      roomId,
+      sequence: index + 1,
+      startAt: new Date(firstWindow.startAt.getTime() + offset),
+    };
+  });
+
+const chunkItems = <T>(items: readonly T[], size: number): T[][] => {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+};
 
 export const createSchedulingService = ({
   database,
@@ -925,6 +1069,7 @@ export const createSchedulingService = ({
         return true;
       })
       .map(({ course, section }) => ({
+        academicPeriodId: section.academicPeriodId,
         capacity: section.capacity,
         code: section.code,
         courseCode: course.code,
@@ -937,6 +1082,440 @@ export const createSchedulingService = ({
         status: section.status as ScheduleSectionRecord["status"],
         studyProgramId: section.studyProgramId,
       }));
+  };
+
+  // eslint-disable-next-line complexity -- direct scheduling validates all resources before one atomic write.
+  const createSchedule: SchedulingService["createSchedule"] = async ({
+    actorRoles,
+    actorUserId,
+    classSectionId,
+    dayOfWeek,
+    endTime,
+    instructions,
+    lecturerIds,
+    modality,
+    roomId,
+    startTime,
+  }): Promise<ScheduleCreationResult> => {
+    requireAcademicManager(actorRoles);
+    if (!Number.isInteger(dayOfWeek) || dayOfWeek < 1 || dayOfWeek > 7) {
+      throw new SchedulingDomainError(
+        "INVALID_DAY_OF_WEEK",
+        "Hari jadwal harus berada antara Senin dan Minggu."
+      );
+    }
+    const normalizedLecturerIds = unique(lecturerIds);
+    if (
+      normalizedLecturerIds.length < 1 ||
+      normalizedLecturerIds.length > 2 ||
+      normalizedLecturerIds.length !== lecturerIds.length
+    ) {
+      throw new SchedulingDomainError(
+        "INVALID_LECTURER_ASSIGNMENTS",
+        "Pilih satu atau dua dosen pengampu yang berbeda."
+      );
+    }
+    const [sectionRow] = await database
+      .select({
+        course: courses,
+        period: academicPeriods,
+        section: classSections,
+      })
+      .from(classSections)
+      .innerJoin(courses, eq(courses.id, classSections.courseId))
+      .innerJoin(
+        academicPeriods,
+        eq(academicPeriods.id, classSections.academicPeriodId)
+      )
+      .where(eq(classSections.id, classSectionId))
+      .limit(1);
+    if (!sectionRow) {
+      throw new SchedulingDomainError(
+        "CLASS_SECTION_NOT_FOUND",
+        "Kelas kuliah tidak ditemukan."
+      );
+    }
+    if (sectionRow.period.status !== "ACTIVE") {
+      throw new SchedulingDomainError(
+        "ACADEMIC_PERIOD_NOT_ACTIVE",
+        "Jadwal hanya dapat dibuat pada periode akademik yang aktif."
+      );
+    }
+    if (sectionRow.section.status === "PUBLISHED") {
+      throw new SchedulingDomainError(
+        "CLASS_ALREADY_PUBLISHED",
+        "Kelas kuliah ini sudah memiliki jadwal yang diterbitkan."
+      );
+    }
+    const firstWindow = getFirstWeeklyWindow({
+      dayOfWeek,
+      endTime,
+      periodStart: sectionRow.period.startDate,
+      startTime,
+    });
+    const meetingValues = createWeeklyMeetings({
+      classSectionId,
+      firstWindow,
+      instructions: instructions?.trim() || null,
+      modality,
+      roomId: modality === "OFFLINE" ? (roomId ?? null) : null,
+    });
+    const lastMeeting = meetingValues.at(-1);
+    if (
+      !lastMeeting ||
+      firstWindow.startAt < sectionRow.period.startDate ||
+      lastMeeting.endAt > sectionRow.period.endDate
+    ) {
+      throw new SchedulingDomainError(
+        "SCHEDULE_OUTSIDE_PERIOD",
+        "Rentang 16 pertemuan harus berada di dalam periode akademik."
+      );
+    }
+    if (modality === "OFFLINE" && !roomId) {
+      throw new SchedulingDomainError(
+        "ROOM_REQUIRED",
+        "Jadwal luring memerlukan ruang."
+      );
+    }
+    if (modality === "ONLINE" && roomId) {
+      throw new SchedulingDomainError(
+        "ROOM_NOT_ALLOWED",
+        "Jadwal daring tidak boleh menggunakan ruang luring."
+      );
+    }
+    const [
+      lecturerRows,
+      roomRows,
+      enrollmentRows,
+      existingSectionMeetings,
+      existingSectionSlots,
+    ] = await Promise.all([
+      database
+        .select()
+        .from(lecturers)
+        .where(inArray(lecturers.id, normalizedLecturerIds)),
+      roomId
+        ? database.select().from(rooms).where(eq(rooms.id, roomId)).limit(1)
+        : Promise.resolve([]),
+      database
+        .select({ studentId: classEnrollments.studentId })
+        .from(classEnrollments)
+        .where(eq(classEnrollments.classSectionId, classSectionId)),
+      database
+        .select({ id: classMeetings.id })
+        .from(classMeetings)
+        .where(eq(classMeetings.classSectionId, classSectionId))
+        .limit(1),
+      database
+        .select({ id: scheduleSlots.id })
+        .from(scheduleSlots)
+        .innerJoin(
+          scheduleDrafts,
+          eq(scheduleDrafts.id, scheduleSlots.scheduleDraftId)
+        )
+        .where(
+          and(
+            eq(scheduleSlots.classSectionId, classSectionId),
+            inArray(scheduleDrafts.status, [
+              "DRAFT",
+              "SUBMITTED",
+              "APPROVED",
+              "PUBLISHED",
+            ])
+          )
+        )
+        .limit(1),
+    ]);
+    if (lecturerRows.length !== normalizedLecturerIds.length) {
+      throw new SchedulingDomainError(
+        "LECTURER_NOT_FOUND",
+        "Salah satu dosen pengampu tidak ditemukan."
+      );
+    }
+    if (
+      lecturerRows.some(
+        (lecturer) =>
+          lecturer.status !== "ACTIVE" || lecturer.academicStatus !== "ACTIVE"
+      )
+    ) {
+      throw new SchedulingDomainError(
+        "INACTIVE_LECTURER",
+        "Semua dosen pengampu harus berstatus aktif."
+      );
+    }
+    const [room] = roomRows;
+    if (modality === "OFFLINE") {
+      if (!room || room.status !== "ACTIVE") {
+        throw new SchedulingDomainError(
+          "INACTIVE_ROOM",
+          "Ruang yang dipilih tidak ditemukan atau tidak aktif."
+        );
+      }
+      if (room.capacity < enrollmentRows.length) {
+        throw new SchedulingDomainError(
+          "ROOM_CAPACITY",
+          `Kapasitas ruang ${room.capacity} kurang dari ${enrollmentRows.length} mahasiswa.`
+        );
+      }
+    }
+    if (existingSectionMeetings.length || existingSectionSlots.length) {
+      throw new SchedulingDomainError(
+        "CLASS_ALREADY_SCHEDULED",
+        "Kelas kuliah ini sudah memiliki jadwal atau draft jadwal."
+      );
+    }
+
+    const [firstMeeting] = meetingValues;
+    const firstStartAt = firstMeeting?.startAt;
+    const lastEndAt = lastMeeting.endAt;
+    if (!firstStartAt) {
+      throw new SchedulingDomainError(
+        "SCHEDULE_UNAVAILABLE",
+        "Jadwal pertemuan belum dapat dibentuk."
+      );
+    }
+    const [
+      existingMeetings,
+      existingLecturerMeetings,
+      existingStudentMeetings,
+      existingExamSchedules,
+    ] = await Promise.all([
+      database
+        .select({
+          courseName: courses.name,
+          meeting: classMeetings,
+          section: classSections,
+        })
+        .from(classMeetings)
+        .innerJoin(
+          classSections,
+          eq(classSections.id, classMeetings.classSectionId)
+        )
+        .innerJoin(courses, eq(courses.id, classSections.courseId))
+        .where(
+          and(
+            lte(classMeetings.startAt, lastEndAt),
+            gt(classMeetings.endAt, firstStartAt)
+          )
+        ),
+      database
+        .select({
+          courseName: courses.name,
+          lecturerId: teachingAssignments.lecturerId,
+          meeting: classMeetings,
+          section: classSections,
+        })
+        .from(teachingAssignments)
+        .innerJoin(
+          classMeetings,
+          eq(classMeetings.classSectionId, teachingAssignments.classSectionId)
+        )
+        .innerJoin(
+          classSections,
+          eq(classSections.id, classMeetings.classSectionId)
+        )
+        .innerJoin(courses, eq(courses.id, classSections.courseId))
+        .where(
+          and(
+            inArray(teachingAssignments.lecturerId, normalizedLecturerIds),
+            lte(classMeetings.startAt, lastEndAt),
+            gt(classMeetings.endAt, firstStartAt)
+          )
+        ),
+      enrollmentRows.length
+        ? database
+            .select({
+              courseName: courses.name,
+              meeting: classMeetings,
+              section: classSections,
+              studentId: classEnrollments.studentId,
+            })
+            .from(classEnrollments)
+            .innerJoin(
+              classMeetings,
+              eq(classMeetings.classSectionId, classEnrollments.classSectionId)
+            )
+            .innerJoin(
+              classSections,
+              eq(classSections.id, classMeetings.classSectionId)
+            )
+            .innerJoin(courses, eq(courses.id, classSections.courseId))
+            .where(
+              and(
+                inArray(
+                  classEnrollments.studentId,
+                  enrollmentRows.map((row) => row.studentId)
+                ),
+                lte(classMeetings.startAt, lastEndAt),
+                gt(classMeetings.endAt, firstStartAt)
+              )
+            )
+        : Promise.resolve([]),
+      roomId
+        ? database
+            .select()
+            .from(examSchedules)
+            .where(
+              and(
+                eq(examSchedules.roomId, roomId),
+                lte(examSchedules.startAt, lastEndAt),
+                gt(examSchedules.endAt, firstStartAt)
+              )
+            )
+        : Promise.resolve([]),
+    ]);
+    const hasOverlap = (meeting: { endAt: Date; startAt: Date }): boolean =>
+      meetingValues.some((candidate) =>
+        timeRangesOverlap(
+          candidate.startAt,
+          candidate.endAt,
+          meeting.startAt,
+          meeting.endAt
+        )
+      );
+    const roomConflict = existingMeetings.find(
+      (row) => row.meeting.roomId === roomId && hasOverlap(row.meeting)
+    );
+    if (roomConflict) {
+      throw new SchedulingDomainError(
+        "ROOM_SCHEDULE_CONFLICT",
+        `Ruang bentrok dengan ${roomConflict.courseName} kelas ${roomConflict.section.code}.`
+      );
+    }
+    const lecturerConflict = existingLecturerMeetings.find((row) =>
+      hasOverlap(row.meeting)
+    );
+    if (lecturerConflict) {
+      throw new SchedulingDomainError(
+        "LECTURER_SCHEDULE_CONFLICT",
+        `Dosen pengampu bentrok dengan ${lecturerConflict.courseName} kelas ${lecturerConflict.section.code}.`
+      );
+    }
+    const studentConflict = existingStudentMeetings.find((row) =>
+      hasOverlap(row.meeting)
+    );
+    if (studentConflict) {
+      throw new SchedulingDomainError(
+        "STUDENT_SCHEDULE_CONFLICT",
+        `Sebagian mahasiswa sudah memiliki jadwal pada ${studentConflict.courseName} kelas ${studentConflict.section.code}.`
+      );
+    }
+    if (existingExamSchedules.some((exam) => hasOverlap(exam))) {
+      throw new SchedulingDomainError(
+        "EXAM_SCHEDULE_CONFLICT",
+        "Ruang bentrok dengan jadwal ujian pada rentang waktu tersebut."
+      );
+    }
+
+    const currentTime = now();
+    const draftId = createUuidV7();
+    const slotId = createUuidV7();
+    const assignmentRows = normalizedLecturerIds.map((lecturerId, index) => ({
+      classSectionId,
+      createdAt: currentTime,
+      id: createUuidV7(),
+      isPrimary: index === 0,
+      lecturerId,
+    }));
+    const revisionRows = meetingValues.map((meeting) => ({
+      changeRequestId: null,
+      changedBy: actorUserId,
+      createdAt: currentTime,
+      effectiveFrom: currentTime,
+      effectiveUntil: null,
+      endAt: meeting.endAt,
+      id: createUuidV7(),
+      instructions: meeting.instructions,
+      meetingId: meeting.id,
+      modality: meeting.modality,
+      onlineUrl: null,
+      reason: "Jadwal awal dibuat langsung dari kelas kuliah.",
+      roomId: meeting.roomId,
+      startAt: meeting.startAt,
+      version: 1,
+    }));
+    const statements = [
+      database
+        .delete(teachingAssignments)
+        .where(eq(teachingAssignments.classSectionId, classSectionId)),
+      database.insert(teachingAssignments).values(assignmentRows),
+      database.insert(scheduleDrafts).values({
+        academicPeriodId: sectionRow.section.academicPeriodId,
+        approvedAt: currentTime,
+        approvedBy: actorUserId,
+        createdAt: currentTime,
+        createdBy: actorUserId,
+        id: draftId,
+        publishedAt: currentTime,
+        publishedBy: actorUserId,
+        rejectionReason: null,
+        status: "PUBLISHED",
+        studyProgramId: sectionRow.section.studyProgramId,
+        submittedAt: currentTime,
+        submittedBy: actorUserId,
+        updatedAt: currentTime,
+        version: 1,
+      }),
+      database.insert(scheduleSlots).values({
+        classSectionId,
+        createdAt: currentTime,
+        endAt: firstWindow.endAt,
+        id: slotId,
+        instructions: instructions?.trim() || null,
+        modality,
+        onlineUrl: null,
+        roomId: modality === "OFFLINE" ? (roomId ?? null) : null,
+        scheduleDraftId: draftId,
+        startAt: firstWindow.startAt,
+        updatedAt: currentTime,
+      }),
+      ...chunkItems(meetingValues, DIRECT_MEETING_CHUNK_SIZE).map((rows) =>
+        database.insert(classMeetings).values(rows)
+      ),
+      ...chunkItems(revisionRows, DIRECT_REVISION_CHUNK_SIZE).map((rows) =>
+        database.insert(scheduleRevisions).values(rows)
+      ),
+      database
+        .update(classSections)
+        .set({
+          status: "PUBLISHED",
+          updatedAt: currentTime,
+          version: sectionRow.section.version + 1,
+        })
+        .where(eq(classSections.id, classSectionId)),
+      database.insert(auditLogs).values({
+        action: "CREATE",
+        actorUserId,
+        afterState: JSON.stringify({
+          dayOfWeek,
+          endTime,
+          lecturerIds: normalizedLecturerIds,
+          modality,
+          roomId: roomId ?? null,
+          startTime,
+          status: "PUBLISHED",
+        }),
+        beforeState: JSON.stringify({ status: sectionRow.section.status }),
+        createdAt: currentTime,
+        entityId: classSectionId,
+        entityType: "CLASS_SCHEDULE",
+        id: createUuidV7(),
+        metadata: JSON.stringify({ draftId }),
+        requestId: null,
+      }),
+    ];
+    // All schedule state changes are in one D1 batch. Validation above performs no writes.
+    await database.batch(
+      statements as unknown as Parameters<Database["batch"]>[0]
+    );
+    await notifyClassParticipants({
+      body: "Jadwal kelas telah dibuat. Periksa rincian waktu dan ruang terbaru.",
+      classSectionId,
+      route: "/mahasiswa/jadwal",
+      title: "Jadwal kelas dibuat",
+      type: "SCHEDULE_PUBLISHED",
+    });
+    return { meetingCount: meetingValues.length, status: "PUBLISHED" };
   };
 
   const createDraft: SchedulingService["createDraft"] = async ({
@@ -1210,6 +1789,13 @@ export const createSchedulingService = ({
     requireAcademicManager(actorRoles);
     const draft = await ensureDraftScope({ actorRoles, actorUserId }, draftId);
     assertScheduleTransition(asDraftStatus(draft.status), "PUBLISHED");
+    const conflictCount = await refreshConflicts(draft);
+    if (conflictCount > 0) {
+      throw new SchedulingDomainError(
+        "BLOCKING_CONFLICTS",
+        "Jadwal memiliki konflik baru dan belum dapat diterbitkan. Muat ulang draft untuk melihat detailnya."
+      );
+    }
     const slots = await database
       .select()
       .from(scheduleSlots)
@@ -1757,6 +2343,7 @@ export const createSchedulingService = ({
 
   return {
     createDraft,
+    createSchedule,
     decideDraft,
     decideOfflineChange,
     detailDraft,
