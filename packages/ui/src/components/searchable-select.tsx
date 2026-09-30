@@ -116,7 +116,10 @@ const SearchableSelect = ({
           option?.value ?? ""
         }
         items={options}
-        onInputValueChange={(inputValue) => {
+        onInputValueChange={(inputValue, eventDetails) => {
+          if (eventDetails.reason !== "input-change") {
+            return;
+          }
           if (
             (selectedOption && inputValue !== selectedOption.label) ||
             (!selectedOption && inputValue)
