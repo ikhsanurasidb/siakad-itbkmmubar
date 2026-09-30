@@ -321,6 +321,7 @@ export const ScheduleCreateDialog = ({
               label="Ruang"
               onValueChange={setRoomId}
               options={roomOptions}
+              portalContainer={dialogRef}
               placeholder="Pilih ruang"
               status={roomStatus}
               value={roomId}
@@ -343,6 +344,7 @@ export const ScheduleCreateDialog = ({
               }
             }}
             options={lecturerOptions}
+            portalContainer={dialogRef}
             placeholder="Pilih dosen pengampu"
             status={lecturerStatus}
             value={lecturerId}
@@ -353,6 +355,7 @@ export const ScheduleCreateDialog = ({
             onValueChange={setSecondLecturerId}
             options={secondaryLecturerOptions}
             optional
+            portalContainer={dialogRef}
             placeholder="Pilih dosen kedua (opsional)"
             status={lecturerStatus}
             value={secondLecturerId}

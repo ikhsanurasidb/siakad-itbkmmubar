@@ -2,7 +2,7 @@ import { Combobox } from "@base-ui/react/combobox";
 import { FormField } from "@siakad-itbkmmubar/ui/components/form-field";
 import { cn } from "@siakad-itbkmmubar/ui/lib/utils";
 import { Check, ChevronDown, CircleAlert, LoaderCircle, X } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 
 export interface SearchableSelectOption {
   description?: string;
@@ -22,10 +22,17 @@ interface SearchableSelectProps {
   onValueChange: (value: string) => void;
   options: readonly SearchableSelectOption[];
   optional?: boolean;
+  portalContainer?:
+    | HTMLElement
+    | RefObject<HTMLElement | ShadowRoot | null>
+    | ShadowRoot
+    | null;
   placeholder?: string;
   status?: SearchableSelectStatus;
   value: string;
 }
+
+const MAX_VISIBLE_OPTIONS = 4;
 
 const inputClassName =
   "border-input text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 disabled:bg-input/50 h-11 w-full min-w-0 rounded-xl border bg-transparent py-2 pr-20 pl-3.5 text-sm transition-colors outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50";
@@ -82,6 +89,7 @@ const SearchableSelect = ({
   onValueChange,
   options,
   optional = false,
+  portalContainer,
   placeholder = "Ketik untuk mencari…",
   status = "ready",
   value,
@@ -160,7 +168,7 @@ const SearchableSelect = ({
             <ChevronDown aria-hidden="true" className="size-4" />
           </Combobox.Trigger>
         </div>
-        <Combobox.Portal>
+        <Combobox.Portal container={portalContainer}>
           <Combobox.Positioner sideOffset={4}>
             <Combobox.Popup className="bg-popover text-popover-foreground z-50 max-h-72 min-w-[var(--anchor-width)] overflow-hidden rounded-xl border p-1 shadow-lg">
               <Combobox.Status className="text-muted-foreground px-3 py-2 text-sm">
@@ -168,26 +176,28 @@ const SearchableSelect = ({
               </Combobox.Status>
               {status === "ready" && options.length > 0 ? (
                 <Combobox.List className="max-h-64 overflow-y-auto">
-                  {(option: SearchableSelectOption, index: number) => (
-                    <Combobox.Item
-                      className="data-highlighted:bg-accent data-highlighted:text-accent-foreground relative flex cursor-default items-start gap-2 rounded-lg px-3 py-2 text-sm outline-none"
-                      index={index}
-                      key={option.value}
-                      value={option}
-                    >
-                      <span className="grid min-w-0 flex-1 gap-0.5">
-                        <span className="truncate">{option.label}</span>
-                        {option.description ? (
-                          <span className="text-muted-foreground truncate text-xs">
-                            {option.description}
-                          </span>
-                        ) : null}
-                      </span>
-                      <Combobox.ItemIndicator className="text-primary mt-0.5">
-                        <Check aria-hidden="true" className="size-4" />
-                      </Combobox.ItemIndicator>
-                    </Combobox.Item>
-                  )}
+                  {(option: SearchableSelectOption, index: number) =>
+                    index < MAX_VISIBLE_OPTIONS ? (
+                      <Combobox.Item
+                        className="data-highlighted:bg-accent data-highlighted:text-accent-foreground relative flex cursor-default items-start gap-2 rounded-lg px-3 py-2 text-sm outline-none"
+                        index={index}
+                        key={option.value}
+                        value={option}
+                      >
+                        <span className="grid min-w-0 flex-1 gap-0.5">
+                          <span className="truncate">{option.label}</span>
+                          {option.description ? (
+                            <span className="text-muted-foreground truncate text-xs">
+                              {option.description}
+                            </span>
+                          ) : null}
+                        </span>
+                        <Combobox.ItemIndicator className="text-primary mt-0.5">
+                          <Check aria-hidden="true" className="size-4" />
+                        </Combobox.ItemIndicator>
+                      </Combobox.Item>
+                    ) : null
+                  }
                 </Combobox.List>
               ) : null}
               {status === "ready" && options.length === 0 ? (
