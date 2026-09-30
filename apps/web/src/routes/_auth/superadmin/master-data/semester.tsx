@@ -5,7 +5,7 @@ import MasterDataPage from "@/components/master-data-page";
 const Page = () => (
   <MasterDataPage
     description="Kelola tahun akademik, periode, dan statusnya."
-    entityType="ACADEMIC_YEAR"
+    entityType="ACADEMIC_PERIOD"
     title="Periode akademik"
   />
 );
