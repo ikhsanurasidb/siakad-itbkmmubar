@@ -19,6 +19,11 @@ import type {
   ScheduleSectionRecord,
 } from "@api/scheduling";
 import type { SchedulingPolicy } from "@api/settings";
+import {
+  assertValidTimeZone,
+  getDatePartsInTimeZone,
+  parseLocalDateTime,
+} from "@api/time-zone";
 import type { Database } from "@db/index";
 import { courseAssessmentDefaults } from "@db/schema/curriculum";
 import { classGradeComponents } from "@db/schema/grades";
@@ -64,7 +69,6 @@ const DEFAULT_CLASS_CAPACITY = 30;
 const DIRECT_MEETING_CHUNK_SIZE = 8;
 const DIRECT_REVISION_CHUNK_SIZE = 5;
 const MEETINGS_PER_TERM = 16;
-const JAKARTA_OFFSET = "+07:00";
 const WEEK_IN_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 
 interface SchedulingActor {
@@ -140,26 +144,6 @@ interface CalendarDateParts {
   year: number;
 }
 
-const jakartaDateFormatter = new Intl.DateTimeFormat("en-CA", {
-  day: "2-digit",
-  month: "2-digit",
-  timeZone: "Asia/Jakarta",
-  year: "numeric",
-});
-
-const getJakartaDateParts = (value: Date): CalendarDateParts => {
-  const values = new Map(
-    jakartaDateFormatter
-      .formatToParts(value)
-      .map((part) => [part.type, part.value])
-  );
-  return {
-    day: Number(values.get("day")),
-    month: Number(values.get("month")),
-    year: Number(values.get("year")),
-  };
-};
-
 const addCalendarDays = (
   date: CalendarDateParts,
   days: number
@@ -172,9 +156,14 @@ const addCalendarDays = (
   };
 };
 
-const toJakartaDate = (date: CalendarDateParts, time: string): Date =>
-  new Date(
-    `${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")}T${time}:00${JAKARTA_OFFSET}`
+const toLocalDate = (
+  date: CalendarDateParts,
+  time: string,
+  timeZone: string
+): Date =>
+  parseLocalDateTime(
+    `${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")}T${time}:00`,
+    timeZone
   );
 
 const parseClockTime = (value: string, label: string): number => {
@@ -201,11 +190,13 @@ const getFirstWeeklyWindow = ({
   periodStart,
   startTime,
   dayOfWeek,
+  timeZone,
 }: {
   dayOfWeek: number;
   endTime: string;
   periodStart: Date;
   startTime: string;
+  timeZone: string;
 }): { endAt: Date; startAt: Date } => {
   const startMinutes = parseClockTime(startTime, "Jam mulai");
   const endMinutes = parseClockTime(endTime, "Jam selesai");
@@ -215,7 +206,7 @@ const getFirstWeeklyWindow = ({
       "Jam selesai harus setelah jam mulai pada hari yang sama."
     );
   }
-  const periodStartParts = getJakartaDateParts(periodStart);
+  const periodStartParts = getDatePartsInTimeZone(periodStart, timeZone);
   const periodStartWeekday = new Date(
     Date.UTC(
       periodStartParts.year,
@@ -228,13 +219,13 @@ const getFirstWeeklyWindow = ({
     periodStartParts,
     (dayOfWeek - normalizedPeriodWeekday + 7) % 7
   );
-  let startAt = toJakartaDate(firstDate, startTime);
+  let startAt = toLocalDate(firstDate, startTime, timeZone);
   if (startAt < periodStart) {
     firstDate = addCalendarDays(firstDate, 7);
-    startAt = toJakartaDate(firstDate, startTime);
+    startAt = toLocalDate(firstDate, startTime, timeZone);
   }
   return {
-    endAt: toJakartaDate(firstDate, endTime),
+    endAt: toLocalDate(firstDate, endTime, timeZone),
     startAt,
   };
 };
@@ -278,11 +269,14 @@ export const createSchedulingService = ({
   database,
   getSchedulingPolicy,
   now = () => new Date(),
+  timeZone,
 }: {
   database: Database;
   getSchedulingPolicy: () => Promise<SchedulingPolicy>;
   now?: () => Date;
+  timeZone: string;
 }): SchedulingService => {
+  assertValidTimeZone(timeZone);
   const getManagedProgramIds = async (
     actor: SchedulingActor
   ): Promise<string[] | null> => {
@@ -1152,6 +1146,7 @@ export const createSchedulingService = ({
       endTime,
       periodStart: sectionRow.period.startDate,
       startTime,
+      timeZone,
     });
     const meetingValues = createWeeklyMeetings({
       classSectionId,
@@ -2031,7 +2026,7 @@ export const createSchedulingService = ({
         row.meeting.startAt,
         now(),
         { leadDays: row.section.policyLeadDays },
-        "Asia/Jakarta"
+        timeZone
       )
     ) {
       throw new SchedulingDomainError(
@@ -2118,7 +2113,7 @@ export const createSchedulingService = ({
           row.meeting.startAt,
           now(),
           { leadDays: row.section.policyLeadDays },
-          "Asia/Jakarta"
+          timeZone
         )
       ) {
         throw new SchedulingDomainError(
@@ -2250,7 +2245,7 @@ export const createSchedulingService = ({
         row.meeting.startAt,
         now(),
         { leadDays: row.section.policyLeadDays },
-        "Asia/Jakarta"
+        timeZone
       )
     ) {
       throw new SchedulingDomainError(

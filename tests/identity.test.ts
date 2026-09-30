@@ -8,7 +8,7 @@ import {
   assertResetPasswordPermission,
   assertRoleConflictFree,
   formatInstitutionalIdentifier,
-  getJakartaDate,
+  getDateInTimeZone,
   normalizeIdentifier,
   normalizePhoneNumber,
   previewIdentifierAllocations,
@@ -23,10 +23,10 @@ describe("SIAKAD-01 identity rules", () => {
     );
   });
 
-  test("uses Asia/Jakarta date for the provisioning identifier", () => {
-    expect(getJakartaDate(new Date("2026-09-27T17:30:00.000Z"))).toBe(
-      "20260928"
-    );
+  test("uses the configured timezone for the provisioning identifier", () => {
+    expect(
+      getDateInTimeZone(new Date("2026-09-27T17:30:00.000Z"), "Asia/Jakarta")
+    ).toBe("20260928");
     expect(formatInstitutionalIdentifier("dsn", "20260928", 1)).toBe(
       "DSN20260928001"
     );

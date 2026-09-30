@@ -38,6 +38,7 @@ export const createIdentityService = async (database?: Database) => {
   return createConfiguredIdentityService({
     auth: await createAuth(db),
     database: db,
+    timeZone: ENV.BUSINESS_TIME_ZONE,
   });
 };
 
@@ -74,6 +75,7 @@ export const createSchedulingService = async (database?: Database) => {
   return createConfiguredSchedulingService({
     database: db,
     getSchedulingPolicy: () => settingsService.getSchedulingPolicy(),
+    timeZone: ENV.BUSINESS_TIME_ZONE,
   });
 };
 
@@ -121,5 +123,6 @@ export const seedData = async (
     database,
     input,
     now: new Date(),
+    timeZone: ENV.BUSINESS_TIME_ZONE,
   });
 };

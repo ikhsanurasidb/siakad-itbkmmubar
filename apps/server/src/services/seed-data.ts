@@ -1,6 +1,7 @@
 /* eslint-disable complexity, no-await-in-loop, no-nested-ternary, no-shadow, prefer-destructuring */
 
 import { seedSuperadmin } from "@server/services/bootstrap";
+import { parseLocalDateTime } from "@siakad-itbkmmubar/api/time-zone";
 import type { createAuth as createConfiguredAuth } from "@siakad-itbkmmubar/auth";
 import type { Database } from "@siakad-itbkmmubar/db";
 import {
@@ -104,7 +105,6 @@ import { and, eq } from "drizzle-orm";
 const MINIMUM_PASSWORD_LENGTH = 16;
 const SEED_PREFIX = "seed-2026-";
 const CURRENT_PERIOD_ID = `${SEED_PREFIX}period-2026-2027-odd`;
-const JAKARTA_OFFSET = "+07:00";
 
 export class DataSeedError extends Error {
   constructor(message: string) {
@@ -133,8 +133,6 @@ const chunks = <T>(items: readonly T[], size: number): T[][] => {
   }
   return result;
 };
-
-const at = (value: string): Date => new Date(`${value}${JAKARTA_OFFSET}`);
 
 const plusDays = (date: Date, days: number): Date => {
   const result = new Date(date);
@@ -515,17 +513,21 @@ export const seedData = async ({
   database,
   input,
   now = new Date(),
+  timeZone,
 }: {
   auth: ReturnType<typeof createConfiguredAuth>;
   database: Database;
   input: SeedDataInput;
   now?: Date;
+  timeZone: string;
 }): Promise<SeedDataResult> => {
   if (input.password.length < MINIMUM_PASSWORD_LENGTH) {
     throw new DataSeedError(
       `Password seed minimal ${MINIMUM_PASSWORD_LENGTH} karakter.`
     );
   }
+
+  const at = (value: string): Date => parseLocalDateTime(value, timeZone);
 
   let [superadmin] = await database
     .select({

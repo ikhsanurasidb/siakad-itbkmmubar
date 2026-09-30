@@ -1,4 +1,5 @@
 import { ApiError } from "@api/errors";
+import { getDatePartsInTimeZone } from "@api/time-zone";
 import { roleKeys as catalogRoleKeys } from "@siakad-itbkmmubar/db/schema/identity";
 
 export const identityTypes = [
@@ -16,8 +17,6 @@ export const PASSWORD_MINIMUM_LENGTH = 16;
 export const DEFAULT_TEMPORARY_PASSWORD_TTL_MS = 60 * 60 * 24 * 7 * 1000;
 export const DEFAULT_EMAIL_CHANGE_TTL_MS = 60 * 60 * 24 * 1000;
 export const IDENTIFIER_SEQUENCE_MAX = 999;
-export const JAKARTA_TIME_ZONE = "Asia/Jakarta";
-
 export type IdentityType =
   | "MAHASISWA"
   | "DOSEN"
@@ -77,19 +76,9 @@ export const normalizePhoneNumber = (value: string): string => {
   return normalized;
 };
 
-export const getJakartaDate = (date: Date): string => {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    day: "2-digit",
-    month: "2-digit",
-    timeZone: JAKARTA_TIME_ZONE,
-    year: "numeric",
-  }).formatToParts(date);
-  const values = Object.fromEntries(
-    parts
-      .filter((part) => part.type !== "literal")
-      .map((part) => [part.type, part.value])
-  );
-  return `${values.year ?? "0000"}${values.month ?? "00"}${values.day ?? "00"}`;
+export const getDateInTimeZone = (date: Date, timeZone: string): string => {
+  const { day, month, year } = getDatePartsInTimeZone(date, timeZone);
+  return `${year}${String(month).padStart(2, "0")}${String(day).padStart(2, "0")}`;
 };
 
 export const formatInstitutionalIdentifier = (

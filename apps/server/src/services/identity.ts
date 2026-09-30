@@ -8,7 +8,7 @@ import {
   assertRoleConflictFree,
   assertResetPasswordPermission,
   formatInstitutionalIdentifier,
-  getJakartaDate,
+  getDateInTimeZone,
   normalizeIdentifier,
   normalizePhoneNumber,
   previewIdentifierAllocations,
@@ -77,12 +77,14 @@ const reserveGeneratedIdentifier = async ({
   masterRecordId,
   now,
   prefix,
+  timeZone,
 }: {
   database: Database;
   idempotencyKey: string;
   masterRecordId: string;
   now: Date;
   prefix: string;
+  timeZone: string;
 }): Promise<{ identifier: string; reservationId: string }> => {
   const existingReservation = await findReservation(database, masterRecordId);
   if (existingReservation) {
@@ -98,7 +100,7 @@ const reserveGeneratedIdentifier = async ({
     };
   }
 
-  const sequenceDate = getJakartaDate(now);
+  const sequenceDate = getDateInTimeZone(now, timeZone);
   const [sequence] = await database
     .insert(identifierSequences)
     .values({
@@ -210,10 +212,12 @@ export const createIdentityService = ({
   auth,
   database,
   now = () => new Date(),
+  timeZone,
 }: {
   auth: ConfiguredAuth;
   database: Database;
   now?: () => Date;
+  timeZone: string;
 }): IdentityService => {
   const createAccount: IdentityService["createAccount"] = async (input) => {
     const expectedRole = defaultRoleByIdentityType[input.identityType];
@@ -242,6 +246,7 @@ export const createIdentityService = ({
         masterRecordId,
         now: currentTime,
         prefix,
+        timeZone,
       });
       ({ identifier, reservationId } = reservation);
     } else {
@@ -338,7 +343,9 @@ export const createIdentityService = ({
     roleKey: RoleKey;
     userId: string;
   }): Promise<void> => {
-    await createIdentityService({ auth, database, now }).assignRole(input);
+    await createIdentityService({ auth, database, now, timeZone }).assignRole(
+      input
+    );
   };
 
   return {
@@ -824,7 +831,7 @@ export const createIdentityService = ({
         );
       }
       const prefix = generatedPrefixes[identityType];
-      const sequenceDate = getJakartaDate(now());
+      const sequenceDate = getDateInTimeZone(now(), timeZone);
       const [currentSequence] = await database
         .select({ nextValue: identifierSequences.nextValue })
         .from(identifierSequences)

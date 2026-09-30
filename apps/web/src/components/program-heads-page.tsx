@@ -1,4 +1,8 @@
 import type { ProgramHeadRecord } from "@siakad-itbkmmubar/api/identity";
+import {
+  getDatePartsInTimeZone,
+  parseLocalDateTime,
+} from "@siakad-itbkmmubar/api/time-zone";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
   Card,
@@ -17,6 +21,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { toast } from "sonner";
 
+import { ENV } from "@/env.public";
 import { orpc } from "@/utils/orpc";
 
 interface ProgramHeadPageProps {
@@ -25,29 +30,24 @@ interface ProgramHeadPageProps {
   title: string;
 }
 
+const dateFormatter = new Intl.DateTimeFormat("id-ID", {
+  dateStyle: "medium",
+  timeZone: ENV.VITE_BUSINESS_TIME_ZONE,
+});
+
 const formatDate = (value: Date): string =>
-  new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeZone: "Asia/Jakarta",
-  }).format(new Date(value));
+  dateFormatter.format(new Date(value));
 
 const todayInputValue = (): string => {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    day: "2-digit",
-    month: "2-digit",
-    timeZone: "Asia/Jakarta",
-    year: "numeric",
-  }).formatToParts(new Date());
-  const values = Object.fromEntries(
-    parts
-      .filter((part) => part.type !== "literal")
-      .map((part) => [part.type, part.value])
+  const { day, month, year } = getDatePartsInTimeZone(
+    new Date(),
+    ENV.VITE_BUSINESS_TIME_ZONE
   );
-  return `${values.year ?? "0000"}-${values.month ?? "00"}-${values.day ?? "00"}`;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 };
 
-const dateAtJakartaMidnight = (value: string): Date =>
-  new Date(`${value}T00:00:00+07:00`);
+const dateAtBusinessMidnight = (value: string): Date =>
+  parseLocalDateTime(value, ENV.VITE_BUSINESS_TIME_ZONE);
 
 const recordText = (row: Record<string, unknown>, key: string): string => {
   const value = row[key];
@@ -187,9 +187,9 @@ const ProgramHeadsPage = ({
       return;
     }
     assignProgramHead.mutate({
-      endsAt: endsAt ? dateAtJakartaMidnight(endsAt) : null,
+      endsAt: endsAt ? dateAtBusinessMidnight(endsAt) : null,
       prodiId,
-      startsAt: dateAtJakartaMidnight(startsAt),
+      startsAt: dateAtBusinessMidnight(startsAt),
       userId: dosenId,
     });
   };

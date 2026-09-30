@@ -31,6 +31,7 @@
   "globalEnv": [
     "BETTER_AUTH_SECRET",
     "BETTER_AUTH_URL",
+    "BUSINESS_TIME_ZONE",
     "CI",
     "CORS_ORIGIN",
     "NODE_ENV",
@@ -38,6 +39,7 @@
     "VERCEL_ENV",
     "VERCEL_PROJECT_PRODUCTION_URL",
     "VERCEL_URL",
+    "VITE_BUSINESS_TIME_ZONE",
     "VITE_SERVER_URL",
     "_VARLOCK_ENV_KEY"
   ],

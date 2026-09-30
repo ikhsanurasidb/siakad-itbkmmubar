@@ -13,14 +13,24 @@ describe("SIAKAD-06 scheduling rules", () => {
   test("uses inclusive local calendar days for the H-7 cutoff", () => {
     const classStart = new Date("2026-10-07T02:00:00.000Z");
     expect(
-      canChangeMeeting(classStart, new Date("2026-10-01T16:59:59.999Z"), {
-        leadDays: 7,
-      })
+      canChangeMeeting(
+        classStart,
+        new Date("2026-10-01T16:59:59.999Z"),
+        {
+          leadDays: 7,
+        },
+        "Asia/Jakarta"
+      )
     ).toBe(true);
     expect(
-      canChangeMeeting(classStart, new Date("2026-10-01T17:00:00.000Z"), {
-        leadDays: 7,
-      })
+      canChangeMeeting(
+        classStart,
+        new Date("2026-10-01T17:00:00.000Z"),
+        {
+          leadDays: 7,
+        },
+        "Asia/Jakarta"
+      )
     ).toBe(false);
   });
 
@@ -29,9 +39,29 @@ describe("SIAKAD-06 scheduling rules", () => {
       canChangeMeeting(
         new Date("2027-01-03T02:00:00.000Z"),
         new Date("2026-12-28T16:59:59.999Z"),
-        { leadDays: 7 }
+        { leadDays: 7 },
+        "Asia/Jakarta"
       )
     ).toBe(true);
+  });
+
+  test("distinguishes invalid dates from invalid timezones", () => {
+    expect(() =>
+      canChangeMeeting(
+        new Date("invalid"),
+        new Date("2026-12-28T16:59:59.999Z"),
+        { leadDays: 7 },
+        "Asia/Jakarta"
+      )
+    ).toThrow("Tanggal penjadwalan tidak valid.");
+    expect(() =>
+      canChangeMeeting(
+        new Date("2027-01-03T02:00:00.000Z"),
+        new Date("2026-12-28T16:59:59.999Z"),
+        { leadDays: 7 },
+        "Invalid/Zone"
+      )
+    ).toThrow("Zona waktu penjadwalan tidak valid.");
   });
 
   test("treats schedule ranges as half-open intervals", () => {

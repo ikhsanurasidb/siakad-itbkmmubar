@@ -1,4 +1,5 @@
 import type { RoleKey } from "@api/identity";
+import { getDatePartsInTimeZone } from "@api/time-zone";
 
 export const scheduleDraftStatuses = [
   "DRAFT",
@@ -55,52 +56,6 @@ interface LocalDateParts {
   year: number;
 }
 
-const formatters = new Map<string, Intl.DateTimeFormat>();
-
-const getDateFormatter = (timezone: string): Intl.DateTimeFormat => {
-  const existing = formatters.get(timezone);
-  if (existing) {
-    return existing;
-  }
-  let formatter: Intl.DateTimeFormat;
-  try {
-    formatter = new Intl.DateTimeFormat("en-CA", {
-      day: "2-digit",
-      month: "2-digit",
-      timeZone: timezone,
-      year: "numeric",
-    });
-  } catch {
-    throw new SchedulingDomainError(
-      "INVALID_TIMEZONE",
-      "Zona waktu penjadwalan tidak valid."
-    );
-  }
-  formatters.set(timezone, formatter);
-  return formatter;
-};
-
-const getLocalDateParts = (value: Date, timezone: string): LocalDateParts => {
-  if (Number.isNaN(value.getTime())) {
-    throw new SchedulingDomainError(
-      "INVALID_DATE",
-      "Tanggal penjadwalan tidak valid."
-    );
-  }
-  const parts = getDateFormatter(timezone).formatToParts(value);
-  const values = new Map(parts.map((part) => [part.type, part.value]));
-  const year = Number(values.get("year"));
-  const month = Number(values.get("month"));
-  const day = Number(values.get("day"));
-  if (![year, month, day].every(Number.isInteger)) {
-    throw new SchedulingDomainError(
-      "INVALID_DATE",
-      "Tanggal penjadwalan tidak valid."
-    );
-  }
-  return { day, month, year };
-};
-
 const toCalendarDay = ({ day, month, year }: LocalDateParts): number =>
   Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
 
@@ -112,7 +67,7 @@ export const canChangeMeeting = (
   classStartAt: Date,
   requestAt: Date,
   policy: { leadDays: number },
-  timezone = "Asia/Jakarta"
+  timezone: string
 ): boolean => {
   if (!Number.isInteger(policy.leadDays) || policy.leadDays < 1) {
     throw new SchedulingDomainError(
@@ -120,8 +75,28 @@ export const canChangeMeeting = (
       "Batas hari perubahan jadwal tidak valid."
     );
   }
-  const classDay = toCalendarDay(getLocalDateParts(classStartAt, timezone));
-  const requestDay = toCalendarDay(getLocalDateParts(requestAt, timezone));
+  if (
+    Number.isNaN(classStartAt.getTime()) ||
+    Number.isNaN(requestAt.getTime())
+  ) {
+    throw new SchedulingDomainError(
+      "INVALID_DATE",
+      "Tanggal penjadwalan tidak valid."
+    );
+  }
+  let classDateParts: LocalDateParts;
+  let requestDateParts: LocalDateParts;
+  try {
+    classDateParts = getDatePartsInTimeZone(classStartAt, timezone);
+    requestDateParts = getDatePartsInTimeZone(requestAt, timezone);
+  } catch {
+    throw new SchedulingDomainError(
+      "INVALID_TIMEZONE",
+      "Zona waktu penjadwalan tidak valid."
+    );
+  }
+  const classDay = toCalendarDay(classDateParts);
+  const requestDay = toCalendarDay(requestDateParts);
   return requestDay <= classDay - (policy.leadDays - 1);
 };
 

@@ -21,6 +21,7 @@ export const server = Cloudflare.Worker("server", {
   env: {
     BETTER_AUTH_SECRET: Config.Redacted("BETTER_AUTH_SECRET"),
     BETTER_AUTH_URL: Cloudflare.Worker.URL,
+    BUSINESS_TIME_ZONE: Config.String("BUSINESS_TIME_ZONE"),
     CORS_ORIGIN: Config.String("CORS_ORIGIN"),
     DB: db,
     DEPLOYMENT_VERSION: Config.String("DEPLOYMENT_VERSION"),
@@ -52,6 +53,7 @@ export default Alchemy.Stack(
       },
       domain: "siakad.itbkmmubar.ac.id",
       env: {
+        VITE_BUSINESS_TIME_ZONE: Config.String("BUSINESS_TIME_ZONE"),
         VITE_SERVER_URL: serverWorker.url.as<string>(),
       },
       rootDir: "../../apps/web",
