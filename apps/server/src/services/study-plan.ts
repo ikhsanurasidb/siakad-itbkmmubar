@@ -17,6 +17,7 @@ import type {
   StudyPlanRecord,
   StudyPlanStatus,
 } from "@api/study-plan";
+import { chunkByParameterBudget } from "@db/atomic-batch";
 import type { Database } from "@db/index";
 import { curricula, curriculumCourses } from "@db/schema/curriculum";
 import { identityAccounts, programHeads } from "@db/schema/identity";
@@ -43,6 +44,7 @@ import {
 } from "drizzle-orm";
 
 const GENERATION_CHUNK_SIZE = 25;
+const STUDY_PLAN_ITEM_PARAMETERS = 8;
 
 interface StudyPlanActor {
   actorRoles: readonly RoleKey[];
@@ -323,20 +325,25 @@ const processGenerationStudent = async ({
       );
     }
     if (items.length > 0) {
-      mutationStatements.push(
-        database.insert(studyPlanItems).values(
-          items.map((item) => ({
-            courseId: item.courseId,
-            credits: item.credits,
-            curriculumCourseId: item.curriculumCourseId,
-            id: createUuidV7(),
-            semester: item.semester,
-            sortOrder: item.sortOrder,
-            source: item.source,
-            studyPlanId: planId,
-          }))
-        )
-      );
+      const itemChunks = chunkByParameterBudget(items, {
+        parametersPerRow: STUDY_PLAN_ITEM_PARAMETERS,
+      });
+      for (const itemChunk of itemChunks) {
+        mutationStatements.push(
+          database.insert(studyPlanItems).values(
+            itemChunk.map((item) => ({
+              courseId: item.courseId,
+              credits: item.credits,
+              curriculumCourseId: item.curriculumCourseId,
+              id: createUuidV7(),
+              semester: item.semester,
+              sortOrder: item.sortOrder,
+              source: item.source,
+              studyPlanId: planId,
+            }))
+          )
+        );
+      }
     }
     mutationStatements.push(
       database.insert(studyPlanHistories).values({
