@@ -73,6 +73,7 @@ export interface StudentSemesterTrackerRecord {
     id: string;
     name: string;
     nim: string;
+    version: number;
   };
 }
 

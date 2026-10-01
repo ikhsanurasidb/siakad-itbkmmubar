@@ -1,34 +1,55 @@
-import { studentAcademicStatusLabels } from "@siakad-itbkmmubar/api/master-data";
+import {
+  studentAcademicStatusLabels,
+  studentAcademicStatuses,
+} from "@siakad-itbkmmubar/api/master-data";
+import type { StudentAcademicStatus } from "@siakad-itbkmmubar/api/master-data";
 import type { StudentSemesterTrackerRecord } from "@siakad-itbkmmubar/api/study-plan";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@siakad-itbkmmubar/ui/components/card";
+import { Check, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
+import { useState } from "react";
 
 interface StudentSemesterTrackerCardProps {
   isError: boolean;
   isPending: boolean;
   onRetry: () => void;
+  onStatusUpdate: (
+    studentId: string,
+    status: StudentAcademicStatus,
+    expectedVersion: number
+  ) => void;
   onUpdate: (studentId: string, semesterNumber: number) => void;
   periodSelected: boolean;
   rows: readonly StudentSemesterTrackerRecord[];
   updatingStudentId: string | null;
 }
 
+const studentAcademicStatusOptions = studentAcademicStatuses.map((status) => ({
+  label: studentAcademicStatusLabels[status],
+  value: status,
+}));
+const studentAcademicStatusSet = new Set(studentAcademicStatuses);
+
 const StudentSemesterTrackerCard = ({
   isError,
   isPending,
   onRetry,
+  onStatusUpdate,
   onUpdate,
   periodSelected,
   rows,
   updatingStudentId,
 }: StudentSemesterTrackerCardProps) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const canEdit = periodSelected && !isPending && !isError && rows.length > 0;
   let content: ReactNode;
   if (!periodSelected) {
     content = (
@@ -90,36 +111,83 @@ const StudentSemesterTrackerCard = ({
                 <td className="px-3 py-2">{row.student.name}</td>
                 <td className="px-3 py-2">{row.entryYear}</td>
                 <td className="px-3 py-2">
-                  <label
-                    className="sr-only"
-                    htmlFor={`semester-${row.student.id}`}
-                  >
-                    Semester berjalan {row.student.nim}
-                  </label>
-                  <select
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
-                    disabled={updatingStudentId === row.student.id}
-                    id={`semester-${row.student.id}`}
-                    onChange={(event) => {
-                      const semesterNumber = Number(event.target.value);
-                      if (Number.isInteger(semesterNumber)) {
-                        onUpdate(row.student.id, semesterNumber);
-                      }
-                    }}
-                    value={row.semesterNumber ?? ""}
-                  >
-                    <option value="">Belum ditentukan</option>
-                    {Array.from({ length: 8 }, (_, index) => index + 1).map(
-                      (semesterNumber) => (
-                        <option key={semesterNumber} value={semesterNumber}>
-                          Semester {semesterNumber}
-                        </option>
-                      )
-                    )}
-                  </select>
+                  {isEditing ? (
+                    <>
+                      <label
+                        className="sr-only"
+                        htmlFor={`semester-${row.student.id}`}
+                      >
+                        Semester berjalan {row.student.nim}
+                      </label>
+                      <select
+                        className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+                        disabled={updatingStudentId === row.student.id}
+                        id={`semester-${row.student.id}`}
+                        onChange={(event) => {
+                          const semesterNumber = Number(event.target.value);
+                          if (Number.isInteger(semesterNumber)) {
+                            onUpdate(row.student.id, semesterNumber);
+                          }
+                        }}
+                        value={row.semesterNumber ?? ""}
+                      >
+                        <option value="">Belum ditentukan</option>
+                        {Array.from({ length: 8 }, (_, index) => index + 1).map(
+                          (semesterNumber) => (
+                            <option key={semesterNumber} value={semesterNumber}>
+                              Semester {semesterNumber}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </>
+                  ) : (
+                    <span>
+                      {row.semesterNumber
+                        ? `Semester ${row.semesterNumber}`
+                        : "Belum ditentukan"}
+                    </span>
+                  )}
                 </td>
                 <td className="px-3 py-2">
-                  {studentAcademicStatusLabels[row.student.academicStatus]}
+                  {isEditing ? (
+                    <>
+                      <label
+                        className="sr-only"
+                        htmlFor={`academic-status-${row.student.id}`}
+                      >
+                        Status akademik {row.student.nim}
+                      </label>
+                      <select
+                        className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+                        disabled={updatingStudentId === row.student.id}
+                        id={`academic-status-${row.student.id}`}
+                        onChange={(event) => {
+                          const nextStatus = event.target.value;
+                          if (
+                            studentAcademicStatusSet.has(
+                              nextStatus as StudentAcademicStatus
+                            )
+                          ) {
+                            onStatusUpdate(
+                              row.student.id,
+                              nextStatus as StudentAcademicStatus,
+                              row.student.version
+                            );
+                          }
+                        }}
+                        value={row.student.academicStatus}
+                      >
+                        {studentAcademicStatusOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  ) : (
+                    studentAcademicStatusLabels[row.student.academicStatus]
+                  )}
                 </td>
                 <td className="px-3 py-2">
                   {row.source === "MANUAL" ? "Manual" : "Otomatis"}
@@ -137,10 +205,30 @@ const StudentSemesterTrackerCard = ({
       <CardHeader>
         <CardTitle>Tracker semester mahasiswa</CardTitle>
         <CardDescription>
-          Semester dihitung otomatis dari angkatan dan tahun akademik. Koreksi
-          manual akan menjadi acuan bersama untuk proses akademik pada periode
-          tersebut.
+          Semester dihitung otomatis dari angkatan dan tahun akademik. Pilih
+          Edit untuk mengoreksi semester secara manual; perubahan tersimpan
+          langsung sebagai acuan proses akademik pada periode tersebut.
         </CardDescription>
+        <CardAction>
+          <Button
+            disabled={!canEdit}
+            onClick={() => setIsEditing((editing) => !editing)}
+            type="button"
+            variant="outline"
+          >
+            {isEditing ? (
+              <>
+                <Check aria-hidden="true" />
+                Selesai
+              </>
+            ) : (
+              <>
+                <Pencil aria-hidden="true" />
+                Edit
+              </>
+            )}
+          </Button>
+        </CardAction>
       </CardHeader>
       <CardContent>{content}</CardContent>
     </Card>

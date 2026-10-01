@@ -1080,6 +1080,7 @@ export const createStudyPlanService = ({
           id: student.id,
           name: student.name,
           nim: student.nim,
+          version: student.version,
         },
       })) satisfies readonly StudentSemesterTrackerRecord[];
     };
@@ -1183,6 +1184,7 @@ export const createStudyPlanService = ({
           id: row.student.id,
           name: row.student.name,
           nim: row.student.nim,
+          version: row.student.version,
         },
       };
     };

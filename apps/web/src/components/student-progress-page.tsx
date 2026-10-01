@@ -1,4 +1,5 @@
 import { formatAcademicPeriodLabel } from "@siakad-itbkmmubar/api/master-data";
+import type { StudentAcademicStatus } from "@siakad-itbkmmubar/api/master-data";
 import { Button } from "@siakad-itbkmmubar/ui/components/button";
 import {
   Card,
@@ -73,6 +74,19 @@ const buildCohortOptions = (
         : [];
     });
 
+const getErrorMessage = (error: unknown): string => {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string" &&
+    error.message.trim()
+  ) {
+    return error.message;
+  }
+  return "Perubahan belum dapat disimpan. Muat ulang data lalu coba lagi.";
+};
+
 // eslint-disable-next-line complexity -- page coordinates reference data, filters, and tracker mutations.
 const StudentProgressPage = ({ basePath }: StudentProgressPageProps) => {
   const queryClient = useQueryClient();
@@ -120,10 +134,34 @@ const StudentProgressPage = ({ basePath }: StudentProgressPageProps) => {
       },
     })
   );
+  const updateStudentAcademicStatus = useMutation(
+    orpc.masterData.update.mutationOptions({
+      onError: (error) => toast.error(getErrorMessage(error)),
+      onSuccess: async () => {
+        toast.success("Status akademik mahasiswa berhasil diperbarui.");
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: orpc.masterData.list.key(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: orpc.studyPlan.listSemesterTrackers.key(),
+          }),
+        ]);
+      },
+    })
+  );
   const isReferenceLoading =
     periods.isPending || studyPrograms.isPending || cohorts.isPending;
   const isReferenceError =
     periods.isError || studyPrograms.isError || cohorts.isError;
+  const updatingSemesterStudentId = updateSemesterTracker.isPending
+    ? (updateSemesterTracker.variables?.studentId ?? null)
+    : null;
+  const updatingStatusStudentId = updateStudentAcademicStatus.isPending
+    ? (updateStudentAcademicStatus.variables?.id ?? null)
+    : null;
+  const updatingStudentId =
+    updatingSemesterStudentId ?? updatingStatusStudentId;
 
   if (isReferenceLoading || isReferenceError) {
     return (
@@ -231,6 +269,18 @@ const StudentProgressPage = ({ basePath }: StudentProgressPageProps) => {
         isError={semesterTrackers.isError}
         isPending={semesterTrackers.isPending}
         onRetry={() => semesterTrackers.refetch()}
+        onStatusUpdate={(
+          studentId: string,
+          status: StudentAcademicStatus,
+          expectedVersion: number
+        ) =>
+          updateStudentAcademicStatus.mutate({
+            data: { academicStatus: status },
+            entityType: "STUDENT",
+            expectedVersion,
+            id: studentId,
+          })
+        }
         onUpdate={(studentId, semesterNumber) =>
           updateSemesterTracker.mutate({
             academicPeriodId: selectedPeriodId,
@@ -240,11 +290,7 @@ const StudentProgressPage = ({ basePath }: StudentProgressPageProps) => {
         }
         periodSelected={Boolean(selectedPeriodId)}
         rows={semesterTrackers.data ?? []}
-        updatingStudentId={
-          updateSemesterTracker.isPending
-            ? (updateSemesterTracker.variables?.studentId ?? null)
-            : null
-        }
+        updatingStudentId={updatingStudentId}
       />
     </div>
   );
